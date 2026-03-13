@@ -43,8 +43,8 @@ def generate_sensor_data(device_id):
 def run_simulator():
     print(f"🚀 DePIN-Guard IoT Simulator Started...")
     print(f"📡 Sending data to: {BACKEND_URL}")
+    print(f"📟 Devices: {len(DEVICES)} active")
     print("Press Ctrl+C to stop.\n")
-
     try:
         while True:
             for device in DEVICES:
