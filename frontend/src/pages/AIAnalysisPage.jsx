@@ -3,20 +3,75 @@ import Layout from '../components/layout/Layout';
 import './AIAnalysisPage.css';
 
 const AIAnalysisPage = () => {
-  // 1. STATE: Keep the exact same structure
-  const [analysisResults, setAnalysisResults] = useState([]);
+  const [analysisResults, setAnalysisResults] = useState([
+    {
+      id: 1,
+      device: 'Sensor-01',
+      type: 'Temperature Anomaly',
+      severity: 'high',
+      confidence: 92,
+      detected: new Date().toLocaleString('en-GB', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      }).replace(/\//g, '-'),
+      description: 'Unusual temperature spike detected - 15°C above normal range',
+      recommendation: 'Immediate inspection recommended. Check cooling system.',
+      aiModel: 'Isolation Forest'
+    },
+    {
+      id: 2,
+      device: 'Sensor-03',
+      type: 'Pattern Recognition',
+      severity: 'medium',
+      confidence: 78,
+      detected: new Date(Date.now() - 5 * 60000).toLocaleString('en-GB', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      }).replace(/\//g, '-'),
+      description: 'Recurring pressure fluctuations every 30 minutes',
+      recommendation: 'Monitor for next 24 hours. May indicate valve issue.',
+      aiModel: 'LSTM Neural Network'
+    },
+    {
+      id: 3,
+      device: 'Sensor-02',
+      type: 'Predictive Alert',
+      severity: 'low',
+      confidence: 65,
+      detected: new Date(Date.now() - 10 * 60000).toLocaleString('en-GB', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      }).replace(/\//g, '-'),
+      description: 'Humidity levels trending upward gradually',
+      recommendation: 'No immediate action required. Continue monitoring.',
+      aiModel: 'Random Forest'
+    },
+  ]);
+
   const [aiStats, setAiStats] = useState({
-    totalAnalyses: 0,
-    anomaliesDetected: 0,
+    totalAnalyses: 15234,
+    anomaliesDetected: 342,
     accuracy: 94.2,
-    modelsActive: 1
+    modelsActive: 5
   });
 
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
   const [selectedModel, setSelectedModel] = useState('All Models');
-  const [loading, setLoading] = useState(false);
+  const [filteredResults, setFilteredResults] = useState(analysisResults);
 
-  // We keep this list for the Filter Dropdown to work
+  // AI Models and their detection types
   const aiModels = [
     'Isolation Forest',
     'LSTM Neural Network', 
@@ -25,78 +80,148 @@ const AIAnalysisPage = () => {
     'Autoencoder'
   ];
 
-  // 2. FETCHER: The Secure Replacement
-  const fetchRealData = async () => {
-    try {
-      // 2. Fetch with Secret Key
-      const response = await fetch('/api/ai-analysis', {
-        headers: {
-          // ✅ FIXED: Hardcoded to match Backend .env for immediate Demo success
-          'X-API-Key': 'Depin_Project_Secret_Key_999', 
-          'Content-Type': 'application/json'
-        }
-      });
+  const detectionTypes = [
+    'Temperature Anomaly',
+    'Pattern Recognition',
+    'Predictive Alert',
+    'Pressure Deviation',
+    'Humidity Warning',
+    'Vibration Alert',
+    'Network Anomaly'
+  ];
 
-      if (!response.ok) return;
-      
-      const data = await response.json();
+  const devices = ['Sensor-01', 'Sensor-02', 'Sensor-03', 'Sensor-04', 'Sensor-05'];
 
-      // Update Stats (Preserve the structure)
-      setAiStats(prev => ({
-        ...prev,
-        totalAnalyses: data.total_analyses,
-        anomaliesDetected: data.anomalies_found
-      }));
+  const severityLevels = ['low', 'medium', 'high'];
 
-      // Map Backend Data to the EXACT format your UI expects
-      const mappedResults = data.recent_results.map((res, index) => ({
-        id: index, // Backend doesn't send ID yet, so use index
-        device: res.device,
-        type: res.severity === 'high' ? 'Critical Anomaly' : 'Pattern Alert',
-        severity: res.severity || 'medium',
-        confidence: res.confidence,
-        detected: res.timestamp,
-        description: `Abnormal sensor behavior detected on ${res.device}. Value deviation observed.`, 
-        recommendation: res.recommendation, // The REAL recommendation from Python
-        aiModel: 'LSTM Neural Network' // We hardcode the model name for now
-      }));
-
-      setAnalysisResults(mappedResults);
-
-    } catch (error) {
-      console.error("AI Fetch Error:", error);
-    }
+  const recommendations = {
+    high: [
+      'Immediate inspection recommended. Check cooling system.',
+      'Critical alert - shutdown may be required.',
+      'Emergency maintenance needed within 2 hours.',
+      'Inspect hardware immediately for damage.'
+    ],
+    medium: [
+      'Monitor for next 24 hours. May indicate valve issue.',
+      'Schedule maintenance check within 48 hours.',
+      'Investigate sensor calibration.',
+      'Review system logs for patterns.'
+    ],
+    low: [
+      'No immediate action required. Continue monitoring.',
+      'Normal fluctuation - no concern.',
+      'Track trend over next week.',
+      'Update baseline parameters if consistent.'
+    ]
   };
 
-  // 3. EFFECT: Poll data
+  // Generate random analysis result
+  const generateAnalysis = () => {
+    const severity = severityLevels[Math.floor(Math.random() * severityLevels.length)];
+    const model = aiModels[Math.floor(Math.random() * aiModels.length)];
+    const device = devices[Math.floor(Math.random() * devices.length)];
+    const type = detectionTypes[Math.floor(Math.random() * detectionTypes.length)];
+    
+    let confidence;
+    if (severity === 'high') confidence = Math.floor(Math.random() * 20) + 80;
+    else if (severity === 'medium') confidence = Math.floor(Math.random() * 20) + 60;
+    else confidence = Math.floor(Math.random() * 20) + 50;
+
+    const descriptions = {
+      'Temperature Anomaly': `${device} showing ${Math.floor(Math.random() * 20) + 10}°C ${severity === 'high' ? 'spike' : 'variation'}`,
+      'Pattern Recognition': `Recurring ${type.toLowerCase()} pattern detected every ${Math.floor(Math.random() * 60) + 15} minutes`,
+      'Predictive Alert': `${type} levels trending ${severity === 'high' ? 'rapidly' : 'gradually'} ${Math.random() > 0.5 ? 'upward' : 'downward'}`,
+      'Pressure Deviation': `Pressure reading ${Math.random() * 20 + 5}% ${severity === 'high' ? 'above' : 'outside'} normal range`,
+      'Humidity Warning': `Humidity at ${Math.floor(Math.random() * 30) + 60}% - ${severity === 'high' ? 'critical' : 'elevated'} level`,
+      'Vibration Alert': `Abnormal vibration frequency detected at ${Math.floor(Math.random() * 100) + 50}Hz`,
+      'Network Anomaly': `Unusual ${severity === 'high' ? 'spike' : 'pattern'} in network traffic detected`
+    };
+
+    return {
+      id: Date.now() + Math.random(),
+      device,
+      type,
+      severity,
+      confidence,
+      detected: new Date().toLocaleString('en-GB', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      }).replace(/\//g, '-'),
+      description: descriptions[type] || `${type} detected on ${device}`,
+      recommendation: recommendations[severity][Math.floor(Math.random() * recommendations[severity].length)],
+      aiModel: model
+    };
+  };
+
+  // Add new analysis every 8 seconds
   useEffect(() => {
-    fetchRealData();
-    const interval = setInterval(fetchRealData, 3000); // Check every 3s
-    return () => clearInterval(interval);
+    const analysisInterval = setInterval(() => {
+      const newAnalysis = generateAnalysis();
+      
+      setAnalysisResults(prev => {
+        const updated = [newAnalysis, ...prev].slice(0, 15); // Keep last 15
+        return updated;
+      });
+
+      // Update stats
+      setAiStats(prev => ({
+        totalAnalyses: prev.totalAnalyses + 1,
+        anomaliesDetected: newAnalysis.severity === 'high' ? prev.anomaliesDetected + 1 : prev.anomaliesDetected,
+        accuracy: Math.min(99.9, Math.max(90, prev.accuracy + (Math.random() * 0.4 - 0.2))),
+        modelsActive: prev.modelsActive
+      }));
+    }, 8000); // New analysis every 8 seconds
+
+    return () => clearInterval(analysisInterval);
   }, []);
 
-  // 4. HANDLERS
-  
-  // Filter logic
-  const filteredResults = selectedModel === 'All Models' 
-    ? analysisResults 
-    : analysisResults.filter(a => a.aiModel === selectedModel);
+  // Update stats periodically
+  useEffect(() => {
+    const statsInterval = setInterval(() => {
+      setAiStats(prev => ({
+        ...prev,
+        accuracy: Math.min(99.9, Math.max(90, prev.accuracy + (Math.random() * 0.4 - 0.2)))
+      }));
+    }, 4000);
+
+    return () => clearInterval(statsInterval);
+  }, []);
+
+  // Filter results when model changes
+  useEffect(() => {
+    if (selectedModel === 'All Models') {
+      setFilteredResults(analysisResults);
+    } else {
+      setFilteredResults(analysisResults.filter(a => a.aiModel === selectedModel));
+    }
+  }, [selectedModel, analysisResults]);
 
   const handleModelChange = (e) => {
     setSelectedModel(e.target.value);
   };
 
-  // "Run Analysis" now forces a refresh from Backend
   const handleRunAnalysis = () => {
-    setLoading(true);
-    fetchRealData();
-    setTimeout(() => setLoading(false), 500); // Small fake delay for UI feedback
+    // Generate 3 new analyses immediately
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        const newAnalysis = generateAnalysis();
+        setAnalysisResults(prev => [newAnalysis, ...prev].slice(0, 15));
+        setAiStats(prev => ({
+          totalAnalyses: prev.totalAnalyses + 1,
+          anomaliesDetected: newAnalysis.severity === 'high' ? prev.anomaliesDetected + 1 : prev.anomaliesDetected,
+          accuracy: Math.min(99.9, Math.max(90, prev.accuracy + (Math.random() * 0.4 - 0.2))),
+          modelsActive: prev.modelsActive
+        }));
+      }, i * 500);
+    }
   };
 
   const getSeverityColor = (severity) => {
-    // Safety check just in case backend sends nothing
-    const s = severity ? severity.toLowerCase() : 'low';
-    switch(s) {
+    switch(severity) {
       case 'high': return { bg: '#ef444420', text: '#ef4444' };
       case 'medium': return { bg: '#f59e0b20', text: '#f59e0b' };
       case 'low': return { bg: '#22c55e20', text: '#22c55e' };
@@ -112,7 +237,6 @@ const AIAnalysisPage = () => {
     setSelectedAnalysis(null);
   };
 
-  // 5. RENDER
   return (
     <Layout>
       <div className="ai-analysis-container">
@@ -126,7 +250,7 @@ const AIAnalysisPage = () => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
             </svg>
-            {loading ? 'Analyzing...' : 'Run Analysis'}
+            Run Analysis
           </button>
         </div>
 
@@ -194,13 +318,6 @@ const AIAnalysisPage = () => {
           </div>
 
           <div className="analysis-list">
-            {/* Show Empty State if no data */}
-            {filteredResults.length === 0 && (
-                <div style={{padding:'30px', textAlign:'center', color:'#555'}}>
-                    Waiting for AI processing...
-                </div>
-            )}
-
             {filteredResults.map((analysis) => (
               <div key={analysis.id} className="analysis-card">
                 <div className="analysis-header">

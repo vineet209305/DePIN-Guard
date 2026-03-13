@@ -1,20 +1,15 @@
-/* ================================
-   HISTORY PAGE – FULL RESPONSIVE
-================================ */
+/* History Page - Fully Responsive */
 
 .history-container {
-  width: 100%;
+  max-width: 100%;
 }
 
-/* ================================
-   FILTERS SECTION
-================================ */
-
+/* Filters Section */
 .filters-section {
   display: flex;
   gap: 1rem;
-  flex-wrap: wrap;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
 }
 
 .search-box {
@@ -31,6 +26,7 @@
   width: 20px;
   height: 20px;
   color: var(--text-muted);
+  pointer-events: none;
 }
 
 .search-input {
@@ -41,7 +37,8 @@
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: 0.95rem;
-  transition: 0.2s ease;
+  font-family: inherit;
+  transition: all 0.2s;
 }
 
 .search-input::placeholder {
@@ -51,7 +48,7 @@
 .search-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(14,165,233,0.1);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
 }
 
 .filter-buttons {
@@ -67,8 +64,10 @@
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
-  transition: 0.2s ease;
+  transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .filter-btn:hover {
@@ -77,9 +76,9 @@
 }
 
 .filter-btn.active {
-  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+  background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
   border-color: transparent;
-  color: #fff;
+  color: white;
 }
 
 .export-button {
@@ -87,26 +86,30 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   border: none;
   border-radius: var(--radius-md);
-  color: #fff;
+  color: white;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: 0.3s ease;
+  transition: all 0.3s;
+  white-space: nowrap;
 }
 
 .export-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(139,92,246,0.3);
+  box-shadow: 0 10px 20px rgba(139, 92, 246, 0.3);
 }
 
-/* ================================
-   TABLE
-================================ */
+.export-button svg {
+  width: 18px;
+  height: 18px;
+}
 
+/* Table Container */
 .table-container {
-  background: rgba(17,24,39,0.85);
+  background: rgba(17, 24, 39, 0.8);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -124,21 +127,18 @@
 
 .data-table thead {
   background: var(--bg-hover);
+  border-bottom: 1px solid var(--border);
 }
 
 .data-table th {
   padding: 1rem 1.5rem;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  color: var(--text-secondary);
   text-align: left;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   white-space: nowrap;
-}
-
-.data-table td {
-  padding: 1.25rem 1.5rem;
-  font-size: 0.95rem;
-  color: var(--text-primary);
 }
 
 .data-table tbody tr {
@@ -150,9 +150,15 @@
   background: var(--bg-hover);
 }
 
-/* ================================
-   CELLS
-================================ */
+.data-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.data-table td {
+  padding: 1.25rem 1.5rem;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
 
 .device-cell {
   display: flex;
@@ -163,191 +169,302 @@
 .device-icon-small {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
+  background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .device-icon-small svg {
   width: 18px;
   height: 18px;
-  color: #fff;
+  color: white;
 }
 
 .hash-code {
-  font-family: monospace;
-  background: rgba(14,165,233,0.1);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875rem;
+  background: rgba(14, 165, 233, 0.1);
   padding: 0.375rem 0.75rem;
   border-radius: var(--radius-sm);
   color: var(--primary);
-  font-size: 0.85rem;
 }
 
 .value-badge {
-  background: rgba(139,92,246,0.15);
-  color: var(--secondary);
+  display: inline-block;
   padding: 0.375rem 0.75rem;
+  background: rgba(139, 92, 246, 0.1);
   border-radius: var(--radius-sm);
+  color: var(--secondary);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
 }
 
 .status-badge-table {
+  display: inline-block;
   padding: 0.375rem 0.875rem;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 600;
+  text-transform: capitalize;
 }
 
 .action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
   background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: 0.2s ease;
+  transition: all 0.2s;
 }
 
 .action-button:hover {
   border-color: var(--primary);
-  background: rgba(14,165,233,0.1);
   color: var(--primary);
+  background: rgba(14, 165, 233, 0.1);
 }
 
-/* ================================
-   NO DATA
-================================ */
+.action-button svg {
+  width: 18px;
+  height: 18px;
+}
 
+/* No Data State */
 .no-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 4rem 2rem;
-  text-align: center;
   color: var(--text-muted);
 }
 
-/* ================================
-   PAGINATION
-================================ */
+.no-data svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
 
+.no-data p {
+  font-size: 1rem;
+}
+
+/* Pagination */
 .pagination {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid var(--border);
   gap: 1rem;
   flex-wrap: wrap;
-  border-top: 1px solid var(--border);
 }
 
 .pagination-button {
-  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 0.8125rem;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .pagination-button:hover:not(:disabled) {
   border-color: var(--primary);
   color: var(--primary);
+  background: rgba(14, 165, 233, 0.05);
+}
+
+.pagination-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-button svg {
+  width: 14px;
+  height: 14px;
 }
 
 .page-numbers {
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
 }
 
 .page-number {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
+  min-width: 32px;
+  height: 32px;
+  padding: 0 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--bg-card);
   border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-family: inherit;
+  font-size: 0.8125rem;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.page-number:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(14, 165, 233, 0.05);
 }
 
 .page-number.active {
-  background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
-  color: #fff;
+  background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 100%);
   border-color: transparent;
+  color: white;
+  font-weight: 600;
 }
 
-/* ================================
-   MOBILE CARD TABLE
-================================ */
+.page-dots {
+  color: var(--text-muted);
+  padding: 0 0.25rem;
+  font-size: 0.8125rem;
+}
 
+/* Responsive Design */
+
+/* Mobile - Up to 640px */
 @media (max-width: 640px) {
-  .filters-section {
+  .page-header {
     flex-direction: column;
+    align-items: stretch;
   }
-
+  
   .export-button {
     width: 100%;
     justify-content: center;
   }
-
+  
+  .filters-section {
+    flex-direction: column;
+  }
+  
+  .search-box {
+    min-width: 100%;
+  }
+  
+  .filter-buttons {
+    width: 100%;
+  }
+  
+  .filter-btn {
+    flex: 1;
+    text-align: center;
+  }
+  
+  /* Mobile Table - Card Layout */
   .data-table thead {
     display: none;
   }
-
+  
   .data-table tbody {
     display: grid;
     gap: 1rem;
   }
-
+  
   .data-table tbody tr {
     display: grid;
+    grid-template-columns: 1fr;
     gap: 0.75rem;
     padding: 1.25rem;
-    border-radius: var(--radius-md);
     background: var(--bg-hover);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
   }
-
+  
+  .data-table tbody tr:hover {
+    border-color: var(--primary);
+  }
+  
   .data-table td {
+    padding: 0;
     display: grid;
     grid-template-columns: 120px 1fr;
-    padding: 0;
+    gap: 1rem;
+    align-items: center;
   }
-
+  
   .data-table td::before {
     content: attr(data-label);
     font-weight: 600;
     color: var(--text-secondary);
-    font-size: 0.75rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
   }
-
+  
   .pagination {
     flex-direction: column;
+    padding: 1rem;
+  }
+  
+  .pagination-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .page-numbers {
+    width: 100%;
+    justify-content: center;
   }
 }
 
-/* ================================
-   TABLET & DESKTOP
-================================ */
-
-@media (min-width: 640px) {
+/* Tablet - 640px to 1024px */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
   .data-table {
     min-width: 900px;
   }
 }
 
+/* Desktop - 1024px and above */
 @media (min-width: 1024px) {
+  .filters-section {
+    align-items: center;
+  }
+  
   .search-box {
     max-width: 400px;
   }
+  
+  .table-container {
+    margin-bottom: 2rem;
+  }
 }
 
+/* Large Desktop - 1280px and above */
 @media (min-width: 1280px) {
   .data-table th,
   .data-table td {
     padding: 1.5rem 2rem;
   }
-
+  
   .pagination {
     padding: 2rem;
   }

@@ -1,48 +1,86 @@
 /* =====================================
-   SETTINGS PAGE – FULL RESPONSIVE
+   1. CORE VARIABLES & RESET
 ===================================== */
+:root {
+  /* Colors */
+  --primary: #0ea5e9;
+  --secondary: #8b5cf6;
+  --success: #22c55e;
+  --danger: #ef4444;
+  
+  --bg-dark: #111827;
+  --bg-card: rgba(17, 24, 39, 0.85);
+  --bg-hover: rgba(31, 41, 55, 0.5);
+  
+  --border: rgba(255, 255, 255, 0.1);
+  --border-hover: rgba(255, 255, 255, 0.2);
+  
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
 
+  /* Spacing */
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* =====================================
+   2. SETTINGS CONTAINER
+===================================== */
 .settings-container {
+  width: 100%;
+  /* OPTIMIZED: Increased to 1600px to prevent "half-screen" cut off on laptops */
+  max-width: 1600px; 
+  margin: 0 auto;
+  padding: 1.5rem;
+  overflow-x: hidden;
+}
+
+/* =====================================
+   3. SETTINGS GRID (Responsive Logic)
+===================================== */
+.settings-grid {
+  display: grid;
+  /* Default: 1 Column (Mobile First) */
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: 3rem;
   width: 100%;
 }
 
 /* =====================================
-   SETTINGS GRID
+   4. SETTINGS CARD
 ===================================== */
-
-.settings-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2rem;
-  margin-bottom: 3rem;
-}
-
-/* =====================================
-   SETTINGS CARD
-===================================== */
-
 .settings-card {
-  background: rgba(17, 24, 39, 0.85);
+  background: var(--bg-card);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 2rem;
-  transition: 0.3s ease;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Ensures cards are equal height */
 }
 
 .settings-card:hover {
   border-color: var(--primary);
   box-shadow: 0 10px 20px rgba(14,165,233,0.1);
+  transform: translateY(-2px);
 }
 
 /* Card Header */
-
 .card-header {
   display: flex;
   gap: 1rem;
   padding-bottom: 1.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   border-bottom: 1px solid var(--border);
+  align-items: flex-start;
 }
 
 .card-icon {
@@ -54,6 +92,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
 .card-icon svg {
@@ -66,17 +105,19 @@
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
 }
 
 .card-subtitle {
   font-size: 0.875rem;
   color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* =====================================
-   FORM ELEMENTS
+   5. FORM ELEMENTS
 ===================================== */
-
 .form-group {
   margin-bottom: 1.5rem;
 }
@@ -96,13 +137,13 @@
 .form-input,
 .form-select {
   width: 100%;
-  padding: 0.875rem 1rem;
-  background: var(--bg-hover);
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: 0.95rem;
-  transition: 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .form-input::placeholder {
@@ -113,26 +154,31 @@
 .form-select:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(14,165,233,0.1);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.15);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .form-select {
   cursor: pointer;
+  appearance: none; 
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1em;
 }
 
 .form-select:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* =====================================
-   TOGGLES
+   6. TOGGLES & SWITCHES
 ===================================== */
-
 .toggle-group {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
@@ -142,15 +188,15 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem;
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   transition: 0.2s ease;
 }
 
 .toggle-item:hover {
-  border-color: var(--primary);
-  background: rgba(14,165,233,0.05);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border);
 }
 
 .toggle-info {
@@ -161,19 +207,20 @@
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 0.25rem;
+  display: block;
 }
 
 .toggle-description {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
+  line-height: 1.4;
 }
 
-/* Toggle Switch */
-
+/* Custom Toggle Switch */
 .toggle-switch {
   position: relative;
-  width: 52px;
-  height: 28px;
+  width: 50px;
+  height: 26px;
   flex-shrink: 0;
 }
 
@@ -185,23 +232,23 @@
 
 .toggle-slider {
   position: absolute;
-  inset: 0;
-  background: var(--border-hover);
-  border-radius: 14px;
-  transition: 0.3s;
   cursor: pointer;
+  inset: 0;
+  background-color: #374151; /* Gray when off */
+  border-radius: 34px;
+  transition: .4s;
 }
 
 .toggle-slider::before {
-  content: "";
   position: absolute;
-  width: 20px;
+  content: "";
   height: 20px;
-  left: 4px;
-  bottom: 4px;
-  background: #fff;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
   border-radius: 50%;
-  transition: 0.3s;
+  transition: .4s;
 }
 
 .toggle-switch input:checked + .toggle-slider {
@@ -213,12 +260,12 @@
 }
 
 /* =====================================
-   SAVE BUTTON
+   7. SAVE BUTTON
 ===================================== */
-
 .save-button {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
   background: linear-gradient(135deg, #22c55e, #16a34a);
@@ -228,17 +275,18 @@
   font-weight: 600;
   cursor: pointer;
   transition: 0.3s ease;
-  white-space: nowrap;
+  margin-top: auto; 
 }
 
 .save-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(34,197,94,0.3);
+  box-shadow: 0 8px 16px rgba(34,197,94,0.3);
 }
 
 .save-button:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
+  filter: grayscale(1);
 }
 
 .save-button svg {
@@ -246,42 +294,36 @@
   height: 18px;
 }
 
-.save-button.saving {
-  background: var(--border-hover);
-}
-
-/* Spinner */
-
 .spinner {
   animation: spin 1s linear infinite;
 }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { 100% { transform: rotate(360deg); } }
 
 /* =====================================
-   DANGER ZONE
+   8. DANGER ZONE
 ===================================== */
-
 .danger-zone {
   margin-top: 2rem;
   padding: 2rem;
-  background: rgba(239,68,68,0.05);
-  border: 1px solid rgba(239,68,68,0.2);
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
 }
 
 .danger-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #ef4444;
+  color: var(--danger);
+  margin: 0 0 0.5rem 0;
 }
 
 .danger-subtitle {
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
   margin-bottom: 1.5rem;
+  line-height: 1.5;
 }
 
 .danger-actions {
@@ -294,19 +336,20 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.875rem 1.5rem;
-  border: 2px solid #ef4444;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--danger);
   border-radius: var(--radius-md);
   background: transparent;
-  color: #ef4444;
+  color: var(--danger);
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s ease;
 }
 
 .danger-button:hover {
-  background: #ef4444;
+  background: var(--danger);
   color: #fff;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 .danger-button svg {
@@ -315,46 +358,73 @@
 }
 
 /* =====================================
-   RESPONSIVE
+   9. RESPONSIVE BREAKPOINTS (THE FIX)
 ===================================== */
 
+
+
+/* LAPTOP / DESKTOP (> 1024px) 
+   Switches to 2 columns ONLY if screen is wide enough.
+*/
+@media (min-width: 1024px) {
+  .settings-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+  }
+}
+
+/* TABLET / SPLIT SCREEN LAPTOP (641px - 1023px)
+   Keeps 1 column layout to avoid squashing content 
+   when window is half-width on laptop.
+*/
+@media (max-width: 1023px) {
+  .settings-grid {
+    grid-template-columns: 1fr; /* Single Column */
+  }
+  
+  .settings-container {
+    padding: 1rem;
+  }
+}
+
+/* MOBILE PHONES (< 640px)
+   Optimized for touch and small width.
+*/
 @media (max-width: 640px) {
   .settings-card {
-    padding: 1.5rem;
+    padding: 1.25rem;
   }
 
   .card-header {
     flex-direction: column;
-  }
-
-  .toggle-item {
-    flex-direction: column;
     align-items: flex-start;
+    gap: 1rem;
   }
 
+  /* Stack Toggle Elements for better readability */
+  .toggle-item {
+    flex-direction: row; 
+    align-items: center;
+    padding: 0.75rem;
+  }
+  
   .toggle-switch {
-    align-self: flex-end;
+    margin-left: auto;
   }
 
-  .save-button {
+  /* Full width buttons */
+  .save-button, 
+  .danger-button {
     width: 100%;
     justify-content: center;
+    padding: 0.875rem;
   }
 
   .danger-zone {
     padding: 1.5rem;
   }
-}
-
-@media (min-width: 1024px) {
-  .settings-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1280px) {
-  .settings-card,
-  .danger-zone {
-    padding: 2.5rem;
+  
+  .danger-actions {
+    flex-direction: column;
   }
 }
