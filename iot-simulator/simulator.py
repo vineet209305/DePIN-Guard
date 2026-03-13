@@ -2,6 +2,7 @@ import requests
 import time
 import random
 import json
+import csv
 from datetime import datetime
 
 # --- CONFIGURATION ---
@@ -78,5 +79,54 @@ def run_simulator():
     except KeyboardInterrupt:
         print("\n🛑 Simulator Stopped.")
 
+
+# =============================================
+# ✅ WEEK 5 - TASK 2: Training Data Generator
+#    Mohit ke liye 10,000 rows of NORMAL data
+# =============================================
+def generate_training_data(num_rows=10000):
+    """
+    Generates 10,000 rows of NORMAL sensor data for Mohit's AI training.
+    Sirf normal data — koi anomaly nahi.
+    Output: normal_training_data.csv
+    """
+    filename = "normal_training_data.csv"
+    fieldnames = ["timestamp", "device_id", "temperature", "vibration", "power_usage"]
+
+    print(f"⏳ Generating {num_rows} rows of normal training data...")
+
+    with open(filename, "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for i in range(num_rows):
+            device = random.choice(DEVICES)
+            row = {
+                "timestamp": datetime.now().isoformat(),
+                # NORMAL ranges only — no anomalies
+                "device_id":    device,
+                "temperature":  round(random.uniform(20.0, 60.0), 2),
+                "vibration":    round(random.uniform(0.1, 2.0), 2),
+                "power_usage":  round(random.uniform(10.0, 50.0), 2),
+            }
+            writer.writerow(row)
+
+            # Progress print every 1000 rows
+            if (i + 1) % 1000 == 0:
+                print(f"  ✔ {i + 1}/{num_rows} rows written...")
+
+    print(f"\n✅ Done! File saved: '{filename}'")
+    print(f"📦 Send this file to Mohit (ya git push kar do)\n")
+
+
 if __name__ == "__main__":
-    run_simulator()
+    import sys
+
+    # Run karne ke 2 tarike:
+    #   python simulator.py          → Live simulator chalega (backend ko data bhejega)
+    #   python simulator.py generate → Training data CSV banayega (Mohit ke liye)
+
+    if len(sys.argv) > 1 and sys.argv[1] == "generate":
+        generate_training_data(10000)
+    else:
+        run_simulator()
