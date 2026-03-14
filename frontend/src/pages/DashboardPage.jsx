@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
+import { authenticatedFetch } from '../utils/api';
 import './DashboardPage.css';
 
 const DashboardPage = () => {
@@ -48,9 +49,26 @@ const DashboardPage = () => {
     return () => clearInterval(statsInterval);
   }, []);
 
+  // ✅ WEEK 6: Backend se live data fetch karna (token ke saath)
+  const fetchLiveData = async () => {
+    try {
+      const response = await authenticatedFetch('http://localhost:8000/api/live-data');
+      if (response) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          setRecentData(data);
+        }
+      }
+    } catch (err) {
+      // Backend nahi chala to hardcoded data rahega — no crash
+      console.log('Backend not available, using demo data.');
+    }
+  };
+
   const handleRefresh = () => {
     setChartData(generateChartData(timePeriod));
     setStats(prev => ({ ...prev, totalData: prev.totalData + 1 }));
+    fetchLiveData(); // ✅ Refresh pe backend se bhi data aayega
   };
 
   const getStatusColor = (status) => {
@@ -125,7 +143,7 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* 3. Live Sensor Feeds (NOW AT THE TOP) */}
+        {/* 3. Live Sensor Feeds */}
         <div className="data-section">
           <div className="section-header">
             <h2 className="section-title">Live Sensor Feeds</h2>
@@ -150,7 +168,7 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* 4. Bar Chart (NOW AT THE BOTTOM) */}
+        {/* 4. Bar Chart */}
         <div className="chart-section">
           <div className="section-header">
             <h2 className="section-title">Device Activity Analytics</h2>
@@ -168,16 +186,13 @@ const DashboardPage = () => {
                   <stop offset="100%" stopColor="#0ea5e9" />
                 </linearGradient>
               </defs>
-              {/* Y-Axis Labels */}
               {[0, 25, 50, 75, 100].map((tick) => (
                 <g key={tick}>
                   <line x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT - (tick/100)*CHART_HEIGHT} x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT - (tick/100)*CHART_HEIGHT} stroke="#f1f5f9" />
                   <text x={MARGIN.left - 10} y={MARGIN.top + CHART_HEIGHT - (tick/100)*CHART_HEIGHT + 4} fontSize="11" textAnchor="end" fill="#94a3b8">{tick}</text>
                 </g>
               ))}
-              {/* X-Axis Line */}
               <line x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT} x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT} stroke="#cbd5e1" strokeWidth="2" />
-              {/* Bars */}
               {chartData.map((data, i) => {
                 const spacing = CHART_WIDTH / chartData.length;
                 const barWidth = spacing * 0.7;
