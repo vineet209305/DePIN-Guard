@@ -17,6 +17,7 @@ except ImportError:
     print("Fabric Manager not found. Blockchain integration disabled.")
 
 app = FastAPI()
+app.include_router(stream_router)
 
 # Load the secret .env file
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -249,6 +250,7 @@ def process_data(data: SensorData):
 # 🔐 JWT TOKEN VERIFICATION (Week 6)
 # ==========================================
 from fastapi import Header
+from routes.stream import broadcast_data, router as stream_router
 import jwt
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "my_super_secret_key")
@@ -265,4 +267,5 @@ def verify_token(authorization: str = Header(None)):
 
 @app.post("/submit-data")
 async def submit_data(data: dict, user = Depends(verify_token)):
+    await broadcast_data(data)
     return {"status": "Data accepted", "user": user["user"]}
