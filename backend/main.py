@@ -245,3 +245,24 @@ def process_data(data: SensorData):
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+# ==========================================
+# 🔐 JWT TOKEN VERIFICATION (Week 6)
+# ==========================================
+from fastapi import Header
+import jwt
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "my_super_secret_key")
+
+def verify_token(authorization: str = Header(None)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing Token")
+    try:
+        token = authorization.split(" ")[1]
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return payload
+    except:
+        raise HTTPException(status_code=401, detail="Invalid Token")
+
+@app.post("/submit-data")
+async def submit_data(data: dict, user = Depends(verify_token)):
+    return {"status": "Data accepted", "user": user["user"]}
