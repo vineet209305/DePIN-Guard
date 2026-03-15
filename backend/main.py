@@ -1,11 +1,10 @@
-from fastapi import FastAPI, HTTPException, Security, status, Depends
+from fastapi import FastAPI, HTTPException, Security, status, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
-import requests
-import os
-import hashlib
-import json
+from routes.stream import broadcast_data, router as stream_router
+import jwt, os, hashlib, json
+import requests as http_requests
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -122,7 +121,7 @@ def get_history():
 # Note: We kept process_data OPEN for the simulator to work easily. 
 # If you want to secure it, add dependencies=[Depends(verify_api_key)] here too.
 @app.post("/api/process_data") 
-def process_data(data: SensorData):
+async def process_data(data: SensorData):
     try:
         # A. AI ANALYSIS & HYBRID CHECK
         is_anomaly = False
@@ -130,7 +129,7 @@ def process_data(data: SensorData):
         
         try:
             # 1. Ask the AI Model
-            response = requests.post(AI_SERVICE_URL, json=data.dict(), timeout=2)
+            response = http_requests.post(AI_SERVICE_URL, json=data.dict(), timeout=2)
             ai_result = response.json()
             ai_says_anomaly = ai_result.get("anomaly", False)
             
@@ -154,6 +153,14 @@ def process_data(data: SensorData):
                 recommendation = "CRITICAL: Overheating (AI Offline)"
             else:
                 is_anomaly = False
+        await broadcast_data({
+            "device_id": data.device_id,
+            "temperature": data.temperature,
+            "vibration": data.vibration,
+            "power_usage": data.power_usage,
+            "is_anomaly": is_anomaly,
+            "timestamp": datetime.now().isoformat()
+        })
 
         system_state["dashboard"]["total_scans"] += 1
         system_state["dashboard"]["active_devices"].add(data.device_id)
@@ -249,9 +256,6 @@ def process_data(data: SensorData):
 # ==========================================
 # 🔐 JWT TOKEN VERIFICATION (Week 6)
 # ==========================================
-from fastapi import Header
-from routes.stream import broadcast_data, router as stream_router
-import jwt
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "my_super_secret_key")
 
