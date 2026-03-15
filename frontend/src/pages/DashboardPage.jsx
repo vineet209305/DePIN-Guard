@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import LiveChart from '../components/LiveChart';
 import Layout from '../components/layout/Layout';
 import { authenticatedFetch } from '../utils/api';
 import './DashboardPage.css';
@@ -49,7 +50,6 @@ const DashboardPage = () => {
     return () => clearInterval(statsInterval);
   }, []);
 
-  // ✅ WEEK 6: Backend se live data fetch karna (token ke saath)
   const fetchLiveData = async () => {
     try {
       const response = await authenticatedFetch('http://localhost:8000/api/live-data');
@@ -60,7 +60,6 @@ const DashboardPage = () => {
         }
       }
     } catch (err) {
-      // Backend nahi chala to hardcoded data rahega — no crash
       console.log('Backend not available, using demo data.');
     }
   };
@@ -68,7 +67,7 @@ const DashboardPage = () => {
   const handleRefresh = () => {
     setChartData(generateChartData(timePeriod));
     setStats(prev => ({ ...prev, totalData: prev.totalData + 1 }));
-    fetchLiveData(); // ✅ Refresh pe backend se bhi data aayega
+    fetchLiveData();
   };
 
   const getStatusColor = (status) => {
@@ -168,6 +167,9 @@ const DashboardPage = () => {
           </div>
         </div>
 
+        {/* ✅ WEEK 8: Live WebSocket Stream Table */}
+        <LiveChart />
+
         {/* 4. Bar Chart */}
         <div className="chart-section">
           <div className="section-header">
@@ -209,6 +211,7 @@ const DashboardPage = () => {
             </svg>
           </div>
         </div>
+
       </div>
     </Layout>
   );
