@@ -36,7 +36,7 @@ def predict():
         pressure = data.get("pressure", data.get("power_usage"))
 
         if pressure is None:
-            return jsonify({"error": "Missing pressure field"}), 400
+            return jsonify({"error": "Missing pressure/power_usage field"}), 400
 
         input_df = pd.DataFrame(
             [[temperature, vibration, pressure]],
