@@ -7,6 +7,8 @@ import jwt, os, hashlib, json
 import requests as http_requests
 from datetime import datetime
 from dotenv import load_dotenv
+from apscheduler.schedulers.background import BackgroundScheduler
+from contextlib import asynccontextmanager
 
 try:
     from fabric_manager import fabric_client
@@ -15,7 +17,22 @@ except ImportError:
     BLOCKCHAIN_ACTIVE = False
     print("Fabric Manager not found. Blockchain integration disabled.")
 
-app = FastAPI()
+
+def run_gnn_analysis():
+    # Week 11 replaces this stub with a real GNN call
+    print("[SCHEDULER] GNN analysis triggered — scanning for fraud patterns...")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(run_gnn_analysis, 'interval', minutes=5)
+    scheduler.start()
+    print("[SCHEDULER] Started — GNN trigger every 5 minutes")
+    yield
+    scheduler.shutdown()
+    print("[SCHEDULER] Stopped cleanly")
+
+app = FastAPI(lifespan=lifespan)
 app.include_router(stream_router)
 
 # Load the secret .env file
@@ -117,6 +134,17 @@ def get_ai_analysis():
 @app.get("/api/history", dependencies=[Depends(verify_api_key)])
 def get_history():
     return system_state["history"]
+
+@app.get("/api/history/all", dependencies=[Depends(verify_api_key)])
+def get_all_history():
+    """
+    Stable history endpoint used by Mohit's graph processor.
+    Schema: device, status, temp, vib, pwr, timestamp
+    """
+    return {
+        "history": system_state["history"],
+        "count":   len(system_state["history"])
+    }
 
 # Note: We kept process_data OPEN for the simulator to work easily. 
 # If you want to secure it, add dependencies=[Depends(verify_api_key)] here too.
