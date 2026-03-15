@@ -1,10 +1,15 @@
+# auth-service/main.py — Week 8 bcrypt upgrade
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import jwt
-import datetime
+import jwt, datetime, bcrypt, os
 
 app = FastAPI()
-SECRET_KEY = "my_super_secret_key"  # Move to .env later
+
+# Load from .env — never hardcode
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "my_super_secret_key")
+
+# Hashed demo password
+HASHED_PASSWORD = bcrypt.hashpw(b"securepass", bcrypt.gensalt())
 
 class UserLogin(BaseModel):
     username: str
@@ -12,12 +17,12 @@ class UserLogin(BaseModel):
 
 @app.post("/login")
 def login(user: UserLogin):
-    # TODO: Connect to a real database later. For now, hardcode admin.
-    if user.username == "admin" and user.password == "securepass":
-        token = jwt.encode({
-            "user": user.username,
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-        }, SECRET_KEY, algorithm="HS256")
+    password_ok = bcrypt.checkpw(user.password.encode(), HASHED_PASSWORD)
+    if user.username == "admin" and password_ok:
+        token = jwt.encode(
+            {"user": user.username, "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)},
+            SECRET_KEY, algorithm="HS256"
+        )
         return {"access_token": token, "token_type": "bearer"}
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -26,5 +31,18 @@ def verify_token(token: str):
     try:
         decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return {"valid": True, "user": decoded["user"]}
-    except:
+    except Exception:
         return {"valid": False}
+
+# Also add `bcrypt` to `auth-service/requirements.txt`.
+
+# ---
+
+# ✅ Step 4 — Verify Before Pushing
+# Check these before pushing:
+# 1. Open `.gitignore` and confirm it has:
+# ```
+# .env
+# *.key
+# *.pem
+# __pycache__/
