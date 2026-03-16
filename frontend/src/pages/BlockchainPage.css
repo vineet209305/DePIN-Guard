@@ -1,44 +1,34 @@
 /* ================================
-   1. CORE VARIABLES & RESET
+   Blockchain Page - Fully Responsive
 ================================ */
+
 :root {
-  /* Colors */
   --primary: #0ea5e9;
   --secondary: #8b5cf6;
   --success: #22c55e;
-  
   --bg-dark: #111827;
-  --bg-card: rgba(17, 24, 39, 0.85);
-  --bg-hover: rgba(31, 41, 55, 0.5);
-  
-  --border: rgba(255, 255, 255, 0.1);
-  
+  --bg-card: rgba(17,24,39,0.85);
+  --bg-hover: rgba(31,41,55,0.5);
+  --border: rgba(255,255,255,0.1);
   --text-primary: #f9fafb;
   --text-secondary: #d1d5db;
   --text-muted: #9ca3af;
-
-  /* Spacing & Radius */
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-/* ================================
-   2. BLOCKCHAIN CONTAINER
-================================ */
 .blockchain-container {
   width: 100%;
-  max-width: 1400px; /* Limits width on ultra-wide screens */
+  max-width: 1400px;
   margin: 0 auto;
   padding: 1.5rem;
 }
 
-/* Header Section (Title + Sync Button) */
-.blockchain-header-row {
+/* ---- PAGE HEADER ---- */
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -54,15 +44,42 @@
   margin: 0;
 }
 
-/* ================================
-   3. STATS GRID
-================================ */
+.page-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+
+/* ---- SYNC BUTTON ---- */
+.sync-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.sync-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(139,92,246,0.35);
+}
+
+/* ---- STATS GRID ---- */
 .blockchain-stats-grid {
   display: grid;
-  /* Auto-fit ensures it fills the row, but wraps if smaller than 240px */
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .stat-card-blockchain {
@@ -74,36 +91,16 @@
   display: flex;
   align-items: center;
   gap: 1.25rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
 }
 
 .stat-card-blockchain:hover {
   border-color: var(--primary);
-  transform: translateY(-4px);
-  box-shadow: 0 10px 20px rgba(14,165,233,0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(14,165,233,0.15);
 }
 
-.stat-icon-blockchain {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.stat-icon-blockchain svg {
-  width: 28px;
-  height: 28px;
-  color: #fff;
-}
-
-.stat-content {
-  flex: 1;
-  min-width: 0; /* Prevents text overflow */
-}
+.stat-content-blockchain { flex: 1; min-width: 0; }
 
 .stat-value-blockchain {
   font-size: 1.75rem;
@@ -118,79 +115,49 @@
   margin-top: 0.25rem;
 }
 
-/* ================================
-   4. SYNC BUTTON
-================================ */
-.sync-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  border: none;
-  border-radius: var(--radius-md);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.sync-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(139,92,246,0.3);
-}
-
-.sync-button svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  transition: transform 0.5s ease;
-}
-
-.sync-button:hover svg {
-  transform: rotate(180deg);
-}
-
-/* ================================
-   5. BLOCKS SECTION
-================================ */
+/* ---- BLOCKS SECTION ---- */
 .blocks-section {
   background: var(--bg-card);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 2rem;
+  padding: 1.5rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .section-title {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 1.5rem;
+  margin: 0;
 }
 
 .blocks-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
-/* ================================
-   6. BLOCK CARD
-================================ */
+/* ---- BLOCK CARD ---- */
 .block-card {
   background: var(--bg-hover);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
-  transition: all 0.3s ease;
+  transition: all 0.3s;
 }
 
 .block-card:hover {
   border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);
+  box-shadow: 0 4px 16px rgba(14,165,233,0.1);
 }
 
 .block-header {
@@ -201,32 +168,22 @@
   margin-bottom: 1.25rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
 .block-height {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-.block-height svg {
-  color: var(--primary);
-  width: 20px;
-  height: 20px;
-}
-
 .block-status {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.75rem;
+  padding: 0.3rem 0.75rem;
   border-radius: 2rem;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .block-status.confirmed {
@@ -234,15 +191,12 @@
   color: #22c55e;
 }
 
-/* ================================
-   7. BLOCK INFO GRID
-================================ */
+/* ---- BLOCK INFO GRID ---- */
 .block-info-grid {
   display: grid;
-  /* Laptop/Desktop Default: 3 Columns */
-  grid-template-columns: repeat(3, 1fr); 
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
 }
 
 .info-item {
@@ -252,63 +206,55 @@
 }
 
 .info-label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
-  letter-spacing: 0.5px;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
   font-weight: 600;
 }
 
 .info-value {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: var(--text-primary);
+  word-break: break-all;
 }
 
-.hash-value {
+code.info-value {
   font-family: 'Courier New', monospace;
-  background: rgba(14,165,233,0.1);
-  padding: 0.5rem 0.75rem;
+  background: rgba(14,165,233,0.08);
+  padding: 0.25rem 0.5rem;
   border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  word-break: break-all; /* Ensures long hashes wrap nicely */
   color: var(--primary);
-  line-height: 1.4;
+  font-size: 0.82rem;
 }
 
-/* ================================
-   8. VIEW DETAILS BUTTON
-================================ */
+/* ---- VIEW DETAILS BUTTON ---- */
 .view-details-button {
   width: 100%;
-  padding: 0.85rem;
+  padding: 0.8rem;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  font-size: 0.9rem;
 }
 
 .view-details-button:hover {
   border-color: var(--primary);
-  background: rgba(14,165,233,0.1);
+  background: rgba(14,165,233,0.08);
   color: var(--primary);
 }
 
-.view-details-button svg {
-  width: 16px;
-  height: 16px;
-}
-
-/* ================================
-   9. MODAL
-================================ */
+/* ---- MODAL ---- */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -325,162 +271,123 @@
   background: #1f2937;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  max-width: 700px;
+  max-width: 680px;
   width: 100%;
-  max-height: 85vh;
+  max-height: 88vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
 }
 
 .modal-header {
-  padding: 1.25rem;
+  padding: 1.25rem 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,0.02);
   position: sticky;
   top: 0;
+  background: #1f2937;
+  z-index: 10;
 }
 
-.modal-title {
-  font-size: 1.25rem;
+.modal-header h2 {
+  font-size: 1.15rem;
   color: var(--text-primary);
-  font-weight: 600;
+  margin: 0;
 }
 
-.close-modal {
+.modal-header button {
   background: transparent;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
   font-size: 1.5rem;
   line-height: 1;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
 }
 
-.modal-body {
-  padding: 1.5rem;
+.modal-header button:hover {
+  background: rgba(255,255,255,0.1);
+  color: white;
 }
+
+.modal-body { padding: 1.5rem; }
 
 .detail-row {
   display: flex;
   justify-content: space-between;
-  gap: 1.5rem;
+  gap: 1rem;
   padding: 0.85rem 0;
   border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
-.detail-row:last-child {
-  border-bottom: none;
-}
+.detail-row:last-child { border-bottom: none; }
 
-.detail-label {
-  font-size: 0.9rem;
+.detail-row span:first-child {
+  font-size: 0.875rem;
   color: var(--text-secondary);
-  min-width: 140px;
+  font-weight: 600;
+  min-width: 100px;
+  flex-shrink: 0;
 }
 
-.detail-value {
-  text-align: right;
+.detail-row code {
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+  color: var(--primary);
   word-break: break-all;
+  background: rgba(14,165,233,0.08);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  flex: 1;
+  text-align: right;
+}
+
+.detail-row span:last-child {
   color: var(--text-primary);
-  font-family: monospace;
+  font-size: 0.9rem;
 }
 
-/* ================================
-   10. RESPONSIVE BREAKPOINTS
-================================ */
+/* ============================
+   RESPONSIVE BREAKPOINTS
+============================ */
 
-/* --- TABLET & SMALL LAPTOPS (768px to 1024px) --- */
+/* Desktop: 3 cols for block info */
+@media (min-width: 1024px) {
+  .block-info-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Tablet */
 @media (max-width: 1024px) {
-  .blockchain-container {
-    padding: 1.5rem 1rem;
-  }
-  
-  /* Switch Block Info to 2 Columns */
-  .block-info-grid {
-    grid-template-columns: repeat(2, 1fr); 
-  }
+  .blockchain-container { padding: 1.25rem; }
+  .block-info-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* --- MOBILE & SMALL TABLETS (Under 768px) --- */
-@media (max-width: 768px) {
-  .blockchain-container {
-    padding: 1rem;
-  }
-
-  /* Header Stack */
-  .blockchain-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .sync-button {
-    width: 100%; /* Full width button for easier tapping */
-    padding: 0.85rem;
-    justify-content: center;
-  }
-
-  /* Stats Grid - Stack into single column or 2 smaller columns */
-  .blockchain-stats-grid {
-    grid-template-columns: 1fr; 
-    gap: 1rem;
-  }
-  
-  .stat-card-blockchain {
-    padding: 1.25rem;
-  }
-
-  /* Block Card Adjustments */
-  .block-card {
-    padding: 1rem;
-  }
-
-  .block-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-  
-  .block-status {
-    align-self: flex-start; /* Aligns badge to left */
-  }
-
-  /* Stack Info Grid to 1 Column */
-  .block-info-grid {
-    grid-template-columns: 1fr; 
-    gap: 1rem;
-  }
-  
-  /* Modal Mobile Optimization */
-  .detail-row {
-    flex-direction: column;
-    gap: 0.25rem;
-    align-items: flex-start;
-  }
-
-  .detail-value {
-    text-align: left;
-    width: 100%;
-    background: rgba(0,0,0,0.2);
-    padding: 0.75rem;
-    border-radius: var(--radius-sm);
-  }
+/* Mobile < 640px */
+@media (max-width: 640px) {
+  .blockchain-container { padding: 1rem; }
+  .page-header { flex-direction: column; align-items: stretch; }
+  .sync-button { width: 100%; justify-content: center; }
+  .page-title { font-size: 1.4rem; }
+  .blockchain-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+  .stat-card-blockchain { padding: 1rem; flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .stat-value-blockchain { font-size: 1.4rem; }
+  .blocks-section { padding: 1rem; }
+  .block-card { padding: 1rem; }
+  .block-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .block-info-grid { grid-template-columns: repeat(2, 1fr); gap: 0.85rem; }
+  .modal-content { width: 95%; max-height: 88vh; }
+  .modal-header, .modal-body { padding: 1rem; }
+  .detail-row { flex-direction: column; gap: 0.35rem; }
+  .detail-row code { text-align: left; }
 }
 
-/* --- ULTRA SMALL SCREENS (Under 360px) --- */
-@media (max-width: 360px) {
-  .stat-value-blockchain {
-    font-size: 1.5rem;
-  }
-  
-  .view-details-button {
-    font-size: 0.85rem;
-    padding: 0.75rem;
-  }
-  
-  .page-title {
-    font-size: 1.5rem;
-  }
+/* Very small < 380px */
+@media (max-width: 380px) {
+  .blockchain-stats-grid { grid-template-columns: 1fr; }
+  .block-info-grid { grid-template-columns: 1fr; }
+  .stat-value-blockchain { font-size: 1.2rem; }
 }
