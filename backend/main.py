@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from routes.stream import broadcast_data, router as stream_router
+from routes.fraud import router as fraud_router
 import jwt, os, hashlib, json
 import requests as http_requests
 from datetime import datetime
@@ -41,6 +42,7 @@ app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter                                                          # ✅ NEW
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)          # ✅ NEW
 app.include_router(stream_router)
+app.include_router(fraud_router)
 
 # Load the secret .env file
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
