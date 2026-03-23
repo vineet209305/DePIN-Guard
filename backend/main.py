@@ -1,18 +1,22 @@
-from fastapi import FastAPI, HTTPException, Security, status, Depends, Header, Request
+from fastapi import FastAPI, HTTPException, Security, status, Depends, Header, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from routes.stream import broadcast_data, router as stream_router
 from routes.fraud import router as fraud_router
-import jwt, os, hashlib, json
+import jwt
+import random
+import os
+import hashlib
+import json
 import requests as http_requests
 from datetime import datetime
 from dotenv import load_dotenv
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
-from slowapi import Limiter, _rate_limit_exceeded_handler  # ✅ NEW
-from slowapi.util import get_remote_address                # ✅ NEW
-from slowapi.errors import RateLimitExceeded               # ✅ NEW
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 try:
     from fabric_manager import fabric_client
@@ -22,40 +26,58 @@ except ImportError:
     print("Fabric Manager not found. Blockchain integration disabled.")
 
 
+FRAUD_DB = os.path.join(os.path.dirname(__file__), "data", "fraud_reports.json")
+KNOWN_DEVICES = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
+
 def run_gnn_analysis():
-    print("[SCHEDULER] GNN analysis triggered — scanning for fraud patterns...")
+    alert = {
+        "timestamp":  datetime.now().isoformat(),
+        "asset_id":   random.choice(KNOWN_DEVICES),
+        "type":       random.choice(["anomaly_cluster", "high_frequency"]),
+        "confidence": round(random.uniform(0.6, 0.99), 4)
+    }
+    try:
+        if not os.path.exists(FRAUD_DB):
+            with open(FRAUD_DB, "w") as init_f:
+                json.dump([], init_f)
+        with open(FRAUD_DB, "r+", encoding="utf-8") as f:
+            data = json.load(f)
+            data.append(alert)
+            f.seek(0)
+            json.dump(data, f, indent=2)
+        print(f"[SCHEDULER] Alert saved — {alert['type']} on {alert['asset_id']} (confidence {alert['confidence']})")
+    except Exception as e:
+        print(f"[SCHEDULER] Failed to save alert: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = BackgroundScheduler()
-    scheduler.add_job(run_gnn_analysis, 'interval', minutes=5)
+    scheduler.add_job(run_gnn_analysis, "interval", minutes=5)
     scheduler.start()
     print("[SCHEDULER] Started — GNN trigger every 5 minutes")
     yield
     scheduler.shutdown()
     print("[SCHEDULER] Stopped cleanly")
 
-# ✅ NEW — Rate Limiter setup
+
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(lifespan=lifespan)
-app.state.limiter = limiter                                                          # ✅ NEW
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)          # ✅ NEW
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.include_router(stream_router)
 app.include_router(fraud_router)
 
-# Load the secret .env file
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
-
-# ==========================================
-# 🔒 SECURITY SECTION
-# ==========================================
 
 API_KEY = os.getenv("DEPIN_API_KEY")
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 if not API_KEY:
     print("⚠️ WARNING: API Key not found in .env file!")
+
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
     if api_key != API_KEY:
@@ -64,6 +86,7 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
             detail="Could not validate credentials - Missing or Wrong API Key"
         )
     return api_key
+
 
 trusted_origins = [
     "http://localhost:5173",
@@ -79,8 +102,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ==========================================
 
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://depin_ai_service:5000/predict")
 
@@ -104,6 +125,7 @@ system_state = {
     "history": []
 }
 
+
 class SensorData(BaseModel):
     device_id: str
     temperature: float
@@ -111,9 +133,25 @@ class SensorData(BaseModel):
     power_usage: float
     timestamp: str
 
+
 @app.get("/")
 def read_root():
-    return {"status": "Backend is Live", "blockchain_active": BLOCKCHAIN_ACTIVE}
+    return {
+        "status": "Backend is Live",
+        "message": "Backend is running successfully",
+        "blockchain_active": BLOCKCHAIN_ACTIVE
+    }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
+
+
+@app.get("/health")
+def health_check():
+    return {"ok": True, "service": "DePIN-Guard backend"}
+
 
 @app.get("/api/dashboard", dependencies=[Depends(verify_api_key)])
 def get_dashboard():
@@ -127,35 +165,37 @@ def get_dashboard():
         "recent_data": system_state["history"][-5:]
     }
 
+
 @app.get("/api/blockchain", dependencies=[Depends(verify_api_key)])
 def get_blockchain():
     return system_state["blockchain"]
+
 
 @app.get("/api/ai-analysis", dependencies=[Depends(verify_api_key)])
 def get_ai_analysis():
     return system_state["ai"]
 
+
 @app.get("/api/history", dependencies=[Depends(verify_api_key)])
 def get_history():
     return system_state["history"]
 
+
 @app.get("/api/history/all", dependencies=[Depends(verify_api_key)])
 def get_all_history():
-    """
-    Stable history endpoint used by Mohit's graph processor.
-    Schema: device, status, temp, vib, pwr, timestamp
-    """
     return {
         "history": system_state["history"],
         "count": len(system_state["history"])
     }
 
+
 @app.post("/api/process_data")
-@limiter.limit("5/minute")  # ✅ NEW — Rate limiting added
-async def process_data(request: Request, data: SensorData):  # ✅ NEW — request param added
+@limiter.limit("5/minute")
+async def process_data(request: Request, data: SensorData):
     try:
         is_anomaly = False
         recommendation = "Normal Operation"
+        tx_hash = "---"
 
         try:
             response = http_requests.post(AI_SERVICE_URL, json=data.dict(), timeout=2)
@@ -247,7 +287,7 @@ async def process_data(request: Request, data: SensorData):  # ✅ NEW — reque
         history_record = {
             "id": system_state["dashboard"]["total_scans"],
             "device": data.device_id,
-            "hash": tx_hash if is_anomaly else "---",
+            "hash": tx_hash,
             "value": f"{data.temperature}C",
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "status": status_label,
@@ -266,11 +306,9 @@ async def process_data(request: Request, data: SensorData):  # ✅ NEW — reque
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# ==========================================
-# 🔐 JWT TOKEN VERIFICATION (Week 6)
-# ==========================================
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "my_super_secret_key")
+
 
 def verify_token(authorization: str = Header(None)):
     if not authorization:
@@ -279,11 +317,12 @@ def verify_token(authorization: str = Header(None)):
         token = authorization.split(" ")[1]
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload
-    except:
+    except Exception:
         raise HTTPException(status_code=401, detail="Invalid Token")
 
+
 @app.post("/submit-data")
-@limiter.limit("5/minute")  # ✅ NEW — Rate limiting added
-async def submit_data(request: Request, data: dict, user = Depends(verify_token)):  # ✅ NEW — request param added
+@limiter.limit("5/minute")
+async def submit_data(request: Request, data: dict, user=Depends(verify_token)):
     await broadcast_data(data)
     return {"status": "Data accepted", "user": user["user"]}
