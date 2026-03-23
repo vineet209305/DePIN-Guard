@@ -6,26 +6,19 @@ import BlockchainPage from './pages/BlockchainPage';
 import AIAnalysisPage from './pages/AIAnalysisPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
+import LandingPage from './pages/LandingPage';
 
-// Protected Route component
+// Protected Route — login nahi hai to /login pe bhejo
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 };
 
-// Public Route component (redirect to dashboard if already logged in)
+// Public Route — already logged in hai to /dashboard pe bhejo
 const PublicRoute = ({ children }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
-  
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return children;
 };
 
@@ -33,71 +26,38 @@ function App() {
   return (
     <Router>
       <Routes>
+
+        {/* ✅ Landing Page — Home */}
+        <Route path="/" element={<LandingPage />} />
+
         {/* Public Routes */}
-        <Route 
-          path="/login" 
-          element={
-            <PublicRoute>
-              <LoginPage />
-            </PublicRoute>
-          } 
-        />
-        <Route 
-          path="/signup" 
-          element={
-            <PublicRoute>
-              <SignupPage />
-            </PublicRoute>
-          } 
-        />
-        
+        <Route path="/login" element={
+          <PublicRoute><LoginPage /></PublicRoute>
+        } />
+        <Route path="/signup" element={
+          <PublicRoute><SignupPage /></PublicRoute>
+        } />
+
         {/* Protected Routes */}
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/blockchain" 
-          element={
-            <ProtectedRoute>
-              <BlockchainPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/ai-analysis" 
-          element={
-            <ProtectedRoute>
-              <AIAnalysisPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/history" 
-          element={
-            <ProtectedRoute>
-              <HistoryPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/settings" 
-          element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* Default Route */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        
-        {/* 404 Route */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/dashboard" element={
+          <ProtectedRoute><DashboardPage /></ProtectedRoute>
+        } />
+        <Route path="/blockchain" element={
+          <ProtectedRoute><BlockchainPage /></ProtectedRoute>
+        } />
+        <Route path="/ai-analysis" element={
+          <ProtectedRoute><AIAnalysisPage /></ProtectedRoute>
+        } />
+        <Route path="/history" element={
+          <ProtectedRoute><HistoryPage /></ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute><SettingsPage /></ProtectedRoute>
+        } />
+
+        {/* 404 — Landing pe bhejo */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </Router>
   );
