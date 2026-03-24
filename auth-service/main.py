@@ -33,16 +33,3 @@ def verify_token(token: str):
         return {"valid": True, "user": decoded["user"]}
     except Exception:
         return {"valid": False}
-
-# Also add `bcrypt` to `auth-service/requirements.txt`.
-
-# ---
-
-# ✅ Step 4 — Verify Before Pushing
-# Check these before pushing:
-# 1. Open `.gitignore` and confirm it has:
-# ```
-# .env
-# *.key
-# *.pem
-# __pycache__/

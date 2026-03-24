@@ -19,8 +19,8 @@ API_KEY = "Depin_Project_Secret_Key_999"
 #    Prateek ke certs use kar rahe hain
 # =============================================
 CA_CERT     = "ca.crt"      # docker/certs/ca.crt se copy kiya
-CLIENT_CERT = None  # docker/certs/server.crt se copy kiya
-CLIENT_KEY  = None          # client.key agar available ho
+CLIENT_CERT = "client.crt"
+CLIENT_KEY  = "client.key"
 MQTT_BROKER = "localhost"
 MQTT_PORT   = 8883           # 🔒 Secure port (was 1883)
 MQTT_TOPIC  = "depin/sensors"
