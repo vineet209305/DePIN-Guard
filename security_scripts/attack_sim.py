@@ -36,13 +36,15 @@ else:
 print("\n[TEST 4] Sending 65 requests to trigger Rate Limiting...")
 blocked = False
 for i in range(65):
-    response = requests.post(f"{BASE_URL}/api/process_data", json={
+    response = requests.post(f"{BASE_URL}/api/process_data", 
+    json={
         "device_id": "test-device",
         "temperature": 50.0,
         "vibration": 5.0,
         "power_usage": 100.0,
         "timestamp": "2026-01-01T00:00:00"
-    })
+    },
+    headers={"X-API-Key": "Depin_Project_Secret_Key_999"})  # ✅ Added
     if response.status_code == 429:
         print(f"✅ PASSED — Rate limit triggered at request {i+1} (429 Too Many Requests)")
         blocked = True
