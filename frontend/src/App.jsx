@@ -7,6 +7,7 @@ import AIAnalysisPage from './pages/AIAnalysisPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import LandingPage from './pages/LandingPage';
+import FraudReport from './pages/FraudReport';
 
 // Protected Route — login nahi hai to /login pe bhejo
 const ProtectedRoute = ({ children }) => {
@@ -53,6 +54,11 @@ function App() {
         } />
         <Route path="/settings" element={
           <ProtectedRoute><SettingsPage /></ProtectedRoute>
+        } />
+
+        {/* ✅ WEEK 11: Fraud Report Page */}
+        <Route path="/fraud-alerts" element={
+          <ProtectedRoute><FraudReport /></ProtectedRoute>
         } />
 
         {/* 404 — Landing pe bhejo */}
