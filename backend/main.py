@@ -45,7 +45,6 @@ app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(stream_router)
-app.include_router(fraud_router, dependencies=[Depends(verify_api_key)])
 
 # Load the secret .env file
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -67,6 +66,8 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
             detail="Could not validate credentials - Missing or Wrong API Key"
         )
     return api_key
+
+app.include_router(fraud_router, dependencies=[Depends(verify_api_key)])
 
 trusted_origins = [
     "http://localhost:5173",
