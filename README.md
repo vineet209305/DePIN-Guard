@@ -303,3 +303,42 @@ This project was developed as a **Final Year Project** for academic purposes.
 _Built with ❤️ by Team DePIN-Guard_
 
 </div>
+
+---
+
+## 🐳 Deployment Modes
+
+### Lab Mode (Full Docker Stack)
+Runs all 4 services via Docker Compose — for validation and completeness only.
+```bash
+docker-compose up --build
+```
+
+| Service      | URL                       |
+| :----------- | :------------------------ |
+| Frontend     | `http://localhost:5173`   |
+| Backend      | `http://localhost:8000`   |
+| AI Service   | `http://localhost:5000`   |
+| Auth Service | `http://localhost:8001`   |
+
+### Demo Mode (Hybrid Local — Recommended for Professor Demo)
+Run each service locally from known-good commands. Fabric runs in GitHub Codespace.
+```bash
+# 1. AI Service
+cd ai-service && python app.py
+
+# 2. Auth Service
+cd auth-service && uvicorn main:app --port 8001
+
+# 3. Backend
+cd backend && uvicorn main:app --port 8000
+
+# 4. Frontend
+cd frontend && npm run dev
+
+# 5. IoT Simulator
+cd iot-simulator && python simulator.py
+```
+
+> **Note:** Fabric blockchain runs in GitHub Codespace — start it before the presentation.
+> If Fabric is unavailable, the backend falls back to in-memory simulated blockchain automatically.
