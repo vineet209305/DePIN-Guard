@@ -45,7 +45,7 @@ app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(stream_router)
-app.include_router(fraud_router)
+app.include_router(fraud_router, dependencies=[Depends(verify_api_key)])
 
 # Load the secret .env file
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -61,7 +61,7 @@ if not API_KEY:
     print("⚠️ WARNING: API Key not found in .env file!")
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
-    if api_key != API_KEY:
+    if not API_KEY or api_key != API_KEY:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials - Missing or Wrong API Key"
@@ -106,7 +106,7 @@ async def audit_logger(request: Request, call_next):
 
 # ==========================================
 
-AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://depin_ai_service:5000/predict")
+AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:5000/predict")
 
 system_state = {
     "dashboard": {
@@ -174,7 +174,7 @@ def get_all_history():
         "count": len(system_state["history"])
     }
 
-@app.post("/api/process_data")
+@app.post("/api/process_data", dependencies=[Depends(verify_api_key)])
 @limiter.limit("60/minute")  # ✅ Fixed to 60/minute
 async def process_data(request: Request, data: SensorData):
     try:
@@ -303,7 +303,7 @@ def verify_token(authorization: str = Header(None)):
         token = authorization.split(" ")[1]
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload
-    except:
+    except Exception:
         raise HTTPException(status_code=401, detail="Invalid Token")
 
 @app.post("/submit-data")

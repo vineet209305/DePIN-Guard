@@ -16,16 +16,16 @@ services:
     ports:
       - "8001:8001"
     environment:
-      - JWT_SECRET_KEY=my_super_secret_key
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
 
   backend:
     build: ./backend
     ports:
       - "8000:8000"
     environment:
-      - DEPIN_API_KEY=Depin_Project_Secret_Key_999
+      - DEPIN_API_KEY=${DEPIN_API_KEY}
       - AI_SERVICE_URL=http://ai-service:5000/predict
-      - JWT_SECRET_KEY=my_super_secret_key
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
     depends_on:
       - ai-service
       - auth-service

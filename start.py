@@ -49,7 +49,7 @@ SERVICES = [
         "color":   CYAN,
         "dir":     os.path.join(BASE_DIR, "frontend"),
         "cmd":     ["npm", "run", "dev"],
-        "port":    3000,
+        "port":    5173,
         "wait":    4,
     },
     {
@@ -212,7 +212,7 @@ def print_urls():
     print(f"\n{GREEN}{BOLD}{'='*50}")
     print(f"  🚀 DePIN-Guard is LIVE!")
     print(f"{'='*50}{RESET}\n")
-    print(f"  {CYAN}Dashboard:    http://localhost:3000{RESET}")
+    print(f"  {CYAN}Dashboard:    http://localhost:5173{RESET}")
     print(f"  {BLUE}Backend API:  http://localhost:8000{RESET}")
     print(f"  {BLUE}API Docs:     http://localhost:8000/docs{RESET}")
     print(f"  {MAGENTA}AI Service:   http://localhost:5000{RESET}")

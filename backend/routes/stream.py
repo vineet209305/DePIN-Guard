@@ -16,5 +16,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # Helper function to broadcast data to all connected users
 async def broadcast_data(data: dict):
+    dead = []
     for connection in active_connections:
-        await connection.send_json(data)
+        try:
+            await connection.send_json(data)
+        except Exception:
+            dead.append(connection)
+    for conn in dead:
+        active_connections.remove(conn)
