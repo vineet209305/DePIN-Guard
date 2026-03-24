@@ -1,17 +1,19 @@
-# Use Python 3.9 (Stable & Compatible)
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies first (better caching)
+# Install dependencies first — separate layer for better Docker cache reuse
 COPY requirements.txt .
-RUN pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code
+# Copy all remaining service files
 COPY . .
 
-# Expose the API port
+# Expose the Flask port
 EXPOSE 5000
 
-# Run the app unbuffered so logs appear immediately
-CMD ["python", "-u", "app.py"]
+# Tell Flask which file is the app entry point
+ENV FLASK_APP=app.py
+
+# Start Flask — --host=0.0.0.0 makes it reachable outside the container
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
