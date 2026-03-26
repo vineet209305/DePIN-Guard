@@ -8,7 +8,7 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 
 # --- CONFIGURATION ---
-BACKEND_URL = "http://localhost:8000/api/process_data"
+BACKEND_URL = "https://tame-plums-ring.loca.lt/api/process_data"
 DEVICES = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
 
 # 🔒 SECURITY: The Key must match what is in your Backend's .env file
@@ -60,7 +60,7 @@ def run_simulator():
                         "X-API-Key": API_KEY,
                         "Content-Type": "application/json"
                     }
-                    response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=2)
+                    response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
                     if response.status_code == 200:
                         result = response.json()
                         status_icon = "🔴" if result.get("anomaly") else "🟢"

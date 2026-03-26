@@ -52,7 +52,7 @@ const DashboardPage = () => {
 
   const fetchLiveData = async () => {
     try {
-      const response = await authenticatedFetch('http://localhost:8000/api/live-data');
+      const response = await authenticatedFetch(`https://tame-plums-ring.loca.lt/api/live-data`);
       if (response) {
         const data = await response.json();
         if (data && data.length > 0) {

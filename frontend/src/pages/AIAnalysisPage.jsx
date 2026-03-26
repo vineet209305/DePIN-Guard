@@ -118,7 +118,7 @@ const AIAnalysisPage = () => {
   // ✅ WEEK 9: Backend se AI results fetch karna (token ke saath)
   const fetchBackendAnalysis = async () => {
     try {
-      const res = await authenticatedFetch('http://localhost:8000/api/ai-results');
+      const res = await authenticatedFetch(`https://tame-plums-ring.loca.lt/api/ai-results`);
       if (!res) return; // 401 handled — user redirected to /login
       const data = await res.json();
       if (data && data.length > 0) {

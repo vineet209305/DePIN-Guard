@@ -41,7 +41,7 @@ const HistoryPage = () => {
   // ✅ WEEK 9: Backend se history fetch karna (token ke saath)
   const fetchHistory = async () => {
     try {
-      const res = await authenticatedFetch('http://localhost:8000/api/history/all');
+      const res = await authenticatedFetch(`https://tame-plums-ring.loca.lt/api/history/all`);
       if (!res) return; // 401 handled — user redirected to /login
       const data = await res.json();
       if (data && data.history && data.history.length > 0) {
