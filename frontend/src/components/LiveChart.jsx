@@ -12,8 +12,8 @@ export default function LiveChart() {
   const wsRef = useRef(null);
 
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws/live';
+    // Connect to own domain, let Vite proxy route it with secret headers
+    const wsUrl = `ws://${window.location.host}/ws/live`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

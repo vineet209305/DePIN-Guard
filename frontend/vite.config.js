@@ -12,6 +12,15 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000', // Forward to Python Backend
         changeOrigin: true,
         secure: false,
+      },
+      '/ws/live': {
+        target: 'ws://depin-backend.loca.lt',
+        ws: true,
+        changeOrigin: true,
+        headers: {
+          'bypass-tunnel-reminder': 'true',
+          'User-Agent': 'depin-guard-bot'
+        }
       }
     }
   }

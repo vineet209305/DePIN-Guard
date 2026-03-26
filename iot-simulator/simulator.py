@@ -58,7 +58,8 @@ def run_simulator():
                 try:
                     headers = {
                         "X-API-Key": API_KEY,
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
+                        "bypass-tunnel-reminder": "true"
                     }
                     response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
                     if response.status_code == 200:
