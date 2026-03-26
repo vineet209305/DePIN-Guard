@@ -21,8 +21,20 @@ def build_graph_from_history(history_records):
     else:
         edge_tensor = torch.zeros((2, 0), dtype=torch.long)
 
-    # Placeholder features for Week 9; real graph features arrive in Week 10/11.
-    x = torch.zeros((len(node_map), 4), dtype=torch.float)
+    # Build real node features: [temp, vibration, power_usage, is_critical]
+    feature_map = {}
+    for record in history_records:
+        dev = record.get("device", "unknown")
+        if dev not in feature_map:
+            feature_map[dev] = [
+                float(record.get("temp", 0.0)),
+                float(record.get("vib", 0.0)),
+                float(record.get("pwr", 0.0)),
+                1.0 if record.get("status") == "critical" else 0.0
+            ]
+
+    x_list = [feature_map.get(name, [0.0, 0.0, 0.0, 0.0]) for name in node_map]
+    x = torch.tensor(x_list, dtype=torch.float)
     return Data(x=x, edge_index=edge_tensor), node_map
 
 
