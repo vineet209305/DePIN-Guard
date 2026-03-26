@@ -6,7 +6,10 @@ cd "$SCRIPT_DIR"
 
 echo "🧹 Cleaning up old containers and corrupted files..."
 # Added sudo here to prevent Permission Denied errors
+docker-compose -f ../docker/docker-compose.yml down -v 2>/dev/null || true
+docker-compose -f ../docker/docker-compose-custom.yaml down -v 2>/dev/null || true
 docker rm -f $(docker ps -aq) 2>/dev/null || true
+docker volume prune -f
 sudo rm -rf organizations channel-artifacts
 mkdir -p channel-artifacts
 
