@@ -14,7 +14,7 @@ export default function FraudReport() {
   const fetchAlerts = async () => {
     setLoading(true);
     try {
-      const res = await authenticatedFetch('http://localhost:8000/fraud-alerts');
+      const res = await authenticatedFetch(`https://tame-plums-ring.loca.lt/fraud-alerts`);
       if (!res) return; // 401 handled — user redirected to /login
       const data = await res.json();
       setAlerts(data.alerts || []);

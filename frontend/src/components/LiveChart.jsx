@@ -12,7 +12,9 @@ export default function LiveChart() {
   const wsRef = useRef(null);
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws/live');
+    const apiUrl = 'https://tame-plums-ring.loca.lt';
+    const wsUrl = apiUrl.replace(/^http/, 'ws') + '/ws/live';
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       setConnected(true);
