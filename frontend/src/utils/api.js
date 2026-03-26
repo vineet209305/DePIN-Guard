@@ -6,6 +6,7 @@ export const authenticatedFetch = async (url, options = {}) => {
 
   const headers = {
     'Content-Type': 'application/json',
+    'X-API-Key': 'Depin_Project_Secret_Key_999',
     ...options.headers,
     'Authorization': `Bearer ${token}`
   };

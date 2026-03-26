@@ -1,0 +1,133 @@
+/* frontend/src/components/LiveChart.css */
+.live-chart-container {
+  padding: 20px;
+  background-color: rgba(20, 20, 25, 0.8);
+  border-radius: 12px;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.live-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+}
+
+.live-chart-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.connection-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.connection-badge.connected {
+  color: #4ae58c;
+}
+
+.connection-badge.disconnected {
+  color: #ff5252;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.connected {
+  background-color: #4ae58c;
+  box-shadow: 0 0 8px #4ae58c;
+}
+
+.status-dot.disconnected {
+  background-color: #ff5252;
+  box-shadow: 0 0 8px #ff5252;
+}
+
+.live-chart-empty {
+  text-align: center;
+  padding: 40px;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.live-chart-table-wrapper {
+  overflow-x: auto;
+}
+
+.live-chart-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.live-chart-table th {
+  text-align: left;
+  padding: 12px;
+  color: #888;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+}
+
+.live-chart-table td {
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.normal-row {
+  transition: background-color 0.2s;
+}
+
+.normal-row:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.anomaly-row {
+  background-color: rgba(255, 82, 82, 0.15);
+  animation: pulse-red 2s infinite;
+}
+
+.status-cell {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-cell.normal {
+  background-color: rgba(74, 229, 140, 0.1);
+  color: #4ae58c;
+}
+
+.status-cell.anomaly {
+  background-color: rgba(255, 82, 82, 0.2);
+  color: #ff5252;
+}
+
+@keyframes pulse-red {
+  0% {
+    background-color: rgba(255, 82, 82, 0.15);
+  }
+
+  50% {
+    background-color: rgba(255, 82, 82, 0.25);
+  }
+
+  100% {
+    background-color: rgba(255, 82, 82, 0.15);
+  }
+}

@@ -8,7 +8,7 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 
 # --- CONFIGURATION ---
-BACKEND_URL = "https://tame-plums-ring.loca.lt/api/process_data"
+BACKEND_URL = "https://depin-backend.loca.lt/api/process_data"
 DEVICES = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
 
 # 🔒 SECURITY: The Key must match what is in your Backend's .env file
