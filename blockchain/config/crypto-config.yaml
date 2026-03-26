@@ -1,15 +1,23 @@
 OrdererOrgs:
   - Name: Orderer
     Domain: orderer.example.com
+    EnableNodeOUs: true
     Specs:
       - Hostname: orderer
+        SANS:
+          - "localhost"
+          - "127.0.0.1"
+          - "orderer.example.com"
 
 PeerOrgs:
   - Name: Manufacturer
     Domain: manufacturer.example.com
     EnableNodeOUs: true
     Template:
-      Count: 2
+      Count: 1
+      SANS:
+        - "localhost"
+        - "127.0.0.1"
     Users:
       Count: 1
 
@@ -17,6 +25,9 @@ PeerOrgs:
     Domain: maintenance.example.com
     EnableNodeOUs: true
     Template:
-      Count: 2
+      Count: 1
+      SANS:
+        - "localhost"
+        - "127.0.0.1"
     Users:
       Count: 1

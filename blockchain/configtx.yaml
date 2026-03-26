@@ -3,7 +3,7 @@ Organizations:
   - &OrdererOrg
     Name: OrdererMSP
     ID: OrdererMSP
-    MSPDir: crypto-config/ordererOrganizations/orderer.example.com/msp
+    MSPDir: organizations/ordererOrganizations/orderer.example.com/msp
     Policies:
       Readers:
         Type: Signature
@@ -18,7 +18,7 @@ Organizations:
   - &Manufacturer
     Name: ManufacturerMSP
     ID: ManufacturerMSP
-    MSPDir: crypto-config/peerOrganizations/manufacturer.example.com/msp
+    MSPDir: organizations/peerOrganizations/manufacturer.example.com/msp
     Policies:
       Readers:
         Type: Signature
@@ -29,6 +29,9 @@ Organizations:
       Admins:
         Type: Signature
         Rule: "OR('ManufacturerMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('ManufacturerMSP.peer')"
     AnchorPeers:
       - Host: peer0.manufacturer.example.com
         Port: 7051
@@ -36,7 +39,7 @@ Organizations:
   - &Maintenance
     Name: MaintenanceMSP
     ID: MaintenanceMSP
-    MSPDir: crypto-config/peerOrganizations/maintenance.example.com/msp
+    MSPDir: organizations/peerOrganizations/maintenance.example.com/msp
     Policies:
       Readers:
         Type: Signature
@@ -47,6 +50,9 @@ Organizations:
       Admins:
         Type: Signature
         Rule: "OR('MaintenanceMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('MaintenanceMSP.peer')"
     AnchorPeers:
       - Host: peer0.maintenance.example.com
         Port: 9051
@@ -71,6 +77,12 @@ Application: &ApplicationDefaults
     Admins:
       Type: ImplicitMeta
       Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
   Capabilities:
     <<: *ApplicationCapabilities
 
@@ -130,18 +142,7 @@ Profiles:
 
   TwoOrgsChannel:
     Consortium: SampleConsortium
-    Policies:
-      Readers:
-        Type: ImplicitMeta
-        Rule: "ANY Readers"
-      Writers:
-        Type: ImplicitMeta
-        Rule: "ANY Writers"
-      Admins:
-        Type: ImplicitMeta
-        Rule: "MAJORITY Admins"
-    Capabilities:
-      <<: *ChannelCapabilities
+    <<: *ChannelDefaults
     Application:
       <<: *ApplicationDefaults
       Organizations:
