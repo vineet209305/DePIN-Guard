@@ -39,13 +39,11 @@ def run_gnn_analysis():
             print("[SCHEDULER] No history yet — skipping GNN run")
             return
 
-        # Find anomaly records as fraud candidates
         fraud_candidates = [r for r in records if r.get("status") == "critical"]
         if not fraud_candidates:
             print("[SCHEDULER] No critical anomalies found — no fraud alerts raised")
             return
 
-        # Report up to 3 most recent critical records as fraud alerts
         for rec in fraud_candidates[-3:]:
             http_requests.post(
                 "http://localhost:8000/report-fraud",
@@ -61,6 +59,7 @@ def run_gnn_analysis():
     except Exception as e:
         print(f"[SCHEDULER] GNN analysis error: {e}")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler = BackgroundScheduler()
@@ -71,6 +70,11 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     print("[SCHEDULER] Stopped cleanly")
 
+
+# ✅ Load .env — tries backend/.env first, then parent folder
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
 # ✅ Rate Limiter setup
 limiter = Limiter(key_func=get_remote_address)
 
@@ -78,9 +82,6 @@ app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(stream_router)
-
-# Load the secret .env file
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # ==========================================
 # 🔒 SECURITY SECTION
@@ -91,6 +92,8 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 if not API_KEY:
     print("⚠️ WARNING: API Key not found in .env file!")
+else:
+    print(f"✅ API Key loaded successfully.")
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
     if not API_KEY or api_key != API_KEY:
@@ -199,17 +202,13 @@ def get_history():
 
 @app.get("/api/history/all", dependencies=[Depends(verify_api_key)])
 def get_all_history():
-    """
-    Stable history endpoint used by Mohit's graph processor.
-    Schema: device, status, temp, vib, pwr, timestamp
-    """
     return {
         "history": system_state["history"],
         "count": len(system_state["history"])
     }
 
 @app.post("/api/process_data", dependencies=[Depends(verify_api_key)])
-@limiter.limit("60/minute")  # ✅ Fixed to 60/minute
+@limiter.limit("60/minute")
 async def process_data(request: Request, data: SensorData):
     try:
         is_anomaly = False
@@ -341,7 +340,7 @@ def verify_token(authorization: str = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid Token")
 
 @app.post("/submit-data")
-@limiter.limit("60/minute")  # ✅ Fixed to 60/minute
+@limiter.limit("60/minute")
 async def submit_data(request: Request, data: dict, user = Depends(verify_token)):
     await broadcast_data(data)
     return {"status": "Data accepted", "user": user["user"]}

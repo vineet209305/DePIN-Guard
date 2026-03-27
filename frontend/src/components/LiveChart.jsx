@@ -6,18 +6,18 @@ import './LiveChart.css';
 
 const MAX_POINTS = 20;
 
-export default function LiveChart() {
+export default function LiveChart({ onConnect }) {
   const [data, setData] = useState([]);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
 
   useEffect(() => {
-    // Connect to own domain, let Vite proxy route it with secret headers
-    const wsUrl = `ws://${window.location.host}/ws/live`;
+    const wsUrl = 'ws://localhost:8000/ws/live';
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       setConnected(true);
+      onConnect?.();
       console.log('✅ WebSocket connected to backend');
     };
 

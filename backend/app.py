@@ -2,6 +2,21 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from routes import auth, devices, data
 import uvicorn
+from dotenv import load_dotenv
+import os
+
+# 👇 sabse pehle ye likho
+load_dotenv()
+
+API_KEY = os.getenv("DEPIN_API_KEY")
+
+if not API_KEY:
+    print("⚠️ WARNING: API Key not found in .env file!")
+
+# 👇 baaki FastAPI code
+from fastapi import FastAPI
+
+app = FastAPI()
 
 app = FastAPI(title="IoT Dashboard API", version="1.0.0")
 

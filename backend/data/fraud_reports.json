@@ -4,5 +4,11 @@
     "asset_id": "Device-001",
     "type": "anomaly_cluster",
     "confidence": 0.92
+  },
+  {
+    "timestamp": "2026-03-27T08:01:22.939928",
+    "asset_id": "Device-004",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
   }
 ]
