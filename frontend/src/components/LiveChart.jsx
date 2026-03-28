@@ -6,39 +6,54 @@ import './LiveChart.css';
 
 const MAX_POINTS = 20;
 
+// Use vite proxy path so it works regardless of where backend is hosted
+// vite.config.js proxies /ws → wss://depin-backend.loca.lt
+const WS_URL = `ws://${window.location.host}/ws/live`;
+
 export default function LiveChart({ onConnect }) {
   const [data, setData] = useState([]);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
 
   useEffect(() => {
-    const wsUrl = 'ws://localhost:8000/ws/live';
-    const ws = new WebSocket(wsUrl);
+    let ws;
+    let retryTimeout;
 
-    ws.onopen = () => {
-      setConnected(true);
-      onConnect?.();
-      console.log('✅ WebSocket connected to backend');
+    const connect = () => {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        setConnected(true);
+        onConnect?.();
+        console.log('✅ WebSocket connected to backend');
+      };
+
+      ws.onclose = () => {
+        setConnected(false);
+        console.log('❌ WebSocket disconnected — retrying in 3s...');
+        retryTimeout = setTimeout(connect, 3000);
+      };
+
+      ws.onerror = () => setConnected(false);
+
+      ws.onmessage = (event) => {
+        try {
+          const parsed = JSON.parse(event.data);
+          setData((prev) => [...prev.slice(-(MAX_POINTS - 1)), parsed]);
+        } catch (e) {
+          console.log('Could not parse WebSocket message');
+        }
+      };
+
+      wsRef.current = ws;
     };
 
-    ws.onclose = () => {
-      setConnected(false);
-      console.log('❌ WebSocket disconnected');
+    connect();
+
+    return () => {
+      clearTimeout(retryTimeout);
+      ws?.close();
     };
-
-    ws.onerror = () => setConnected(false);
-
-    ws.onmessage = (event) => {
-      try {
-        const parsed = JSON.parse(event.data);
-        setData((prev) => [...prev.slice(-(MAX_POINTS - 1)), parsed]);
-      } catch (e) {
-        console.log('Could not parse WebSocket message');
-      }
-    };
-
-    wsRef.current = ws;
-    return () => ws.close();
   }, []);
 
   return (
@@ -58,7 +73,7 @@ export default function LiveChart({ onConnect }) {
         <p className="live-chart-empty">
           {connected
             ? '⏳ Waiting for data from simulator...'
-            : '🔌 Backend WebSocket not available. Run the backend to see live data.'}
+            : '🔌 Connecting to backend WebSocket...'}
         </p>
       ) : (
         <div className="live-chart-table-wrapper">
@@ -78,10 +93,10 @@ export default function LiveChart({ onConnect }) {
                   key={i}
                   className={row.is_anomaly ? 'anomaly-row' : 'normal-row'}
                 >
-                  <td className="device-name">{row.device_id ?? 'N/A'}</td>
-                  <td className="temp-value">{row.temperature ?? 'N/A'}</td>
-                  <td className="vib-value">{row.vibration ?? 'N/A'}</td>
-                  <td className="pwr-value">{row.power_usage ?? 'N/A'}</td>
+                  <td>{row.device_id ?? 'N/A'}</td>
+                  <td>{row.temperature ?? 'N/A'}</td>
+                  <td>{row.vibration ?? 'N/A'}</td>
+                  <td>{row.power_usage ?? 'N/A'}</td>
                   <td>
                     <span className={`status-cell ${row.is_anomaly ? 'anomaly' : 'normal'}`}>
                       {row.is_anomaly ? '🔴 ANOMALY' : '🟢 Normal'}

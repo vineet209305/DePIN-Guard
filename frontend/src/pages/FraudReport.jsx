@@ -14,7 +14,7 @@ export default function FraudReport() {
   const fetchAlerts = async () => {
     setLoading(true);
     try {
-      const res = await authenticatedFetch(`https://tame-plums-ring.loca.lt/fraud-alerts`);
+      const res = await authenticatedFetch(`/fraud-alerts`);
       if (!res) return; // 401 handled — user redirected to /login
       const data = await res.json();
       setAlerts(data.alerts || []);
@@ -37,10 +37,10 @@ export default function FraudReport() {
 
   const getTypeIcon = (type) => {
     switch (type) {
-      case 'anomaly_cluster':    return '🔴';
-      case 'high_frequency':    return '⚡';
+      case 'anomaly_cluster': return '🔴';
+      case 'high_frequency': return '⚡';
       case 'injection_attempt': return '💉';
-      default:                  return '⚠️';
+      default: return '⚠️';
     }
   };
 

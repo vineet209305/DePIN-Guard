@@ -106,10 +106,16 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
 app.include_router(fraud_router, dependencies=[Depends(verify_api_key)])
 
 trusted_origins = [
-    "http://localhost:5173",
+    # Local development
     "http://localhost:3000",
-    "https://opulent-robot-v6rwg7wqpxvwfwjwr-5173.app.github.dev",
-    "https://opulent-robot-v6rwg7wqpxvwfwjwr-3000.app.github.dev"
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+ 
+    # Permanent localtunnel URLs (never change)
+    "https://depin-backend.loca.lt",
+    "https://depin-ai.loca.lt",
+    "https://depin-auth.loca.lt",
 ]
 
 app.add_middleware(

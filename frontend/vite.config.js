@@ -6,22 +6,27 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
-    // THE REVERSE PROXY CONFIGURATION
     proxy: {
+      // REST API calls — forwarded to Priyanshu's backend on Codespace
       '/api': {
-        target: 'http://127.0.0.1:8000', // Forward to Python Backend
+        target: 'https://depin-backend.loca.lt',
         changeOrigin: true,
         secure: false,
+        headers: {
+          'bypass-tunnel-reminder': 'true',
+          'User-Agent': 'depin-guard-bot',
+        },
       },
-      '/ws/live': {
-        target: 'ws://depin-backend.loca.lt',
+      // WebSocket for live sensor stream
+      '/ws': {
+        target: 'wss://depin-backend.loca.lt',
         ws: true,
         changeOrigin: true,
         headers: {
           'bypass-tunnel-reminder': 'true',
-          'User-Agent': 'depin-guard-bot'
-        }
-      }
-    }
-  }
+          'User-Agent': 'depin-guard-bot',
+        },
+      },
+    },
+  },
 });

@@ -118,7 +118,7 @@ const AIAnalysisPage = () => {
   // ✅ WEEK 9: Backend se AI results fetch karna (token ke saath)
   const fetchBackendAnalysis = async () => {
     try {
-      const res = await authenticatedFetch(`https://tame-plums-ring.loca.lt/api/ai-results`);
+      const res = await authenticatedFetch(`/api/ai-results`);
       if (!res) return; // 401 handled — user redirected to /login
       const data = await res.json();
       if (data && data.length > 0) {
@@ -146,7 +146,7 @@ const AIAnalysisPage = () => {
   };
 
   const getSeverityColor = (severity) => {
-    switch(severity) {
+    switch (severity) {
       case 'high': return { bg: '#ef444420', text: '#ef4444' };
       case 'medium': return { bg: '#f59e0b20', text: '#f59e0b' };
       case 'low': return { bg: '#22c55e20', text: '#22c55e' };
@@ -226,7 +226,7 @@ const AIAnalysisPage = () => {
                 <div className="analysis-header">
                   <div className="analysis-device">
                     <div className="device-icon-ai">
-                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
                     </div>
                     <div>
                       <div className="device-name-ai">{analysis.device}</div>

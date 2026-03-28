@@ -8,7 +8,7 @@ const HistoryPage = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-  
+
   const [historyData, setHistoryData] = useState([
     { id: 1, device: 'Sensor-01', hash: '0x7a8f3e2d', timestamp: new Date(Date.now() - 5 * 60000).toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-'), status: 'verified', value: '23.5°C' },
     { id: 2, device: 'Sensor-02', hash: '0x9b4c7f1a', timestamp: new Date(Date.now() - 7 * 60000).toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-'), status: 'verified', value: '65.2%' },
@@ -41,7 +41,7 @@ const HistoryPage = () => {
   // ✅ WEEK 9: Backend se history fetch karna (token ke saath)
   const fetchHistory = async () => {
     try {
-      const res = await authenticatedFetch(`https://tame-plums-ring.loca.lt/api/history/all`);
+      const res = await authenticatedFetch(`/api/history/all`);
       if (!res) return; // 401 handled — user redirected to /login
       const data = await res.json();
       if (data && data.history && data.history.length > 0) {
@@ -85,17 +85,17 @@ const HistoryPage = () => {
   }, []);
 
   const getStatusColor = (status) => {
-    switch(status) {
+    switch (status) {
       case 'verified': return { bg: '#22c55e20', text: '#22c55e' };
-      case 'pending':  return { bg: '#f59e0b20', text: '#f59e0b' };
-      case 'failed':   return { bg: '#ef444420', text: '#ef4444' };
-      default:         return { bg: '#6b728020', text: '#6b7280' };
+      case 'pending': return { bg: '#f59e0b20', text: '#f59e0b' };
+      case 'failed': return { bg: '#ef444420', text: '#ef4444' };
+      default: return { bg: '#6b728020', text: '#6b7280' };
     }
   };
 
   const filteredData = historyData.filter(item => {
     const matchesSearch = item.device.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.hash.toLowerCase().includes(searchTerm.toLowerCase());
+      item.hash.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || item.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
@@ -170,7 +170,7 @@ const HistoryPage = () => {
                     <td data-label="Device">
                       <div className="device-cell">
                         <div className="device-icon-small">
-                          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+                          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
                         </div>
                         <span>{item.device}</span>
                       </div>

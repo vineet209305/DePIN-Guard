@@ -45,7 +45,7 @@ const BlockchainPage = () => {
   // ✅ WEEK 9: Backend se blockchain data fetch karna (token ke saath)
   const fetchBlockchainData = async () => {
     try {
-      const res = await authenticatedFetch(`https://tame-plums-ring.loca.lt/api/blockchain`);
+      const res = await authenticatedFetch(`/api/blockchain`);
       if (!res) return; // 401 handled — user redirected to /login
       const data = await res.json();
       if (data && data.blocks && data.blocks.length > 0) {

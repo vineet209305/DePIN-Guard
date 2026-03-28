@@ -52,7 +52,7 @@ const DashboardPage = () => {
 
   const fetchLiveData = async () => {
     try {
-      const response = await authenticatedFetch(`https://tame-plums-ring.loca.lt/api/live-data`);
+      const response = await authenticatedFetch(`/api/live-data`);
       if (response) {
         const data = await response.json();
         if (data && data.length > 0) {
@@ -106,7 +106,7 @@ const DashboardPage = () => {
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)' }}>
-               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
             </div>
             <div className="stat-content">
               <div className="stat-value">{stats.activeDevices}</div>
@@ -115,7 +115,7 @@ const DashboardPage = () => {
           </div>
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' }}>
-               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
             </div>
             <div className="stat-content">
               <div className="stat-value">{stats.totalData.toLocaleString()}</div>
@@ -124,7 +124,7 @@ const DashboardPage = () => {
           </div>
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}>
-               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
             </div>
             <div className="stat-content">
               <div className="stat-value">{stats.alerts}</div>
@@ -133,7 +133,7 @@ const DashboardPage = () => {
           </div>
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' }}>
-               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             <div className="stat-content">
               <div className="stat-value">{stats.uptime.toFixed(1)}%</div>
@@ -190,8 +190,8 @@ const DashboardPage = () => {
               </defs>
               {[0, 25, 50, 75, 100].map((tick) => (
                 <g key={tick}>
-                  <line x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT - (tick/100)*CHART_HEIGHT} x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT - (tick/100)*CHART_HEIGHT} stroke="#f1f5f9" />
-                  <text x={MARGIN.left - 10} y={MARGIN.top + CHART_HEIGHT - (tick/100)*CHART_HEIGHT + 4} fontSize="11" textAnchor="end" fill="#94a3b8">{tick}</text>
+                  <line x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT} x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT} stroke="#f1f5f9" />
+                  <text x={MARGIN.left - 10} y={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT + 4} fontSize="11" textAnchor="end" fill="#94a3b8">{tick}</text>
                 </g>
               ))}
               <line x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT} x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT} stroke="#cbd5e1" strokeWidth="2" />
@@ -204,7 +204,7 @@ const DashboardPage = () => {
                 return (
                   <g key={i} className="bar-group">
                     <rect x={x} y={y} width={barWidth} height={barHeight} fill="url(#barGradient)" rx="4" />
-                    <text x={x + barWidth/2} y={SVG_HEIGHT - 10} fontSize="10" textAnchor="middle" fill="#64748b">{data.label}</text>
+                    <text x={x + barWidth / 2} y={SVG_HEIGHT - 10} fontSize="10" textAnchor="middle" fill="#64748b">{data.label}</text>
                   </g>
                 );
               })}

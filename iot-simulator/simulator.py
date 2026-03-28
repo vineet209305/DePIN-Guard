@@ -8,11 +8,8 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 
 # --- CONFIGURATION ---
-BACKEND_URL = "http://localhost:8000/api/process_data"
-DEVICES = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
-
-# 🔒 SECURITY: The Key must match what is in your Backend's .env file
-API_KEY = "Depin_Project_Secret_Key_999"
+BACKEND_URL = "https://depin-backend.loca.lt/api/process_data"
+API_KEY     = "Depin_Project_Secret_Key_999"
 
 # =============================================
 # ✅ WEEK 7: TLS Certificate Paths
@@ -59,7 +56,8 @@ def run_simulator():
                     headers = {
                         "X-API-Key": API_KEY,
                         "Content-Type": "application/json",
-                        "bypass-tunnel-reminder": "true"
+                        "bypass-tunnel-reminder": "true",
+                        "User-Agent": "depin-guard-bot"
                     }
                     response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
                     if response.status_code == 200:
@@ -79,8 +77,7 @@ def run_simulator():
 
 
 # =============================================
-# ✅ WEEK 7 - TASK 1: Secure MQTT Simulator
-#    TLS encryption ke saath port 8883 use karna
+#            Secure MQTT Simulator
 # =============================================
 def run_secure_simulator():
     print(f"🔒 DePIN-Guard SECURE IoT Simulator Started...")
@@ -136,7 +133,7 @@ def run_secure_simulator():
 
 
 # =============================================
-# ✅ WEEK 5 - TASK 2: Training Data Generator
+#          Training Data Generator
 # =============================================
 def generate_training_data(num_rows=10000):
     filename = "normal_training_data.csv"
