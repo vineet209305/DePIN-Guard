@@ -9,11 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy all remaining service files
 COPY . .
 
-# Expose the Flask port
-EXPOSE 5000
+# Expose standard production port
+EXPOSE 10000
 
-# Tell Flask which file is the app entry point
-ENV FLASK_APP=app.py
-
-# Start Flask — --host=0.0.0.0 makes it reachable outside the container
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+# Start Gunicorn production server instead of basic Flask
+CMD gunicorn app:app --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 2

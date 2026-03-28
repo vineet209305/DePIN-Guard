@@ -16,6 +16,7 @@ final_part2.md
 *.joblib
 *.h5
 ai-service/models/
+Deploy_Phase1_AI.md
 
 # --- Backend Junk ---
 backend/venv/
