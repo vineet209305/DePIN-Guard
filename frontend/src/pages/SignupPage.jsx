@@ -54,12 +54,42 @@ const SignupPage = () => {
     e.preventDefault();
     const errors = validate();
     if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+
     setIsLoading(true);
     setError('');
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      alert('Registration Successful! Please login to continue.');
+      
+      const registeredUsersRaw = localStorage.getItem('registeredUsers');
+      const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
+
+      const alreadyExists = registeredUsers.find(
+        (u) => u.email.toLowerCase() === formData.email.toLowerCase()
+      );
+
+      if (alreadyExists) {
+        setError('An account with this email already exists. Please login.');
+        setIsLoading(false);
+        return;
+      }
+
+     
+      const newUser = {
+        fullName: formData.fullName.trim(),
+        email: formData.email.toLowerCase(),
+        password: formData.password,
+        createdAt: new Date().toISOString(),
+      };
+
+      registeredUsers.push(newUser);
+      localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+
+    
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      alert(`✅ Account created successfully!\nWelcome, ${newUser.fullName}!\nPlease login to continue.`);
       navigate('/login');
+
     } catch (err) {
       setError('Signup failed. Please try again.');
     } finally {
@@ -85,8 +115,6 @@ const SignupPage = () => {
       </div>
 
       <div className="auth-wrapper">
-
-        {/* ── MAIN CARD ── */}
         <div className="auth-card">
           <div className="auth-header">
             <div className="logo-container">
@@ -97,7 +125,7 @@ const SignupPage = () => {
               </svg>
               <div className="brand-name-tag">DePIN-Guard</div>
             </div>
-            <h1 className="auth-title">Create Your Account 🚀</h1>
+            <h1 className="auth-title">Create Your Account </h1>
             <p className="auth-subtitle">
               Join DePIN-Guard to monitor your <span className="highlight-text">IoT devices</span>,
               detect <span className="highlight-text">AI anomalies</span>, and secure data with
@@ -189,32 +217,6 @@ const SignupPage = () => {
             </p>
           </div>
         </div>
-
-        {/* ── INFO CARDS — BELOW ── */}
-        <div className="auth-info-bottom">
-          <div className="info-card-bottom">
-            <div className="info-icon">👥</div>
-            <div>
-              <h3>Join the Community</h3>
-              <p>Thousands of IoT devices monitored worldwide</p>
-            </div>
-          </div>
-          <div className="info-card-bottom">
-            <div className="info-icon">🤖</div>
-            <div>
-              <h3>AI Anomaly Detection</h3>
-              <p>LSTM + GNN models detect threats in real-time</p>
-            </div>
-          </div>
-          <div className="info-card-bottom">
-            <div className="info-icon">🔔</div>
-            <div>
-              <h3>Instant Alerts</h3>
-              <p>Get notified when devices need attention</p>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   );

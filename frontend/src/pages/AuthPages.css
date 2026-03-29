@@ -180,64 +180,10 @@
 .footer-link { color: var(--cyan); text-decoration: none; font-weight: 500; }
 .footer-link:hover { text-decoration: underline; }
 
-/* ══════════════════════════════
-   INFO CARDS — NEECHE (BOTTOM)
-══════════════════════════════ */
-.auth-info-bottom {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  width: 100%;
-}
-
-.info-card-bottom {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(0, 212, 255, 0.18);
-  border-radius: 18px;
-  padding: 2.25rem 1.5rem;
-  backdrop-filter: blur(16px);
-  transition: all 0.3s ease;
-  cursor: default;
-}
-
-.info-card-bottom:hover {
-  border-color: rgba(0, 212, 255, 0.45);
-  background: rgba(0, 212, 255, 0.07);
-  transform: translateY(-5px);
-  box-shadow: 0 14px 32px rgba(0, 212, 255, 0.12);
-}
-
-.info-card-bottom .info-icon {
-  font-size: 2.8rem;
-  line-height: 1;
-  display: block;
-}
-
-.info-card-bottom h3 {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #ffffff;
-  line-height: 1.3;
-}
-
-.info-card-bottom p {
-  font-size: 0.85rem;
-  color: rgba(200, 221, 232, 0.65);
-  line-height: 1.6;
-}
-
 /* ── RESPONSIVE ── */
 @media (max-width: 520px) {
   .auth-card { padding: 2rem 1.25rem; }
   .auth-title { font-size: 1.45rem; }
-  .auth-info-bottom { grid-template-columns: 1fr; }
-  .info-card-bottom { flex-direction: row; text-align: left; padding: 1.1rem 1.25rem; }
-  .info-card-bottom .info-icon { font-size: 1.6rem; }
 }
 
 @media (max-width: 380px) {

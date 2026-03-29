@@ -10,5 +10,167 @@
     "asset_id": "Device-004",
     "type": "anomaly_cluster",
     "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-27T19:21:23.056631",
+    "asset_id": "Device-002",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-27T19:21:25.131958",
+    "asset_id": "Device-005",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-27T19:21:27.208223",
+    "asset_id": "Device-003",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-27T19:26:22.739651",
+    "asset_id": "Device-002",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-27T19:26:24.846386",
+    "asset_id": "Device-005",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-27T19:26:26.895210",
+    "asset_id": "Device-003",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:01:22.906533",
+    "asset_id": "Device-002",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:01:24.988110",
+    "asset_id": "Device-005",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:01:27.059106",
+    "asset_id": "Device-003",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:06:22.736983",
+    "asset_id": "Device-002",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:06:24.779115",
+    "asset_id": "Device-005",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:06:26.828309",
+    "asset_id": "Device-003",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:11:22.646487",
+    "asset_id": "Device-002",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:11:24.675916",
+    "asset_id": "Device-005",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:11:26.713499",
+    "asset_id": "Device-003",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:16:22.742309",
+    "asset_id": "Device-002",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:16:24.783684",
+    "asset_id": "Device-005",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:16:26.827819",
+    "asset_id": "Device-003",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:21:22.661307",
+    "asset_id": "Device-002",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:21:24.700698",
+    "asset_id": "Device-005",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T07:21:26.725757",
+    "asset_id": "Device-003",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T08:31:22.745309",
+    "asset_id": "Device-002",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T08:31:24.797101",
+    "asset_id": "Device-005",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-28T08:31:26.835909",
+    "asset_id": "Device-003",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-29T06:16:22.913018",
+    "asset_id": "Device-002",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-29T06:16:24.939679",
+    "asset_id": "Device-005",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
+  },
+  {
+    "timestamp": "2026-03-29T06:16:26.983794",
+    "asset_id": "Device-003",
+    "type": "anomaly_cluster",
+    "confidence": 0.87
   }
 ]

@@ -4,22 +4,29 @@ import random
 import json
 import csv
 import ssl
+import os
 import paho.mqtt.client as mqtt
 from datetime import datetime
+from dotenv import load_dotenv
+
+# ✅ .env se URL load karo (root folder se)
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # --- CONFIGURATION ---
-BACKEND_URL = "https://depin-backend.loca.lt/api/process_data"
-API_KEY     = "Depin_Project_Secret_Key_999"
+_base_url   = os.getenv("VITE_API_URL", "http://localhost:8000")
+BACKEND_URL = _base_url.rstrip("/") + "/api/process_data"
+API_KEY     = os.getenv("DEPIN_API_KEY", "Depin_Project_Secret_Key_999")
+
+DEVICES = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
 
 # =============================================
 # ✅ WEEK 7: TLS Certificate Paths
-#    Prateek ke certs use kar rahe hain
 # =============================================
-CA_CERT     = "ca.crt"      # docker/certs/ca.crt se copy kiya
+CA_CERT     = "ca.crt"
 CLIENT_CERT = "client.crt"
 CLIENT_KEY  = "client.key"
 MQTT_BROKER = "localhost"
-MQTT_PORT   = 8883           # 🔒 Secure port (was 1883)
+MQTT_PORT   = 8883
 MQTT_TOPIC  = "depin/sensors"
 
 def generate_sensor_data(device_id):
@@ -160,11 +167,6 @@ def generate_training_data(num_rows=10000):
 
 if __name__ == "__main__":
     import sys
-
-    # 3 modes:
-    #   python simulator.py          → Normal HTTP simulator
-    #   python simulator.py secure   → TLS MQTT simulator (Week 7)
-    #   python simulator.py generate → Training data CSV (Week 5)
 
     if len(sys.argv) > 1 and sys.argv[1] == "generate":
         generate_training_data(10000)

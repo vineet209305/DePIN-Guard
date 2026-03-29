@@ -26,7 +26,7 @@ const LoginPage = () => {
     if (!formData.email) errors.email = 'Email is required.';
     else if (!isValidEmail(formData.email)) errors.email = 'Please enter a valid email address.';
     if (!formData.password) errors.password = 'Password is required.';
-    else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters.';
+    else if (formData.password.length < 8) errors.password = 'Password must be at least 8 characters.';
     return errors;
   };
 
@@ -39,46 +39,65 @@ const LoginPage = () => {
     setError('');
 
     try {
-      // ✅ Call real auth-service (Prateek's service on depin-auth.loca.lt)
-      const response = await fetch(`${AUTH_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'bypass-tunnel-reminder': 'true',
-          'User-Agent': 'depin-guard-bot',
-        },
-        body: JSON.stringify({
-          username: 'admin',      // auth-service uses username not email
-          password: formData.password,
-        }),
-      });
+      // ✅ Step 1: Check if user has signed up with this email
+      const registeredUsersRaw = localStorage.getItem('registeredUsers');
+      const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Invalid credentials');
+      const matchedUser = registeredUsers.find(
+        (u) => u.email.toLowerCase() === formData.email.toLowerCase()
+      );
+
+      if (!matchedUser) {
+      
+        setError('No account found with this email. Please sign up first.');
+        setIsLoading(false);
+        return;
       }
 
-      const data = await response.json();
-      const token = data.access_token;
+     
+      let token = null;
+      try {
+        const response = await fetch(`${AUTH_URL}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'bypass-tunnel-reminder': 'true',
+            'User-Agent': 'depin-guard-bot',
+          },
+          body: JSON.stringify({
+            username: matchedUser.email,
+            password: formData.password,
+          }),
+        });
 
-      // ✅ Store real JWT — now all authenticatedFetch calls work
+        if (response.ok) {
+          const data = await response.json();
+          token = data.access_token;
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Invalid credentials');
+        }
+      } catch (authErr) {
+        // ✅ Step 3: Auth service offline — check password locally
+        if (matchedUser.password !== formData.password) {
+          setError('Incorrect password. Please try again.');
+          setIsLoading(false);
+          return;
+        }
+        token = 'local-token-' + Date.now();
+        console.warn('⚠️ Auth service unreachable — using local validation');
+      }
+
+      // ✅ Step 4: Login successful
       localStorage.setItem('token', token);
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('userEmail', formData.email);
+      localStorage.setItem('userName', matchedUser.fullName || '');
 
       navigate('/dashboard');
 
     } catch (err) {
-      // Fallback: if auth-service is offline, allow demo login with known credentials
-      if (formData.password === 'securepass') {
-        console.warn('⚠️ Auth service unreachable — using demo fallback login');
-        localStorage.setItem('token', 'demo-token');
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userEmail', formData.email);
-        navigate('/dashboard');
-      } else {
-        setError(err.message || 'Login failed. Check credentials or try password: securepass');
-      }
+      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -111,14 +130,11 @@ const LoginPage = () => {
               </svg>
               <div className="brand-name-tag">DePIN-Guard</div>
             </div>
-            <h1 className="auth-title">Welcome Back 👋</h1>
+            <h1 className="auth-title">Welcome Back </h1>
             <p className="auth-subtitle">
               Login to monitor your <span className="highlight-text">IoT devices</span>,
               view <span className="highlight-text">AI anomaly alerts</span>, and check your
               <span className="highlight-text"> blockchain audit trail</span>.
-            </p>
-            <p style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: '0.5rem' }}>
-              Demo credentials: <strong style={{ color: '#0ea5e9' }}>admin / securepass</strong>
             </p>
           </div>
 
@@ -130,7 +146,7 @@ const LoginPage = () => {
               <input
                 type="email" name="email"
                 value={formData.email} onChange={handleChange}
-                placeholder="admin@depin.com"
+                placeholder="your@email.com"
                 className={`form-input ${fieldErrors.email ? 'input-error' : ''}`}
               />
               {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
@@ -143,7 +159,7 @@ const LoginPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password} onChange={handleChange}
-                  placeholder="securepass"
+                  placeholder="Enter your password"
                   className={`form-input ${fieldErrors.password ? 'input-error' : ''}`}
                 />
                 <button type="button" className="password-toggle-icon" onClick={() => setShowPassword(!showPassword)}>
@@ -172,21 +188,6 @@ const LoginPage = () => {
             <p className="footer-text" style={{ marginTop: '0.5rem' }}>
               <Link to="/" className="footer-link">← Back to Home</Link>
             </p>
-          </div>
-        </div>
-
-        <div className="auth-info-bottom">
-          <div className="info-card-bottom">
-            <div className="info-icon">🛡️</div>
-            <div><h3>Secure Access</h3><p>JWT auth + bcrypt passwords + TLS encryption</p></div>
-          </div>
-          <div className="info-card-bottom">
-            <div className="info-icon">📡</div>
-            <div><h3>Live IoT Dashboard</h3><p>Real-time sensor data + anomaly alerts</p></div>
-          </div>
-          <div className="info-card-bottom">
-            <div className="info-icon">🔗</div>
-            <div><h3>Blockchain Verified</h3><p>Every event hashed on Hyperledger Fabric</p></div>
           </div>
         </div>
       </div>
