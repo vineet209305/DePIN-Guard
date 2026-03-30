@@ -9,10 +9,15 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 from dotenv import load_dotenv
 
+# ✅ Pehle iot-simulator/.env load karo, phir root .env fallback
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-BACKEND_URL = (os.getenv("VITE_API_URL", "http://localhost:8000")).rstrip("/") + "/api/process_data"
+# ✅ BACKEND_URL — simulator ka apna variable, VITE_ wala nahi
+# Same PC pe backend chal raha hai toh localhost:8000 direct use karo
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/") + "/api/process_data"
 API_KEY     = os.getenv("DEPIN_API_KEY", "Depin_Project_Secret_Key_999")
+
 DEVICES     = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
 
 CA_CERT     = "ca.crt"
@@ -69,7 +74,7 @@ def run_simulator():
                     else:
                         print(f"❌ Error {response.status_code}: {response.text}")
                 except requests.exceptions.ConnectionError:
-                    print("❌ Connection failed — is the backend running?")
+                    print("❌ Connection failed — backend chal raha hai? (uvicorn main:app --port 8000)")
                 except Exception as e:
                     print(f"⚠️ Error: {e}")
                 time.sleep(1)

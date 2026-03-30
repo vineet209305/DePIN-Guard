@@ -2,10 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 import './LiveChart.css';
 
 const MAX_POINTS = 20;
-const WS_URL     = `ws://${window.location.host}/ws/live`;
+
+// ✅ Localtunnel ya custom env variable se WebSocket URL lo
+// .env mein set karo: VITE_WS_URL=wss://depin-backend.loca.lt
+// Agar env nahi hai toh same host pe backend assume karo (Vite proxy)
+const getWsUrl = () => {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
+  // Vite proxy use ho raha hai — same host but ws protocol
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${protocol}://${window.location.hostname}:8000/ws/live`;
+};
+
+const WS_URL = getWsUrl();
 
 export default function LiveChart({ onConnect }) {
-  const [data, setData]         = useState([]);
+  const [data, setData]           = useState([]);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
 
@@ -14,19 +27,25 @@ export default function LiveChart({ onConnect }) {
     let retryTimeout;
 
     const connect = () => {
+      console.log('🔌 Connecting to WebSocket:', WS_URL);
       ws = new WebSocket(WS_URL);
 
       ws.onopen = () => {
+        console.log('✅ WebSocket connected');
         setConnected(true);
         onConnect?.();
       };
 
       ws.onclose = () => {
+        console.log('❌ WebSocket disconnected — retrying in 3s...');
         setConnected(false);
         retryTimeout = setTimeout(connect, 3000);
       };
 
-      ws.onerror = () => setConnected(false);
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        setConnected(false);
+      };
 
       ws.onmessage = (event) => {
         try {
@@ -76,7 +95,7 @@ export default function LiveChart({ onConnect }) {
             <tbody>
               {[...data].reverse().map((row, i) => (
                 <tr key={i} className={row.is_anomaly ? 'anomaly-row' : 'normal-row'}>
-                  <td>{row.device_id  ?? 'N/A'}</td>
+                  <td>{row.device_id   ?? 'N/A'}</td>
                   <td>{row.temperature ?? 'N/A'}</td>
                   <td>{row.vibration   ?? 'N/A'}</td>
                   <td>{row.power_usage ?? 'N/A'}</td>
