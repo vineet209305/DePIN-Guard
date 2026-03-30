@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './AuthPages.css';
 
-const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'https://depin-auth.loca.lt';
-
 const LoginPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '', rememberMe: false });
@@ -39,7 +37,6 @@ const LoginPage = () => {
     setError('');
 
     try {
-      // ✅ Step 1: Check if user has signed up with this email
       const registeredUsersRaw = localStorage.getItem('registeredUsers');
       const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
 
@@ -48,16 +45,15 @@ const LoginPage = () => {
       );
 
       if (!matchedUser) {
-      
         setError('No account found with this email. Please sign up first.');
         setIsLoading(false);
         return;
       }
 
-     
       let token = null;
       try {
-        const response = await fetch(`${AUTH_URL}/login`, {
+        // Auth request goes through Vite proxy (/login → localhost:8001)
+        const response = await fetch('/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -78,17 +74,16 @@ const LoginPage = () => {
           throw new Error(errData.detail || 'Invalid credentials');
         }
       } catch (authErr) {
-        // ✅ Step 3: Auth service offline — check password locally
+        // Auth service offline — fall back to local password check
         if (matchedUser.password !== formData.password) {
           setError('Incorrect password. Please try again.');
           setIsLoading(false);
           return;
         }
         token = 'local-token-' + Date.now();
-        console.warn('⚠️ Auth service unreachable — using local validation');
+        console.warn('Auth service unreachable — using local validation');
       }
 
-      // ✅ Step 4: Login successful
       localStorage.setItem('token', token);
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('userEmail', formData.email);
@@ -120,7 +115,6 @@ const LoginPage = () => {
 
       <div className="auth-wrapper">
         <div className="auth-card">
-
           <div className="auth-header">
             <div className="logo-container">
               <svg className="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -130,7 +124,7 @@ const LoginPage = () => {
               </svg>
               <div className="brand-name-tag">DePIN-Guard</div>
             </div>
-            <h1 className="auth-title">Welcome Back </h1>
+            <h1 className="auth-title">Welcome Back</h1>
             <p className="auth-subtitle">
               Login to monitor your <span className="highlight-text">IoT devices</span>,
               view <span className="highlight-text">AI anomaly alerts</span>, and check your

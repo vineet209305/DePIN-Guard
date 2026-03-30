@@ -1,6 +1,3 @@
-// frontend/src/pages/FraudReport.jsx
-// Week 11: Fraud Alert dashboard page
-
 import { useEffect, useState } from 'react';
 import Layout from '../components/layout/Layout';
 import { authenticatedFetch } from '../utils/api';
@@ -14,8 +11,8 @@ export default function FraudReport() {
   const fetchAlerts = async () => {
     setLoading(true);
     try {
-      const res = await authenticatedFetch(`/fraud-alerts`);
-      if (!res) return; // 401 handled — user redirected to /login
+      const res = await authenticatedFetch('/fraud-alerts');
+      if (!res) return;
       const data = await res.json();
       setAlerts(data.alerts || []);
     } catch (err) {
@@ -37,10 +34,10 @@ export default function FraudReport() {
 
   const getTypeIcon = (type) => {
     switch (type) {
-      case 'anomaly_cluster': return '🔴';
-      case 'high_frequency': return '⚡';
-      case 'injection_attempt': return '💉';
-      default: return '⚠️';
+      case 'anomaly_cluster':    return '🔴';
+      case 'high_frequency':     return '⚡';
+      case 'injection_attempt':  return '💉';
+      default:                   return '⚠️';
     }
   };
 
@@ -48,7 +45,6 @@ export default function FraudReport() {
     <Layout>
       <div className="fraud-container">
 
-        {/* Header */}
         <div className="fraud-header">
           <div>
             <h1 className="fraud-title">🚨 Fraud Alerts</h1>
@@ -62,7 +58,6 @@ export default function FraudReport() {
           </button>
         </div>
 
-        {/* Stats Bar */}
         <div className="fraud-stats">
           <div className="fraud-stat-card">
             <div className="fraud-stat-num">{alerts.length}</div>
@@ -88,7 +83,6 @@ export default function FraudReport() {
           </div>
         </div>
 
-        {/* Content */}
         {loading ? (
           <div className="fraud-loading">
             <div className="fraud-spinner" />

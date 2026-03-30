@@ -1,113 +1,84 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
-import { authenticatedFetch } from '../utils/api'; // ✅ WEEK 9
+import { authenticatedFetch } from '../utils/api';
 import './AIAnalysisPage.css';
 
 const AIAnalysisPage = () => {
   const [analysisResults, setAnalysisResults] = useState([
     {
-      id: 1,
-      device: 'Sensor-01',
-      type: 'Temperature Anomaly',
-      severity: 'high',
-      confidence: 92,
-      detected: new Date().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-'),
+      id: 1, device: 'Sensor-01', type: 'Temperature Anomaly', severity: 'high', confidence: 92,
+      detected: new Date().toLocaleString('en-GB').replace(/\//g, '-'),
       description: 'Unusual temperature spike detected - 15°C above normal range',
       recommendation: 'Immediate inspection recommended. Check cooling system.',
-      aiModel: 'Isolation Forest'
+      aiModel: 'LSTM Autoencoder',
     },
     {
-      id: 2,
-      device: 'Sensor-03',
-      type: 'Pattern Recognition',
-      severity: 'medium',
-      confidence: 78,
-      detected: new Date(Date.now() - 5 * 60000).toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-'),
+      id: 2, device: 'Sensor-03', type: 'Pattern Recognition', severity: 'medium', confidence: 78,
+      detected: new Date(Date.now() - 5 * 60000).toLocaleString('en-GB').replace(/\//g, '-'),
       description: 'Recurring pressure fluctuations every 30 minutes',
       recommendation: 'Monitor for next 24 hours. May indicate valve issue.',
-      aiModel: 'LSTM Neural Network'
+      aiModel: 'LSTM Autoencoder',
     },
     {
-      id: 3,
-      device: 'Sensor-02',
-      type: 'Predictive Alert',
-      severity: 'low',
-      confidence: 65,
-      detected: new Date(Date.now() - 10 * 60000).toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-'),
+      id: 3, device: 'Sensor-02', type: 'Predictive Alert', severity: 'low', confidence: 65,
+      detected: new Date(Date.now() - 10 * 60000).toLocaleString('en-GB').replace(/\//g, '-'),
       description: 'Humidity levels trending upward gradually',
       recommendation: 'No immediate action required. Continue monitoring.',
-      aiModel: 'Random Forest'
+      aiModel: 'Isolation Forest',
     },
   ]);
 
   const [aiStats, setAiStats] = useState({
-    totalAnalyses: 15234,
-    anomaliesDetected: 342,
-    accuracy: 94.2,
-    modelsActive: 5
+    totalAnalyses: 15234, anomaliesDetected: 342, accuracy: 94.2, modelsActive: 5,
   });
 
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
-  const [selectedModel, setSelectedModel] = useState('All Models');
-  const [filteredResults, setFilteredResults] = useState(analysisResults);
+  const [selectedModel, setSelectedModel]       = useState('All Models');
+  const [filteredResults, setFilteredResults]   = useState(analysisResults);
 
-  const aiModels = ['Isolation Forest', 'LSTM Neural Network', 'Random Forest', 'Deep Learning', 'Autoencoder'];
-  const detectionTypes = ['Temperature Anomaly', 'Pattern Recognition', 'Predictive Alert', 'Pressure Deviation', 'Humidity Warning', 'Vibration Alert', 'Network Anomaly'];
-  const devices = ['Sensor-01', 'Sensor-02', 'Sensor-03', 'Sensor-04', 'Sensor-05'];
+  const aiModels       = ['LSTM Autoencoder', 'Isolation Forest', 'Graph Neural Network'];
+  const detectionTypes = ['Temperature Anomaly', 'Pattern Recognition', 'Predictive Alert', 'Pressure Deviation', 'Vibration Alert'];
+  const devices        = ['Sensor-01', 'Sensor-02', 'Sensor-03', 'Sensor-04', 'Sensor-05'];
   const severityLevels = ['low', 'medium', 'high'];
   const recommendations = {
-    high: ['Immediate inspection recommended. Check cooling system.', 'Critical alert - shutdown may be required.', 'Emergency maintenance needed within 2 hours.', 'Inspect hardware immediately for damage.'],
-    medium: ['Monitor for next 24 hours. May indicate valve issue.', 'Schedule maintenance check within 48 hours.', 'Investigate sensor calibration.', 'Review system logs for patterns.'],
-    low: ['No immediate action required. Continue monitoring.', 'Normal fluctuation - no concern.', 'Track trend over next week.', 'Update baseline parameters if consistent.']
+    high:   ['Immediate inspection recommended. Check cooling system.', 'Critical alert — shutdown may be required.'],
+    medium: ['Monitor for next 24 hours. May indicate valve issue.', 'Schedule maintenance check within 48 hours.'],
+    low:    ['No immediate action required. Continue monitoring.', 'Track trend over next week.'],
   };
 
   const generateAnalysis = () => {
     const severity = severityLevels[Math.floor(Math.random() * severityLevels.length)];
-    const model = aiModels[Math.floor(Math.random() * aiModels.length)];
-    const device = devices[Math.floor(Math.random() * devices.length)];
-    const type = detectionTypes[Math.floor(Math.random() * detectionTypes.length)];
-    let confidence;
-    if (severity === 'high') confidence = Math.floor(Math.random() * 20) + 80;
-    else if (severity === 'medium') confidence = Math.floor(Math.random() * 20) + 60;
-    else confidence = Math.floor(Math.random() * 20) + 50;
-    const descriptions = {
-      'Temperature Anomaly': `${device} showing ${Math.floor(Math.random() * 20) + 10}°C ${severity === 'high' ? 'spike' : 'variation'}`,
-      'Pattern Recognition': `Recurring ${type.toLowerCase()} pattern detected every ${Math.floor(Math.random() * 60) + 15} minutes`,
-      'Predictive Alert': `${type} levels trending ${severity === 'high' ? 'rapidly' : 'gradually'} ${Math.random() > 0.5 ? 'upward' : 'downward'}`,
-      'Pressure Deviation': `Pressure reading ${Math.random() * 20 + 5}% ${severity === 'high' ? 'above' : 'outside'} normal range`,
-      'Humidity Warning': `Humidity at ${Math.floor(Math.random() * 30) + 60}% - ${severity === 'high' ? 'critical' : 'elevated'} level`,
-      'Vibration Alert': `Abnormal vibration frequency detected at ${Math.floor(Math.random() * 100) + 50}Hz`,
-      'Network Anomaly': `Unusual ${severity === 'high' ? 'spike' : 'pattern'} in network traffic detected`
-    };
+    const model    = aiModels[Math.floor(Math.random() * aiModels.length)];
+    const device   = devices[Math.floor(Math.random() * devices.length)];
+    const type     = detectionTypes[Math.floor(Math.random() * detectionTypes.length)];
+    const confidence = severity === 'high'
+      ? Math.floor(Math.random() * 20) + 80
+      : severity === 'medium'
+        ? Math.floor(Math.random() * 20) + 60
+        : Math.floor(Math.random() * 20) + 50;
+
     return {
-      id: Date.now() + Math.random(),
+      id:             Date.now() + Math.random(),
       device, type, severity, confidence,
-      detected: new Date().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-'),
-      description: descriptions[type] || `${type} detected on ${device}`,
+      detected:       new Date().toLocaleString('en-GB').replace(/\//g, '-'),
+      description:    `${type} detected on ${device}`,
       recommendation: recommendations[severity][Math.floor(Math.random() * recommendations[severity].length)],
-      aiModel: model
+      aiModel:        model,
     };
   };
 
   useEffect(() => {
-    const analysisInterval = setInterval(() => {
+    const interval = setInterval(() => {
       const newAnalysis = generateAnalysis();
       setAnalysisResults(prev => [newAnalysis, ...prev].slice(0, 15));
       setAiStats(prev => ({
-        totalAnalyses: prev.totalAnalyses + 1,
+        totalAnalyses:     prev.totalAnalyses + 1,
         anomaliesDetected: newAnalysis.severity === 'high' ? prev.anomaliesDetected + 1 : prev.anomaliesDetected,
-        accuracy: Math.min(99.9, Math.max(90, prev.accuracy + (Math.random() * 0.4 - 0.2))),
-        modelsActive: prev.modelsActive
+        accuracy:          Math.min(99.9, Math.max(90, prev.accuracy + (Math.random() * 0.4 - 0.2))),
+        modelsActive:      prev.modelsActive,
       }));
     }, 8000);
-    return () => clearInterval(analysisInterval);
-  }, []);
-
-  useEffect(() => {
-    const statsInterval = setInterval(() => {
-      setAiStats(prev => ({ ...prev, accuracy: Math.min(99.9, Math.max(90, prev.accuracy + (Math.random() * 0.4 - 0.2))) }));
-    }, 4000);
-    return () => clearInterval(statsInterval);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -115,31 +86,28 @@ const AIAnalysisPage = () => {
     else setFilteredResults(analysisResults.filter(a => a.aiModel === selectedModel));
   }, [selectedModel, analysisResults]);
 
-  // ✅ WEEK 9: Backend se AI results fetch karna (token ke saath)
   const fetchBackendAnalysis = async () => {
     try {
-      const res = await authenticatedFetch(`/api/ai-results`);
-      if (!res) return; // 401 handled — user redirected to /login
+      const res = await authenticatedFetch('/api/ai-results');
+      if (!res) return;
       const data = await res.json();
-      if (data && data.length > 0) {
-        setAnalysisResults(data);
-      }
-    } catch (err) {
-      console.log('Backend not available, using generated data.');
+      if (data && data.length > 0) setAnalysisResults(data);
+    } catch {
+      // backend not available — generated data already shown
     }
   };
 
   const handleRunAnalysis = () => {
-    fetchBackendAnalysis(); // ✅ WEEK 9: Try backend first
+    fetchBackendAnalysis();
     for (let i = 0; i < 3; i++) {
       setTimeout(() => {
         const newAnalysis = generateAnalysis();
         setAnalysisResults(prev => [newAnalysis, ...prev].slice(0, 15));
         setAiStats(prev => ({
-          totalAnalyses: prev.totalAnalyses + 1,
+          totalAnalyses:     prev.totalAnalyses + 1,
           anomaliesDetected: newAnalysis.severity === 'high' ? prev.anomaliesDetected + 1 : prev.anomaliesDetected,
-          accuracy: Math.min(99.9, Math.max(90, prev.accuracy + (Math.random() * 0.4 - 0.2))),
-          modelsActive: prev.modelsActive
+          accuracy:          Math.min(99.9, Math.max(90, prev.accuracy + (Math.random() * 0.4 - 0.2))),
+          modelsActive:      prev.modelsActive,
         }));
       }, i * 500);
     }
@@ -147,15 +115,12 @@ const AIAnalysisPage = () => {
 
   const getSeverityColor = (severity) => {
     switch (severity) {
-      case 'high': return { bg: '#ef444420', text: '#ef4444' };
+      case 'high':   return { bg: '#ef444420', text: '#ef4444' };
       case 'medium': return { bg: '#f59e0b20', text: '#f59e0b' };
-      case 'low': return { bg: '#22c55e20', text: '#22c55e' };
-      default: return { bg: '#6b728020', text: '#6b7280' };
+      case 'low':    return { bg: '#22c55e20', text: '#22c55e' };
+      default:       return { bg: '#6b728020', text: '#6b7280' };
     }
   };
-
-  const viewAnalysisDetails = (analysis) => setSelectedAnalysis(analysis);
-  const closeModal = () => setSelectedAnalysis(null);
 
   return (
     <Layout>
@@ -174,42 +139,22 @@ const AIAnalysisPage = () => {
         </div>
 
         <div className="ai-stats-grid">
-          <div className="ai-stat-card">
-            <div className="ai-stat-icon" style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+          {[
+            { icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', bg: 'linear-gradient(135deg,#0ea5e9,#0284c7)', value: aiStats.totalAnalyses.toLocaleString(), label: 'Total Analyses' },
+            { icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', bg: 'linear-gradient(135deg,#ef4444,#dc2626)', value: aiStats.anomaliesDetected, label: 'Anomalies Found' },
+            { icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', bg: 'linear-gradient(135deg,#22c55e,#16a34a)', value: `${aiStats.accuracy.toFixed(1)}%`, label: 'Model Accuracy' },
+            { icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z', bg: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', value: aiStats.modelsActive, label: 'Active Models' },
+          ].map((stat, i) => (
+            <div key={i} className="ai-stat-card">
+              <div className="ai-stat-icon" style={{ background: stat.bg }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={stat.icon} /></svg>
+              </div>
+              <div className="ai-stat-content">
+                <div className="ai-stat-value">{stat.value}</div>
+                <div className="ai-stat-label">{stat.label}</div>
+              </div>
             </div>
-            <div className="ai-stat-content">
-              <div className="ai-stat-value">{aiStats.totalAnalyses.toLocaleString()}</div>
-              <div className="ai-stat-label">Total Analyses</div>
-            </div>
-          </div>
-          <div className="ai-stat-card">
-            <div className="ai-stat-icon" style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            </div>
-            <div className="ai-stat-content">
-              <div className="ai-stat-value">{aiStats.anomaliesDetected}</div>
-              <div className="ai-stat-label">Anomalies Found</div>
-            </div>
-          </div>
-          <div className="ai-stat-card">
-            <div className="ai-stat-icon" style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <div className="ai-stat-content">
-              <div className="ai-stat-value">{aiStats.accuracy.toFixed(1)}%</div>
-              <div className="ai-stat-label">Model Accuracy</div>
-            </div>
-          </div>
-          <div className="ai-stat-card">
-            <div className="ai-stat-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-            </div>
-            <div className="ai-stat-content">
-              <div className="ai-stat-value">{aiStats.modelsActive}</div>
-              <div className="ai-stat-label">Active Models</div>
-            </div>
-          </div>
+          ))}
         </div>
 
         <div className="analysis-section">
@@ -217,7 +162,7 @@ const AIAnalysisPage = () => {
             <h2 className="section-title">Recent Analysis Results</h2>
             <select className="model-filter" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
               <option>All Models</option>
-              {aiModels.map(model => (<option key={model}>{model}</option>))}
+              {aiModels.map(m => <option key={m}>{m}</option>)}
             </select>
           </div>
           <div className="analysis-list">
@@ -243,7 +188,7 @@ const AIAnalysisPage = () => {
                     <span className="confidence-value">{analysis.confidence}%</span>
                   </div>
                   <div className="confidence-bar">
-                    <div className="confidence-fill" style={{ width: `${analysis.confidence}%`, background: analysis.confidence > 80 ? '#22c55e' : analysis.confidence > 60 ? '#f59e0b' : '#ef4444' }}></div>
+                    <div className="confidence-fill" style={{ width: `${analysis.confidence}%`, background: analysis.confidence > 80 ? '#22c55e' : analysis.confidence > 60 ? '#f59e0b' : '#ef4444' }} />
                   </div>
                 </div>
                 <div className="analysis-description">{analysis.description}</div>
@@ -257,7 +202,7 @@ const AIAnalysisPage = () => {
                     {analysis.aiModel}
                   </div>
                 </div>
-                <button className="view-recommendation-button" onClick={() => viewAnalysisDetails(analysis)}>
+                <button className="view-recommendation-button" onClick={() => setSelectedAnalysis(analysis)}>
                   View Recommendation
                   <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
                 </button>
@@ -267,11 +212,11 @@ const AIAnalysisPage = () => {
         </div>
 
         {selectedAnalysis && (
-          <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-overlay" onClick={() => setSelectedAnalysis(null)}>
             <div className="modal-content-ai" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header-ai">
                 <h2>Analysis Details</h2>
-                <button className="modal-close-ai" onClick={closeModal}>
+                <button className="modal-close-ai" onClick={() => setSelectedAnalysis(null)}>
                   <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                 </button>
               </div>
@@ -279,16 +224,15 @@ const AIAnalysisPage = () => {
                 <div className="detail-section">
                   <h3>Device Information</h3>
                   <p><strong>Device:</strong> {selectedAnalysis.device}</p>
-                  <p><strong>Detection Type:</strong> {selectedAnalysis.type}</p>
+                  <p><strong>Type:</strong> {selectedAnalysis.type}</p>
                   <p><strong>Severity:</strong> <span style={{ color: getSeverityColor(selectedAnalysis.severity).text }}>{selectedAnalysis.severity.toUpperCase()}</span></p>
                 </div>
                 <div className="detail-section">
                   <h3>Analysis Details</h3>
-                  <p><strong>Description:</strong></p>
-                  <p>{selectedAnalysis.description}</p>
-                  <p><strong>Confidence Level:</strong> {selectedAnalysis.confidence}%</p>
-                  <p><strong>AI Model Used:</strong> {selectedAnalysis.aiModel}</p>
-                  <p><strong>Detected At:</strong> {selectedAnalysis.detected}</p>
+                  <p><strong>Description:</strong> {selectedAnalysis.description}</p>
+                  <p><strong>Confidence:</strong> {selectedAnalysis.confidence}%</p>
+                  <p><strong>AI Model:</strong> {selectedAnalysis.aiModel}</p>
+                  <p><strong>Detected:</strong> {selectedAnalysis.detected}</p>
                 </div>
                 <div className="detail-section recommendation-section">
                   <h3>🎯 Recommendation</h3>

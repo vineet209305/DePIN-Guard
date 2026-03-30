@@ -7,18 +7,15 @@ __pycache__/
 venv/
 env/
 .venv/
-final.md
-final_part2.md
 
-# --- AI Service (CRITICAL: Do not upload models) ---
+# --- AI Service model artifacts (large files — do not commit) ---
 *.pth
 *.save
 *.joblib
 *.h5
 ai-service/models/
-Deploy_Phase1_AI.md
 
-# --- Backend Junk ---
+# --- Backend ---
 backend/venv/
 backend/__pycache__/
 
@@ -27,8 +24,7 @@ node_modules/
 dist/
 .npm/
 
-# --- Hyperledger Fabric (Blockchain) ---
-# We do not commit the heavy binaries or generated crypto keys
+# --- Hyperledger Fabric ---
 blockchain/fabric-samples/
 blockchain/install-fabric.sh
 blockchain/chaincode-go/vendor/
@@ -47,52 +43,43 @@ blockchain/fabric-samples/test-network/log.txt
 .idea/
 .DS_Store
 Thumbs.db
-# Logs
+
+# --- Logs ---
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-# Dependencies
-node_modules
-.pnp
-.pnp.js
-
-# Build Output (Vite creates the 'dist' folder)
+# --- Frontend build ---
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs
-*.njsproj
-*.sln
-*.sw?
-
-# Environment variables (SECURITY RISK if uploaded!)
+# --- Environment variables ---
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# Testing
+# --- Test & temp files ---
 coverage
-
-# Vite temp files
 *.timestamp-*
+
+# --- Blockchain crypto ---
 blockchain/crypto-config/
 blockchain/organizations/
+
+# --- TLS keys (NEVER commit private keys) ---
 client.key
-client.crt
 server.key
-audit_log.json
 ca.key
+*.pem
+
+# --- Audit logs ---
+audit.log
+audit_log.json
+
+# --- Root-level dev/debug scripts ---
+test_backend.py
