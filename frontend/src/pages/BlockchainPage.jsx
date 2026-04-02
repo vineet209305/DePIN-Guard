@@ -1,81 +1,53 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
-import { authenticatedFetch } from '../utils/api'; // ✅ WEEK 9
+import { authenticatedFetch } from '../utils/api';
 import './BlockchainPage.css';
 
 const BlockchainPage = () => {
-  const [blocks, setBlocks] = useState([
-    {
-      id: 1, height: 12543,
-      hash: '0x7a8f3e2d9b4c1a5f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5',
-      previousHash: '0x9b4c1a5f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1',
-      timestamp: new Date().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\//g, '-'),
-      size: '1.24', gasPrice: '24', status: 'confirmed'
-    },
-    {
-      id: 2, height: 12542,
-      hash: '0x9b4c1a5f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e9d8c7b6a5f4e3d2c1',
-      previousHash: '0x2d6e4b8c7a9f3e1d5c0b4a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8',
-      timestamp: new Date(Date.now() - 5 * 60000).toLocaleString('en-GB').replace(/\//g, '-'),
-      size: '0.98', gasPrice: '31', status: 'confirmed'
-    }
-  ]);
-
-  const [stats, setStats] = useState({ totalBlocks: 12543, avgGasPrice: 28 });
+  const [blocks, setBlocks]           = useState([]);
+  const [stats, setStats]             = useState({ totalBlocks: 0, transactions: 0 });
   const [selectedBlock, setSelectedBlock] = useState(null);
+  const [loading, setLoading]         = useState(true);
 
-  const generateHash = () => {
-    const chars = '0123456789abcdef';
-    let hash = '0x';
-    for (let i = 0; i < 64; i++) hash += chars[Math.floor(Math.random() * chars.length)];
-    return hash;
-  };
-
-  const createNewBlock = (prevBlock) => {
-    const newGas = Math.floor(Math.random() * 20) + 15;
-    return {
-      id: prevBlock.id + 1, height: prevBlock.height + 1,
-      hash: generateHash(), previousHash: prevBlock.hash,
-      timestamp: new Date().toLocaleString('en-GB').replace(/\//g, '-'),
-      size: (Math.random() * (1.5 - 0.5) + 0.5).toFixed(2),
-      gasPrice: newGas, status: 'confirmed'
-    };
-  };
-
-  // ✅ WEEK 9: Backend se blockchain data fetch karna (token ke saath)
+  // ✅ Backend se real blockchain data fetch karo
   const fetchBlockchainData = async () => {
     try {
-      const res = await authenticatedFetch(`/api/blockchain`);
-      if (!res) return; // 401 handled — user redirected to /login
+      const res = await authenticatedFetch('/api/blockchain');
+      if (!res) return;
       const data = await res.json();
-      if (data && data.blocks && data.blocks.length > 0) {
-        setBlocks(data.blocks);
+
+      if (data) {
+        // Stats update karo
+        setStats({
+          totalBlocks:  data.total_blocks  ?? data.totalBlocks  ?? 0,
+          transactions: data.transactions  ?? 0,
+        });
+
+        // Blocks update karo — recent_blocks use karo
+        if (data.recent_blocks && data.recent_blocks.length > 0) {
+          setBlocks(prev => {
+            // Purane blocks ke saath merge karo — duplicates hata ke
+            const existingIds = new Set(prev.map(b => b.id));
+            const newBlocks = data.recent_blocks.filter(b => !existingIds.has(b.id));
+            return [...newBlocks, ...prev].slice(0, 50); // max 50 blocks store
+          });
+        }
       }
     } catch (err) {
-      console.log('Backend not available, using demo data.');
+      console.log('Blockchain API not available:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Page load pe fetch + har 5 second mein refresh
   useEffect(() => {
-    fetchBlockchainData(); // ✅ Page load pe backend se data lo
+    fetchBlockchainData();
+    const interval = setInterval(fetchBlockchainData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const blockInterval = setInterval(() => {
-      setBlocks(prev => {
-        const next = createNewBlock(prev[0]);
-        setStats(s => ({ totalBlocks: s.totalBlocks + 1, avgGasPrice: Math.floor((s.avgGasPrice + next.gasPrice) / 2) }));
-        return [next, ...prev].slice(0, 10);
-      });
-    }, 10000);
-    return () => clearInterval(blockInterval);
-  }, []);
-
-  const handleSync = () => {
-    fetchBlockchainData(); // ✅ WEEK 9: Backend se sync karo
-    setBlocks(prev => [createNewBlock(prev[0]), ...prev].slice(0, 10));
-    setStats(s => ({ ...s, totalBlocks: s.totalBlocks + 1 }));
-  };
+  const handleSync = () => fetchBlockchainData();
 
   return (
     <Layout>
@@ -88,66 +60,91 @@ const BlockchainPage = () => {
           <button className="sync-button" onClick={handleSync}>Sync Network</button>
         </div>
 
+        {/* Stats */}
         <div className="blockchain-stats-grid">
           <div className="stat-card-blockchain">
             <div className="stat-content-blockchain">
-              <div className="stat-value-blockchain">{stats.totalBlocks.toLocaleString()}</div>
+              <div className="stat-value-blockchain">
+                {loading ? '...' : stats.totalBlocks.toLocaleString()}
+              </div>
               <div className="stat-label-blockchain">Total Blocks</div>
             </div>
           </div>
           <div className="stat-card-blockchain">
             <div className="stat-content-blockchain">
-              <div className="stat-value-blockchain">{stats.avgGasPrice} Gwei</div>
-              <div className="stat-label-blockchain">Avg. Gas Price</div>
+              <div className="stat-value-blockchain">
+                {loading ? '...' : stats.transactions.toLocaleString()}
+              </div>
+              <div className="stat-label-blockchain">Total Transactions</div>
             </div>
           </div>
         </div>
 
+        {/* Blocks List */}
         <div className="blocks-section">
-          <div className="blocks-list">
-            {blocks.map((block) => (
-              <div key={block.id} className="block-card">
-                <div className="block-header">
-                  <div className="block-height">Block #{block.height}</div>
-                  <span className="block-status confirmed">Confirmed</span>
+          {loading ? (
+            <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>
+              Loading blockchain data...
+            </p>
+          ) : blocks.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>
+              No blocks yet — start the simulator to generate transactions!
+            </p>
+          ) : (
+            <div className="blocks-list">
+              {blocks.map((block, i) => (
+                <div key={block.id ?? i} className="block-card">
+                  <div className="block-header">
+                    <div className="block-height">Block #{block.id}</div>
+                    <span className="block-status confirmed">{block.status ?? 'Confirmed'}</span>
+                  </div>
+                  <div className="block-info-grid">
+                    <div className="info-item">
+                      <div className="info-label">Hash</div>
+                      <code className="info-value">
+                        {block.hash ? block.hash.substring(0, 20) + '...' : '—'}
+                      </code>
+                    </div>
+                    <div className="info-item">
+                      <div className="info-label">Prev Hash</div>
+                      <code className="info-value">
+                        {block.prev_hash ? block.prev_hash.substring(0, 20) + '...' : '—'}
+                      </code>
+                    </div>
+                    <div className="info-item">
+                      <div className="info-label">Timestamp</div>
+                      <div className="info-value">{block.timestamp ?? '—'}</div>
+                    </div>
+                    <div className="info-item">
+                      <div className="info-label">Status</div>
+                      <div className="info-value">{block.status ?? 'Confirmed'}</div>
+                    </div>
+                  </div>
+                  <button
+                    className="view-details-button"
+                    onClick={() => setSelectedBlock(block)}
+                  >
+                    View Full Details
+                  </button>
                 </div>
-                <div className="block-info-grid">
-                  <div className="info-item">
-                    <div className="info-label">Hash</div>
-                    <code className="info-value">{block.hash.substring(0, 16)}...</code>
-                  </div>
-                  <div className="info-item">
-                    <div className="info-label">Block Size</div>
-                    <div className="info-value">{block.size} MB</div>
-                  </div>
-                  <div className="info-item">
-                    <div className="info-label">Timestamp</div>
-                    <div className="info-value">{block.timestamp}</div>
-                  </div>
-                  <div className="info-item">
-                    <div className="info-label">Gas Price</div>
-                    <div className="info-value">{block.gasPrice} Gwei</div>
-                  </div>
-                </div>
-                <button className="view-details-button" onClick={() => setSelectedBlock(block)}>View Full Details</button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
+        {/* Modal */}
         {selectedBlock && (
           <div className="modal-overlay" onClick={() => setSelectedBlock(null)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
               <div className="modal-header">
-                <h2>Block Details - #{selectedBlock.height}</h2>
+                <h2>Block Details — #{selectedBlock.id}</h2>
                 <button onClick={() => setSelectedBlock(null)}>×</button>
               </div>
               <div className="modal-body">
-                <div className="detail-row"><span>Hash:</span> <code>{selectedBlock.hash}</code></div>
-                <div className="detail-row"><span>Prev Hash:</span> <code>{selectedBlock.previousHash}</code></div>
-                <div className="detail-row"><span>Size:</span> <span>{selectedBlock.size} MB</span></div>
-                <div className="detail-row"><span>Gas Price:</span> <span>{selectedBlock.gasPrice} Gwei</span></div>
+                <div className="detail-row"><span>Hash:</span>      <code>{selectedBlock.hash}</code></div>
+                <div className="detail-row"><span>Prev Hash:</span> <code>{selectedBlock.prev_hash}</code></div>
                 <div className="detail-row"><span>Timestamp:</span> <span>{selectedBlock.timestamp}</span></div>
+                <div className="detail-row"><span>Status:</span>    <span>{selectedBlock.status}</span></div>
               </div>
             </div>
           </div>

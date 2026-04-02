@@ -8,6 +8,7 @@ import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import LandingPage from './pages/LandingPage';
 import FraudReport from './pages/FraudReport';
+import SecurityPage from './pages/Securitypage';
 
 // Protected Route — login nahi hai to /login pe bhejo
 const ProtectedRoute = ({ children }) => {
@@ -59,6 +60,11 @@ function App() {
         {/* ✅ WEEK 11: Fraud Report Page */}
         <Route path="/fraud-alerts" element={
           <ProtectedRoute><FraudReport /></ProtectedRoute>
+        } />
+
+        {/* ✅ Prateek: Security Dashboard */}
+        <Route path="/security" element={
+          <ProtectedRoute><SecurityPage /></ProtectedRoute>
         } />
 
         {/* 404 — Landing pe bhejo */}

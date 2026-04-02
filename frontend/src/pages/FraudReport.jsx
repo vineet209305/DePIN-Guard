@@ -11,7 +11,7 @@ export default function FraudReport() {
   const fetchAlerts = async () => {
     setLoading(true);
     try {
-      const res = await authenticatedFetch('/fraud-alerts');
+      const res = await authenticatedFetch('/api/fraud-alerts');
       if (!res) return;
       const data = await res.json();
       setAlerts(data.alerts || []);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LiveChart from '../components/LiveChart';
 import Layout from '../components/layout/Layout';
 import { authenticatedFetch } from '../utils/api';
@@ -12,6 +12,25 @@ const DashboardPage = () => {
   const [timePeriod, setTimePeriod] = useState('24h');
   const [chartData, setChartData]   = useState([]);
 
+  // ✅ Fallback chart sirf ek baar generate hoga — ref mein store
+  const fallbackChartRef = useRef({});
+
+  const generateFallbackChart = (period) => {
+    // Agar pehle se bana hua hai toh wahi return karo — random change nahi hoga
+    if (fallbackChartRef.current[period]) {
+      return fallbackChartRef.current[period];
+    }
+    const numPoints = period === '24h' ? 12 : period === '7d' ? 7 : 15;
+    const chart = Array.from({ length: numPoints }, (_, i) => ({
+      y:     Math.floor(Math.random() * 70 + 20),
+      label: period === '24h' ? `${i * 2}h` : period === '7d' ? `Day ${i + 1}` : `D-${i + 1}`,
+      raw:   null,
+    }));
+    fallbackChartRef.current[period] = chart;
+    return chart;
+  };
+
+  // ✅ Real stats + sensor feeds from /api/dashboard
   const fetchDashboardData = async () => {
     try {
       const response = await authenticatedFetch('/api/dashboard');
@@ -42,6 +61,7 @@ const DashboardPage = () => {
     }
   };
 
+  // ✅ Real chart from /api/history/all — fallback sirf tab jo pehle se bana hua hai
   const fetchChartData = async (period) => {
     try {
       const response = await authenticatedFetch('/api/history/all');
@@ -50,6 +70,7 @@ const DashboardPage = () => {
         const history = json.history ?? [];
 
         if (history.length === 0) {
+          // Backend se data nahi aaya — existing fallback use karo (random nahi)
           setChartData(generateFallbackChart(period));
           return;
         }
@@ -77,7 +98,7 @@ const DashboardPage = () => {
           });
           history.forEach((rec) => {
             const recDate = new Date(rec.timestamp).toDateString();
-            const b = buckets.find((bk) => bk.date === recDate);
+            const b = buckets.find(bk => bk.date === recDate);
             if (b) b.count++;
           });
         } else {
@@ -94,37 +115,38 @@ const DashboardPage = () => {
           });
         }
 
-        const maxCount = Math.max(...buckets.map((b) => b.count), 1);
-        setChartData(buckets.map((b) => ({
+        const maxCount = Math.max(...buckets.map(b => b.count), 1);
+        const newChart = buckets.map(b => ({
           label: b.label,
           y:     Math.round((b.count / maxCount) * 100),
           raw:   b.count,
-        })));
+        }));
+
+        // ✅ Sirf tab update karo jab real data ho
+        setChartData(newChart);
+
       }
     } catch (err) {
-      setChartData(generateFallbackChart(period));
+      // Error pe bhi existing fallback use karo — random nahi
+      setChartData(prev => prev.length > 0 ? prev : generateFallbackChart(period));
     }
   };
 
-  const generateFallbackChart = (period) => {
-    const numPoints = period === '24h' ? 12 : period === '7d' ? 7 : 15;
-    return Array.from({ length: numPoints }, (_, i) => ({
-      y:     Math.floor(Math.random() * 70 + 20),
-      label: period === '24h' ? `${i * 2}h` : period === '7d' ? `Day ${i + 1}` : `D-${i + 1}`,
-      raw:   null,
-    }));
-  };
-
+  // Mount pe fetch + har 10 second mein refresh (chart ke liye 10s kaafi hai)
   useEffect(() => {
     fetchDashboardData();
     fetchChartData(timePeriod);
-    const interval = setInterval(() => {
-      fetchDashboardData();
-      fetchChartData(timePeriod);
-    }, 5000);
-    return () => clearInterval(interval);
+
+    const dashInterval  = setInterval(fetchDashboardData, 5000);
+    const chartInterval = setInterval(() => fetchChartData(timePeriod), 10000);
+
+    return () => {
+      clearInterval(dashInterval);
+      clearInterval(chartInterval);
+    };
   }, []);
 
+  // Period change hone pe chart update karo
   useEffect(() => {
     fetchChartData(timePeriod);
   }, [timePeriod]);
@@ -153,6 +175,7 @@ const DashboardPage = () => {
     <Layout>
       <div className="dashboard-container">
 
+        {/* Header */}
         <div className="page-header">
           <div>
             <h1 className="page-title">IoT Dashboard</h1>
@@ -166,6 +189,7 @@ const DashboardPage = () => {
           </button>
         </div>
 
+        {/* Stats Grid */}
         <div className="stats-grid">
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)' }}>
@@ -176,6 +200,7 @@ const DashboardPage = () => {
               <div className="stat-label">Active Devices</div>
             </div>
           </div>
+
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
@@ -185,6 +210,7 @@ const DashboardPage = () => {
               <div className="stat-label">Total Records</div>
             </div>
           </div>
+
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
@@ -194,6 +220,7 @@ const DashboardPage = () => {
               <div className="stat-label">Alerts</div>
             </div>
           </div>
+
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -205,6 +232,7 @@ const DashboardPage = () => {
           </div>
         </div>
 
+        {/* Live Sensor Feeds */}
         <div className="data-section">
           <div className="section-header">
             <h2 className="section-title">Live Sensor Feeds</h2>
@@ -238,15 +266,21 @@ const DashboardPage = () => {
           </div>
         </div>
 
+        {/* LiveChart */}
         {!streamConnected && (
           <p className="loading-text">Connecting to live stream...</p>
         )}
         <LiveChart onConnect={() => setStreamConnected(true)} />
 
+        {/* Bar Chart */}
         <div className="chart-section">
           <div className="section-header">
             <h2 className="section-title">Device Activity Analytics</h2>
-            <select className="time-select" value={timePeriod} onChange={(e) => setTimePeriod(e.target.value)}>
+            <select
+              className="time-select"
+              value={timePeriod}
+              onChange={e => setTimePeriod(e.target.value)}
+            >
               <option value="24h">Last 24 Hours</option>
               <option value="7d">Last 7 Days</option>
               <option value="30d">Last 30 Days</option>
@@ -262,16 +296,20 @@ const DashboardPage = () => {
               </defs>
               {[0, 25, 50, 75, 100].map((tick) => (
                 <g key={tick}>
-                  <line x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT}
+                  <line
+                    x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT}
                     x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT}
-                    stroke="#f1f5f9" />
+                    stroke="#f1f5f9"
+                  />
                   <text x={MARGIN.left - 10} y={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT + 4}
                     fontSize="11" textAnchor="end" fill="#94a3b8">{tick}</text>
                 </g>
               ))}
-              <line x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT}
+              <line
+                x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT}
                 x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT}
-                stroke="#cbd5e1" strokeWidth="2" />
+                stroke="#cbd5e1" strokeWidth="2"
+              />
               {chartData.map((data, i) => {
                 const spacing   = CHART_WIDTH / chartData.length;
                 const barWidth  = spacing * 0.7;

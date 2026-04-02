@@ -3,19 +3,10 @@ import './LiveChart.css';
 
 const MAX_POINTS = 20;
 
-// ✅ Localtunnel ya custom env variable se WebSocket URL lo
-// .env mein set karo: VITE_WS_URL=wss://depin-backend.loca.lt
-// Agar env nahi hai toh same host pe backend assume karo (Vite proxy)
 const getWsUrl = () => {
-  if (import.meta.env.VITE_WS_URL) {
-    return import.meta.env.VITE_WS_URL;
-  }
-  // Vite proxy use ho raha hai — same host but ws protocol
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://${window.location.hostname}:8000/ws/live`;
+  const base = import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:8000`;
+  return base.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws/live';
 };
-
-const WS_URL = getWsUrl();
 
 export default function LiveChart({ onConnect }) {
   const [data, setData]           = useState([]);
@@ -27,6 +18,7 @@ export default function LiveChart({ onConnect }) {
     let retryTimeout;
 
     const connect = () => {
+      const WS_URL = getWsUrl();
       console.log('🔌 Connecting to WebSocket:', WS_URL);
       ws = new WebSocket(WS_URL);
 
