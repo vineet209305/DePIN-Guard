@@ -19,7 +19,7 @@ FEATURES = 3
 MODEL_PATH = "lstm_autoencoder.pth"
 SCALER_PATH = "scaler.save"
 THRESHOLD_PATH = "threshold.txt"
-DEFAULT_PORT = int(os.getenv("AI_SERVICE_PORT", os.getenv("PORT", "5000")))
+DEFAULT_PORT = int(os.getenv("AI_SERVICE_PORT", os.getenv("PORT", "10000")))
 
 _artifact_lock = threading.Lock()
 _artifacts_loaded = False
