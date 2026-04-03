@@ -1,69 +1,138 @@
-from flask import Flask, request, jsonify
-import torch
+import logging
+import os
+import threading
+import time
+
 import joblib
-import pandas as pd
+import torch
+from flask import Flask, jsonify, request
 
 from model import LSTMAutoencoder
+from preprocessing import canonicalize_sensor_frame
 
 app = Flask(__name__)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+logger = logging.getLogger("depin_guard.ai_service")
 
 FEATURES = 3
 MODEL_PATH = "lstm_autoencoder.pth"
 SCALER_PATH = "scaler.save"
 THRESHOLD_PATH = "threshold.txt"
+DEFAULT_PORT = int(os.getenv("AI_SERVICE_PORT", os.getenv("PORT", "5000")))
 
-print("Loading AI inference artifacts...")
+_artifact_lock = threading.Lock()
+_artifacts_loaded = False
+_artifact_error = None
+model = None
+scaler = None
+THRESHOLD = None
 
-model = LSTMAutoencoder(input_dim=FEATURES, hidden_dim=64)
-model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device("cpu")))
-model.eval()
 
-scaler = joblib.load(SCALER_PATH)
+def ensure_artifacts_loaded():
+    global _artifacts_loaded, _artifact_error, model, scaler, THRESHOLD
 
-with open(THRESHOLD_PATH, "r", encoding="utf-8") as f:
-    THRESHOLD = float(f.read().strip())
+    if _artifacts_loaded:
+        return
 
-print(f"AI service ready. Threshold: {THRESHOLD:.6f}")
+    with _artifact_lock:
+        if _artifacts_loaded:
+            return
+
+        try:
+            logger.info("Loading AI inference artifacts")
+
+            loaded_model = LSTMAutoencoder(input_dim=FEATURES, hidden_dim=64)
+            loaded_model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device("cpu")))
+            loaded_model.eval()
+
+            loaded_scaler = joblib.load(SCALER_PATH)
+
+            with open(THRESHOLD_PATH, "r", encoding="utf-8") as threshold_file:
+                loaded_threshold = float(threshold_file.read().strip())
+
+            model = loaded_model
+            scaler = loaded_scaler
+            THRESHOLD = loaded_threshold
+            _artifact_error = None
+            _artifacts_loaded = True
+
+            logger.info("AI service ready with threshold %.6f", THRESHOLD)
+        except Exception as exc:
+            _artifact_error = f"{type(exc).__name__}: {exc}"
+            logger.exception("Failed to load AI inference artifacts")
+            raise
+
+
+def validate_payload(payload):
+    if not isinstance(payload, dict):
+        return None, (jsonify({"error": "Request body must be a JSON object"}), 400)
+
+    missing = [field for field in ("temperature", "vibration") if field not in payload]
+    if missing:
+        return None, (jsonify({"error": f"Missing required field(s): {', '.join(missing)}"}), 400)
+
+    if payload.get("pressure") is None and payload.get("power_usage") is None:
+        return None, (jsonify({"error": "Missing pressure/power_usage field"}), 400)
+
+    try:
+        input_frame = canonicalize_sensor_frame([payload])
+    except (KeyError, ValueError, TypeError) as exc:
+        return None, (jsonify({"error": str(exc)}), 400)
+
+    return input_frame, None
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok"})
+
+
+@app.route("/ready", methods=["GET"])
+def ready():
+    try:
+        ensure_artifacts_loaded()
+        return jsonify({"status": "ready"})
+    except Exception:
+        return jsonify({"status": "not_ready", "error": _artifact_error or "unknown error"}), 503
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    started_at = time.perf_counter()
+
     try:
-        data = request.get_json(force=True)
+        ensure_artifacts_loaded()
+    except Exception:
+        return jsonify({"error": "AI inference artifacts are unavailable", "details": _artifact_error or "unknown"}), 503
 
-        temperature = data["temperature"]
-        vibration = data["vibration"]
-        pressure = data.get("pressure", data.get("power_usage"))
+    payload = request.get_json(silent=True)
+    input_frame, error_response = validate_payload(payload)
+    if error_response is not None:
+        return error_response
 
-        if pressure is None:
-            return jsonify({"error": "Missing pressure/power_usage field"}), 400
+    scaled_data = scaler.transform(input_frame)
+    tensor_data = torch.tensor(scaled_data, dtype=torch.float32).unsqueeze(0)
 
-        input_df = pd.DataFrame(
-            [[temperature, vibration, pressure]],
-            columns=["temperature", "vibration", "pressure"],
-        )
-        scaled_data = scaler.transform(input_df)
+    with torch.no_grad():
+        reconstruction = model(tensor_data)
+        loss = torch.mean((tensor_data - reconstruction) ** 2).item()
 
-        tensor_data = torch.FloatTensor(scaled_data).unsqueeze(0)
+    is_anomaly = loss > THRESHOLD
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
 
-        with torch.no_grad():
-            reconstruction = model(tensor_data)
-            loss = torch.mean((tensor_data - reconstruction) ** 2).item()
+    logger.info("Inference completed in %.2f ms with loss %.6f", duration_ms, loss)
 
-        is_anomaly = loss > THRESHOLD
-        return jsonify(
-            {
-                "is_anomaly": bool(is_anomaly),
-                "anomaly": bool(is_anomaly),
-                "loss": float(loss),
-                "threshold": float(THRESHOLD),
-            }
-        )
-    except KeyError as e:
-        return jsonify({"error": f"Missing required field: {str(e)}"}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify(
+        {
+            "is_anomaly": bool(is_anomaly),
+            "anomaly": bool(is_anomaly),
+            "status": "anomaly" if is_anomaly else "normal",
+            "loss": float(loss),
+            "threshold": float(THRESHOLD),
+        }
+    )
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=DEFAULT_PORT, debug=False)

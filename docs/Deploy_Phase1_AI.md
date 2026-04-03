@@ -1,38 +1,133 @@
-# Phase 1: Deploying the AI Service to Render
+# AI Service Deployment Runbook (Phase 1)
 
-**Why are we doing this first?**
-Because you mentioned the AI Service crashed on Render for you previously. I have completely redesigned your AI code behind the scenes (forcing it to use the CPU-only version of PyTorch and the Gunicorn production server) to ensure it never runs out of memory again. I just pushed these fixes to your GitHub. We will deploy this slowly and carefully right now.
+Last verified: 2026-04-03
+Scope: ai-service deployment and backend integration contract
 
-## Step 1: Connect to Render
-1. Go to [Render.com](https://render.com) and log in.
-2. At the top of your Dashboard, click the **"New+"** button and select **"Web Service"**.
-3. Under "Connect a repository", select the **`MohitSingh-2335/DePIN-Guard`** repository. *(If you don't see it, click "Connect GitHub" or "Configure Account" to give Render permission to see the repo).*
+## 1. Purpose
 
-## Step 2: Fill in the EXACT Details (Do Not Guess)
-When Render asks you to fill out the Deployment form, type these EXACT values in the boxes:
+Deploy the AI inference service in a repeatable way and verify it is compatible with backend calls to the prediction API.
 
-- **Name:** `depin-ai` *(or whatever you like)*
-- **Region:** Choose the region closest to you (e.g., `Singapore` or `Frankfurt`).
-- **Branch:** `main`
-- **Root Directory:** `ai-service`  *(🚨 THIS IS CRITICALLY IMPORTANT! Do not leave this blank. Type exactly `ai-service` because all the AI code is hidden inside that specific folder).*
-- **Environment:** `Docker` *(Render will automatically find the Dockerfile we just updated).*
-- **Instance Type:** Select the `Free` tier ($0/month).
+## 2. Runtime Contract (Source of Truth)
 
-## Step 3: Click Deploy!
-1. Scroll down to the bottom and click **"Create Web Service"**.
-2. Render will open a black terminal window and start downloading your AI model. 
-3. **Wait exactly 5-10 minutes.** Because we just optimized your `requirements.txt`, it will successfully download the files, install them, and print `AI service ready...` without crashing!
+Validated against:
 
-## Step 4: Save Your Permanent URL
-Once the top left corner says **"Live"** in green, look right below the name of your service. You will see a permanent URL that looks something like `https://depin-ai-abcd.onrender.com`.
+- ai-service/app.py
+- ai-service/Dockerfile
+- docker-compose.yml
+- backend/main.py
 
-**Copy that URL.** That is your permanent AI URL for the rest of the project.
+Expected service behavior:
 
----
+- Service exposes health endpoint: GET /health
+- Service exposes readiness endpoint: GET /ready
+- Service exposes inference endpoint: POST /predict
+- Container runtime binds to port 10000
+- Backend integration URL contract: http://ai-service:10000/predict
 
-### 👉 Stop Here and Reply to Me
-Do this exact phase right now. 
+Expected /predict response fields:
 
-If Render asks you a confusing question or spits out an error in the logs, **stop immediately, copy-paste the error here (or describe what you see), and ask me.** I will solve it instantly. 
+- is_anomaly (bool)
+- anomaly (bool)
+- status (normal or anomaly)
+- loss (float)
+- threshold (float)
 
-If it succeeds, reply to me and paste your permanent URL! We will then immediately move to Phase 2 (The Auth Service).
+## 3. Prerequisites
+
+1. Docker installed and running.
+2. Repository checked out with latest changes.
+3. AI artifacts present in ai-service:
+   - lstm_autoencoder.pth
+   - scaler.save
+   - threshold.txt
+4. If deploying full stack, set required environment variables:
+   - DEPIN_API_KEY
+   - JWT_SECRET_KEY
+
+## 4. Local Docker Deployment (Recommended Baseline)
+
+Run from repository root:
+
+```bash
+# Start only AI service
+ docker compose up --build ai-service
+```
+
+If deploying full stack:
+
+```bash
+ docker compose up --build
+```
+
+## 5. Post-Deploy Verification Checklist
+
+Run these checks after deployment:
+
+```bash
+# Liveness
+curl http://localhost:10000/health
+
+# Readiness (artifact load + model availability)
+curl http://localhost:10000/ready
+```
+
+Expected readiness response:
+
+- HTTP 200 with {"status":"ready"}
+
+Inference smoke test:
+
+```bash
+curl -X POST http://localhost:10000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"temperature":35.0,"vibration":0.5,"power_usage":25.0}'
+```
+
+Expected:
+
+- HTTP 200
+- JSON includes: is_anomaly, anomaly, status, loss, threshold
+
+Negative validation test:
+
+```bash
+curl -X POST http://localhost:10000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"temperature":35.0}'
+```
+
+Expected:
+
+- HTTP 400 with error message for missing required fields
+
+## 6. Backend Integration Verification
+
+When backend is running in docker-compose, verify backend uses:
+
+- AI_SERVICE_URL=http://ai-service:10000/predict
+
+Then submit test data through backend and confirm successful processing.
+
+## 7. Rollback Plan
+
+If deployment fails or readiness remains not_ready:
+
+1. Roll back to previously known-good image/tag or commit.
+2. Verify artifact files exist and are readable inside container.
+3. Check ai-service logs for artifact loading errors.
+4. Restore previous working compose/service config if contract regression is detected.
+
+## 8. Provider-Specific Notes (Optional)
+
+This runbook is provider-neutral. If deploying on Render or another managed platform:
+
+1. Ensure root directory is ai-service.
+2. Ensure runtime command uses gunicorn from ai-service/Dockerfile.
+3. Ensure service port is 10000.
+4. Run readiness and inference checks using the provider URL before integrating backend.
+
+## 9. Operational Notes
+
+- /ready is the authoritative probe for model readiness.
+- If /health is up but /ready fails, deployment is incomplete (artifacts/config issue).
+- Keep AI artifact and code versions aligned to avoid inference drift.
