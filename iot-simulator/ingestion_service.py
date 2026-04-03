@@ -12,7 +12,6 @@ import time
 import random
 from datetime import datetime
 
-# ✅ Shared config se — env sahi se load hoga
 from config import BACKEND_URL, API_KEY, DEVICES
 
 
