@@ -1,45 +1,126 @@
-# DePIN-Guard Security Audit Report
+# DePIN-Guard Security Audit (Implementation-Aligned)
 
-## 1. Overview
-This document summarizes the security measures implemented in the DePIN-Guard system.
+Last verified: 2026-04-03
+Audit type: source-level implementation review
 
-## 2. Authentication & Authorization
-- JWT-based authentication implemented in `auth-service`
-- Passwords hashed using bcrypt (never stored in plain text)
-- API Key protection on all sensitive endpoints
-- Token expiry set to 1 hour
+## 1. Scope and Evidence
+
+This document summarizes security controls observed in current runtime code and deployment manifests.
+
+Validated against:
+
+- backend/main.py
+- auth-service/main.py
+- iot-simulator/simulator.py
+- docker/mosquitto/mosquitto.conf
+- docker/docker-compose.yml
+- docker/docker-compose-custom.yaml
+- docker-compose.yml
+- .gitignore
+
+## 2. Authentication and Authorization
+
+Observed controls:
+
+- Backend API key guard exists via X-API-Key dependency for protected backend routes.
+- Fraud routes are included with API key dependency.
+- Backend also includes JWT token verification for /submit-data.
+- Auth service issues JWTs with 1 hour expiry.
+- Auth service uses bcrypt password hashing for stored credentials.
+
+Important implementation note:
+
+- Authorization model is mixed, not single-mode:
+  - X-API-Key on many backend endpoints.
+  - JWT verification path on /submit-data.
 
 ## 3. Transport Security
-- TLS/SSL certificates generated for MQTT broker
-- Server certificates signed by custom CA (DePIN-Guard-CA)
-- Client certificates generated for IoT simulator authentication
-- mTLS (mutual TLS) configured on port 8883
 
-## 4. API Security
-- Rate limiting: 60 requests/minute per IP using slowapi
-- Input validation on all endpoints
-- CORS restricted to trusted origins only
-- SQL injection protection via Pydantic models
+Observed controls:
 
-## 5. Audit Logging
-- All HTTP requests logged to `audit.log`
-- Log entries include: timestamp, method, path, status code, duration
-- Log file excluded from version control via `.gitignore`
+- MQTT broker config enforces TLS listener on 8883.
+- MQTT broker requires client certificates (mTLS) and anonymous access is disabled.
+- Broker cert and key references are present and mapped in docker cert path.
 
-## 6. Penetration Testing
-- Test 1: No API Key → 403 Forbidden ✅
-- Test 2: Wrong API Key → 403 Forbidden ✅
-- Test 3: No JWT Token → 401 Unauthorized ✅
-- Test 4: Rate Limit → 429 Too Many Requests ✅
-- Test 5: SQL Injection → 400 Bad Request ✅
+Caution:
 
-## 7. Secret Management
-- All secrets loaded from `.env` file
-- `.env` excluded from GitHub via `.gitignore`
-- Private keys (`.key`) never pushed to GitHub
-- SECRET_KEY never hardcoded in source files
+- Certificate lifecycle and rotation workflow are not documented in this file.
+- Private key handling must remain outside public source control workflows.
+
+## 4. API Security Controls
+
+Observed controls:
+
+- Backend uses request rate limiting (60/minute per IP) on ingestion endpoints.
+- Backend request schema validation is enforced through Pydantic models for typed endpoints.
+- CORS is allowlist-based in backend.
+
+Accuracy note:
+
+- Current CORS allowlist includes localhost and tunnel domains for development/testing.
+- This is not equivalent to a strict production-only origin policy.
+
+## 5. Logging and Auditability
+
+Observed controls:
+
+- Backend middleware writes request audit entries with timestamp, method, path, status, and duration.
+- Audit log file pattern is excluded in .gitignore (\*.log).
+
+Gaps:
+
+- No documented centralized log shipping/retention policy in this file.
+
+## 6. Secret Management Status
+
+Observed controls:
+
+- .env is excluded by .gitignore.
+- Runtime reads sensitive values from environment variables.
+
+Gaps and risks:
+
+- Code-level fallback secrets exist when environment values are missing (backend/auth service).
+- This means "never hardcoded" cannot be claimed as an absolute guarantee.
+
+## 7. Security Test Statement (What Is Verified vs Not Verified)
+
+Verified from source:
+
+- Presence of auth checks, rate limiting middleware, and validation structures.
+- Presence of mTLS broker config and cert references.
+
+Not verified in this document:
+
+- Live penetration test execution logs.
+- Environment-specific runtime hardening (host firewall, secret manager policy, IDS/WAF controls).
 
 ## 8. Known Limitations
-- Demo uses hardcoded admin credentials (to be replaced with database in production)
-- Blockchain integration currently simulated
-- Rate limiting resets on server restart
+
+1. Mixed auth model complexity increases misconfiguration risk.
+2. Development CORS origins and tunnel URLs are still present in runtime defaults.
+3. Default secret fallback behavior should be removed for strict production posture.
+4. Local sqlite + demo admin account in auth service is not enterprise IAM.
+5. Rate limiting state resets on process restart.
+
+## 9. Recommended Hardening Actions
+
+P0:
+
+1. Remove default fallback secrets and fail fast when required env values are missing.
+2. Split CORS policy by environment (dev vs production allowlists).
+3. Standardize endpoint auth policy and document endpoint-by-endpoint requirements.
+
+P1:
+
+4. Add reproducible security test appendix with commands, date, environment, and expected status codes.
+5. Add certificate rotation and key management policy for MQTT TLS materials.
+
+P2:
+
+6. Add centralized logging, retention, and correlation ID guidance for multi-service tracing.
+
+## 10. Compliance Statement
+
+This document is implementation-aligned and intentionally avoids blanket security guarantees.
+It should be treated as a current-state control summary, not as certification evidence.
