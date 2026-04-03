@@ -9,14 +9,14 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 from dotenv import load_dotenv
 
-# ✅ Pehle iot-simulator/.env load karo, phir root .env fallback
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-# ✅ BACKEND_URL — simulator ka apna variable, VITE_ wala nahi
-# Same PC pe backend chal raha hai toh localhost:8000 direct use karo
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/") + "/api/process_data"
-API_KEY     = os.getenv("DEPIN_API_KEY", "Depin_Project_Secret_Key_999")
+API_KEY     = os.getenv("DEPIN_API_KEY", "")
+
+if not API_KEY:
+    raise RuntimeError("DEPIN_API_KEY is required for iot-simulator runtime")
 
 DEVICES     = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
 
@@ -61,10 +61,8 @@ def run_simulator():
                 data = generate_sensor_data(device)
                 try:
                     headers = {
-                        "X-API-Key":              API_KEY,
-                        "Content-Type":           "application/json",
-                        "bypass-tunnel-reminder": "true",
-                        "User-Agent":             "depin-guard-bot",
+                        "X-API-Key": API_KEY,
+                        "Content-Type": "application/json",
                     }
                     response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
                     if response.status_code == 200:
