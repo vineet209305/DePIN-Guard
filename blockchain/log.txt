@@ -1,2 +1,0 @@
-Installed chaincodes on peer:
-Package ID: depin_cc_1.0:b14658d53d308538921a5b21e29c03094a4c505e6287976e79ea14ef0d7ae968, Label: depin_cc_1.0
