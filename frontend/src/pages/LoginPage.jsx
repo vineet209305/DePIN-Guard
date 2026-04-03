@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useLocation } from 'react-router-dom';
 import './AuthPages.css';
 
 const LoginPage = () => {
@@ -38,57 +37,30 @@ const LoginPage = () => {
     setError('');
 
     try {
-      const registeredUsersRaw = localStorage.getItem('registeredUsers');
-      const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
+      // Auth request goes through Vite proxy (/login -> auth-service)
+      const response = await fetch('/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.email,
+          password: formData.password,
+        }),
+      });
 
-      const matchedUser = registeredUsers.find(
-        (u) => u.email.toLowerCase() === formData.email.toLowerCase()
-      );
-
-      if (!matchedUser) {
-        setError('No account found with this email. Please sign up first.');
-        setIsLoading(false);
-        return;
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Invalid credentials');
       }
 
-      let token = null;
-      try {
-        // Auth request goes through Vite proxy (/login → localhost:8001)
-        const response = await fetch('/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'bypass-tunnel-reminder': 'true',
-            'User-Agent': 'depin-guard-bot',
-          },
-          body: JSON.stringify({
-            username: matchedUser.email,
-            password: formData.password,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          token = data.access_token;
-        } else {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.detail || 'Invalid credentials');
-        }
-      } catch (authErr) {
-        // Auth service offline — fall back to local password check
-        if (matchedUser.password !== formData.password) {
-          setError('Incorrect password. Please try again.');
-          setIsLoading(false);
-          return;
-        }
-        token = 'local-token-' + Date.now();
-        console.warn('Auth service unreachable — using local validation');
-      }
+      const data = await response.json();
+      const token = data.access_token;
 
       localStorage.setItem('token', token);
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('userEmail', formData.email);
-      localStorage.setItem('userName', matchedUser.fullName || '');
+      localStorage.setItem('userName', formData.email);
 
       navigate('/dashboard');
 
