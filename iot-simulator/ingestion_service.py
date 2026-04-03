@@ -11,6 +11,8 @@ import aiohttp
 import time
 import random
 from datetime import datetime
+
+# ✅ Shared config se — env sahi se load hoga
 from config import BACKEND_URL, API_KEY, DEVICES
 
 
@@ -29,13 +31,23 @@ async def send_one(session, payload):
     try:
         timeout = aiohttp.ClientTimeout(total=5)
         async with session.post(BACKEND_URL, json=payload, headers=headers, timeout=timeout) as resp:
-            return resp.status
+            status = resp.status
+            if status == 200:
+                return "200"
+            elif status == 429:
+                return "429"
+            elif status == 403:
+                return "403"
+            else:
+                return str(status)
+    except asyncio.TimeoutError:
+        return "TIMEOUT"
     except Exception as e:
         return f"ERROR: {e}"
 
 
 async def run_load_test(num_requests=100):
-    print(f"Sending {num_requests} concurrent requests to {BACKEND_URL}...")
+    print(f"🚀 Sending {num_requests} concurrent requests to {BACKEND_URL}...")
     payloads = [make_payload() for _ in range(num_requests)]
     start    = time.time()
 
@@ -44,14 +56,21 @@ async def run_load_test(num_requests=100):
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
     duration = time.time() - start
-    success  = sum(1 for r in results if r == 200)
 
-    print(
-        f"Success: {success} | "
-        f"Failed: {num_requests - success} | "
-        f"Total: {duration:.2f}s | "
-        f"Avg: {duration / num_requests * 1000:.1f}ms"
-    )
+    success      = sum(1 for r in results if r == "200")
+    rate_limited = sum(1 for r in results if r == "429")
+    forbidden    = sum(1 for r in results if r == "403")
+    timeouts     = sum(1 for r in results if r == "TIMEOUT")
+    errors       = sum(1 for r in results if str(r).startswith("ERROR"))
+
+    print(f"\n📊 Results:")
+    print(f"  ✅ Success (200):      {success}")
+    print(f"  ⚡ Rate Limited (429): {rate_limited}")
+    print(f"  🔒 Forbidden (403):    {forbidden}")
+    print(f"  ⏱️  Timeouts:           {timeouts}")
+    print(f"  ❌ Errors:             {errors}")
+    print(f"  ⏱️  Total time:         {duration:.2f}s")
+    print(f"  📈 Avg per request:    {duration / num_requests * 1000:.1f}ms")
 
 
 if __name__ == "__main__":

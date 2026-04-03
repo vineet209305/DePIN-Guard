@@ -2,29 +2,23 @@ import { useState } from 'react';
 import Layout from '../components/layout/Layout';
 import './SecurityPage.css';
 
-// ✅ Team ke 4 allowed emails
-const ALLOWED_EMAILS = [
-  'vineet',
-  'priyanshu',
-  'mohit',
-  'prateek',
-];
 
-const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD
+const ALLOWED_EMAILS = ['vineet', 'priyanshu', 'mohit', 'prateek'];
+
+
+const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD || null;
 
 const SecurityPage = () => {
-  // ── Access Control State ──
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [unlocked, setUnlocked] = useState(
     localStorage.getItem('security_unlocked') === 'true'
   );
 
-  // Check if current user is admin/team member
+
   const currentUser = (
-    localStorage.getItem('username') ||
-    localStorage.getItem('email') ||
-    localStorage.getItem('user') ||
+    localStorage.getItem('userEmail') ||
+    localStorage.getItem('userName') ||
     ''
   ).toLowerCase();
 
@@ -34,6 +28,13 @@ const SecurityPage = () => {
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
+
+    
+    if (!SECURITY_PASSWORD) {
+      setPasswordError('❌ Security password not configured. Contact Prateek.');
+      return;
+    }
+
     if (passwordInput === SECURITY_PASSWORD) {
       localStorage.setItem('security_unlocked', 'true');
       setUnlocked(true);
@@ -44,7 +45,7 @@ const SecurityPage = () => {
     }
   };
 
-  // ── No Access Screen ──
+ 
   if (!hasAccess && !unlocked) {
     return (
       <Layout>
@@ -64,23 +65,17 @@ const SecurityPage = () => {
                 onChange={(e) => setPasswordInput(e.target.value)}
                 autoFocus
               />
-              {passwordError && (
-                <p className="lock-error">{passwordError}</p>
-              )}
-              <button type="submit" className="lock-btn">
-                🔓 Unlock
-              </button>
+              {passwordError && <p className="lock-error">{passwordError}</p>}
+              <button type="submit" className="lock-btn">🔓 Unlock</button>
             </form>
-            <p className="lock-hint">
-              Contact Prateek (Security Lead) for access.
-            </p>
+            <p className="lock-hint">Contact Prateek (Security Lead) for access.</p>
           </div>
         </div>
       </Layout>
     );
   }
 
-  // ── Password Screen (team member hai but unlocked nahi) ──
+  
   if (hasAccess && !unlocked) {
     return (
       <Layout>
@@ -91,6 +86,18 @@ const SecurityPage = () => {
             <p className="lock-subtitle">
               Team member verified ✅ — Enter security password to continue.
             </p>
+            {!SECURITY_PASSWORD && (
+              <div style={{
+                padding: '0.5rem 1rem',
+                background: '#f59e0b20',
+                color: '#f59e0b',
+                borderRadius: '0.5rem',
+                fontSize: '0.85rem',
+                marginBottom: '1rem'
+              }}>
+                ⚠️ VITE_SECURITY_PASSWORD not set in .env
+              </div>
+            )}
             <form onSubmit={handlePasswordSubmit} className="lock-form">
               <input
                 type="password"
@@ -100,12 +107,8 @@ const SecurityPage = () => {
                 onChange={(e) => setPasswordInput(e.target.value)}
                 autoFocus
               />
-              {passwordError && (
-                <p className="lock-error">{passwordError}</p>
-              )}
-              <button type="submit" className="lock-btn">
-                🔓 Unlock
-              </button>
+              {passwordError && <p className="lock-error">{passwordError}</p>}
+              <button type="submit" className="lock-btn">🔓 Unlock</button>
             </form>
           </div>
         </div>
@@ -113,26 +116,25 @@ const SecurityPage = () => {
     );
   }
 
-  // ── Main Security Dashboard (unlocked) ──
-
+ 
   const securityControls = [
-    { icon: '🔐', name: 'JWT Authentication', desc: 'Bearer tokens with 1-hour expiry', status: 'active', detail: 'HS256 algorithm · Issued by auth-service' },
-    { icon: '🔑', name: 'bcrypt Password Hashing', desc: 'Passwords never stored in plain text', status: 'active', detail: 'Cost factor 12 · salted hash' },
-    { icon: '🔒', name: 'TLS Encryption', desc: 'Encrypted transport on MQTT port 8883', status: 'active', detail: 'TLSv1.2 · ca.crt + server.crt' },
-    { icon: '🛡️', name: 'API Key Guard', desc: 'X-API-Key header required on all IoT routes', status: 'active', detail: 'Key: Depin_Project_Secret_Key_***' },
-    { icon: '⚡', name: 'Rate Limiting', desc: '60 requests/min on data ingestion', status: 'active', detail: 'slowapi · Returns 429 on exceed' },
-    { icon: '✅', name: 'Input Validation', desc: 'Pydantic models reject malformed data', status: 'active', detail: 'SQL injection · Missing fields · Bounds check' },
-    { icon: '📋', name: 'Audit Logging', desc: 'Every API request logged to audit.log', status: 'active', detail: 'Timestamp · Method · Path · Status · Duration' },
-    { icon: '🧬', name: 'X.509 Certificates', desc: 'Fabric CAs issue certs to each org', status: 'active', detail: 'Manufacturer CA · Maintenance CA' },
+    { icon: '🔐', name: 'JWT Authentication',      desc: 'Bearer tokens with 1-hour expiry',          status: 'active', detail: 'HS256 algorithm · Issued by auth-service' },
+    { icon: '🔑', name: 'bcrypt Password Hashing', desc: 'Passwords never stored in plain text',       status: 'active', detail: 'Cost factor 12 · salted hash' },
+    { icon: '🔒', name: 'TLS Encryption',          desc: 'Encrypted transport on MQTT port 8883',      status: 'active', detail: 'TLSv1.2 · ca.crt + server.crt' },
+    { icon: '🛡️', name: 'API Key Guard',           desc: 'X-API-Key header required on all IoT routes',status: 'active', detail: 'Key: Depin_Project_Secret_Key_***' },
+    { icon: '⚡', name: 'Rate Limiting',           desc: '60 requests/min on data ingestion',          status: 'active', detail: 'slowapi · Returns 429 on exceed' },
+    { icon: '✅', name: 'Input Validation',         desc: 'Pydantic models reject malformed data',      status: 'active', detail: 'SQL injection · Missing fields · Bounds check' },
+    { icon: '📋', name: 'Audit Logging',           desc: 'Every API request logged to audit.log',      status: 'active', detail: 'Timestamp · Method · Path · Status · Duration' },
+    { icon: '🧬', name: 'X.509 Certificates',      desc: 'Fabric CAs issue certs to each org',         status: 'active', detail: 'Manufacturer CA · Maintenance CA' },
   ];
 
   const strideTable = [
-    { threat: 'Spoofing',               category: 'Identity',         control: 'JWT + API Key auth' },
-    { threat: 'Tampering',              category: 'Data Integrity',   control: 'SHA-256 hash on blockchain' },
-    { threat: 'Repudiation',            category: 'Non-Repudiation',  control: 'Audit log middleware' },
-    { threat: 'Info Disclosure',        category: 'Confidentiality',  control: 'TLS transport + JWT expiry' },
-    { threat: 'Denial of Service',      category: 'Availability',     control: 'Rate limiting 60/min' },
-    { threat: 'Elevation of Privilege', category: 'Authorization',    control: 'API Key scope limited' },
+    { threat: 'Spoofing',               category: 'Identity',        control: 'JWT + API Key auth' },
+    { threat: 'Tampering',              category: 'Data Integrity',  control: 'SHA-256 hash on blockchain' },
+    { threat: 'Repudiation',            category: 'Non-Repudiation', control: 'Audit log middleware' },
+    { threat: 'Info Disclosure',        category: 'Confidentiality', control: 'TLS transport + JWT expiry' },
+    { threat: 'Denial of Service',      category: 'Availability',    control: 'Rate limiting 60/min' },
+    { threat: 'Elevation of Privilege', category: 'Authorization',   control: 'API Key scope limited' },
   ];
 
   const certInfo = [
@@ -151,11 +153,11 @@ const SecurityPage = () => {
     setRateStats({ total: 0, blocked: 0 });
 
     const attacks = [
-      { delay: 400,  type: 'Brute Force Login',    result: 'BLOCKED', detail: '10/10 attempts rejected with 401', icon: '🔴' },
-      { delay: 1000, type: 'No API Key Access',     result: 'BLOCKED', detail: 'POST /api/process_data → 403 Forbidden', icon: '🔴' },
-      { delay: 1700, type: 'SQL Injection Payload', result: 'BLOCKED', detail: "device_id: '; DROP TABLE sensors;' → 400 Bad Request", icon: '🔴' },
-      { delay: 2400, type: 'Rate Limit Flood',      result: 'BLOCKED', detail: '65 rapid requests → 429 Too Many Requests', icon: '🔴' },
-      { delay: 3100, type: 'Expired Token Access',  result: 'BLOCKED', detail: 'JWT exp exceeded → 401 Unauthorized', icon: '🔴' },
+      { delay: 400,  type: 'Brute Force Login',    result: 'BLOCKED', detail: '10/10 attempts rejected with 401',                           icon: '🔴' },
+      { delay: 1000, type: 'No API Key Access',     result: 'BLOCKED', detail: 'POST /api/process_data → 403 Forbidden',                    icon: '🔴' },
+      { delay: 1700, type: 'SQL Injection Payload', result: 'BLOCKED', detail: "device_id: '; DROP TABLE sensors;' → 400 Bad Request",      icon: '🔴' },
+      { delay: 2400, type: 'Rate Limit Flood',      result: 'BLOCKED', detail: '65 rapid requests → 429 Too Many Requests',                 icon: '🔴' },
+      { delay: 3100, type: 'Expired Token Access',  result: 'BLOCKED', detail: 'JWT exp exceeded → 401 Unauthorized',                       icon: '🔴' },
     ];
 
     attacks.forEach(({ delay, type, result, detail, icon }) => {
@@ -197,22 +199,10 @@ const SecurityPage = () => {
 
         {/* Stats Row */}
         <div className="security-stats">
-          <div className="sec-stat-card">
-            <div className="sec-stat-num">8</div>
-            <div className="sec-stat-lbl">Security Controls Active</div>
-          </div>
-          <div className="sec-stat-card">
-            <div className="sec-stat-num" style={{ color: '#22c55e' }}>6/6</div>
-            <div className="sec-stat-lbl">STRIDE Threats Mitigated</div>
-          </div>
-          <div className="sec-stat-card">
-            <div className="sec-stat-num" style={{ color: '#0ea5e9' }}>3</div>
-            <div className="sec-stat-lbl">TLS Certificates Active</div>
-          </div>
-          <div className="sec-stat-card">
-            <div className="sec-stat-num" style={{ color: '#f59e0b' }}>60/min</div>
-            <div className="sec-stat-lbl">Rate Limit Threshold</div>
-          </div>
+          <div className="sec-stat-card"><div className="sec-stat-num">8</div><div className="sec-stat-lbl">Security Controls Active</div></div>
+          <div className="sec-stat-card"><div className="sec-stat-num" style={{ color: '#22c55e' }}>6/6</div><div className="sec-stat-lbl">STRIDE Threats Mitigated</div></div>
+          <div className="sec-stat-card"><div className="sec-stat-num" style={{ color: '#0ea5e9' }}>3</div><div className="sec-stat-lbl">TLS Certificates Active</div></div>
+          <div className="sec-stat-card"><div className="sec-stat-num" style={{ color: '#f59e0b' }}>60/min</div><div className="sec-stat-lbl">Rate Limit Threshold</div></div>
         </div>
 
         {/* Security Controls Grid */}
@@ -239,12 +229,7 @@ const SecurityPage = () => {
           <div className="stride-table-wrap">
             <table className="stride-table">
               <thead>
-                <tr>
-                  <th>Threat</th>
-                  <th>Category</th>
-                  <th>Control Applied</th>
-                  <th>Status</th>
-                </tr>
+                <tr><th>Threat</th><th>Category</th><th>Control Applied</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {strideTable.map((row, i) => (
