@@ -29,7 +29,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 API_KEY    = os.getenv("DEPIN_API_KEY")
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:5000/predict")
+AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:10000/predict")
 AI_TIMEOUT_SECONDS = float(os.getenv("AI_TIMEOUT_SECONDS", "4"))
 AI_RETRY_COUNT = int(os.getenv("AI_RETRY_COUNT", "1"))
 
@@ -151,11 +151,13 @@ default_origins = [
     "http://127.0.0.1:5173",
 ]
 cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+cors_regex_env = os.getenv("CORS_ALLOWED_ORIGIN_REGEX", "").strip()
 trusted_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()] or default_origins
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=trusted_origins,
+    allow_origin_regex=cors_regex_env or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
