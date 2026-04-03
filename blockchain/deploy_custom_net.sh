@@ -1,87 +1,170 @@
 #!/bin/bash
-set -e
+#
+# blockchain/deploy_custom_net.sh
+#
+# Usage:
+#   ./deploy_custom_net.sh          — start network (safe, skips if already running)
+#   ./deploy_custom_net.sh --reset  — stop Fabric containers only, regenerate, restart
+#   ./deploy_custom_net.sh --teardown — stop and remove Fabric containers and volumes only
+#
+# NEVER touches containers outside the depin-fabric Docker network.
+
+set -euo pipefail
+
+# ─── Configuration ────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+BLOCKCHAIN_DIR="$SCRIPT_DIR"
+COMPOSE_FILE="$BLOCKCHAIN_DIR/../docker/docker-compose-custom.yaml"
+CONFIG_DIR="$BLOCKCHAIN_DIR/config"
+ARTIFACTS_DIR="$BLOCKCHAIN_DIR/channel-artifacts"
+ORGS_DIR="$BLOCKCHAIN_DIR/organizations"
+CHANNEL_NAME="mychannel"
+CHAINCODE_NAME="depin-guard"
+FABRIC_PROJECT_NAME="depin-fabric"
 
-echo "🧹 Cleaning up old containers and corrupted files..."
-# Added sudo here to prevent Permission Denied errors
-docker-compose -f ../docker/docker-compose.yml down -v 2>/dev/null || true
-docker-compose -f ../docker/docker-compose-custom.yaml down -v 2>/dev/null || true
-docker rm -f $(docker ps -aq) 2>/dev/null || true
-docker volume prune -f
-sudo rm -rf organizations channel-artifacts
-mkdir -p channel-artifacts
+export PATH=$PATH:$BLOCKCHAIN_DIR/fabric-samples/bin
 
-# ── Locate binaries ──────────────────────────────────────────
-PEER_BIN=""
-if   [ -f "${SCRIPT_DIR}/fabric-samples/bin/peer" ]; then
-    PEER_BIN="${SCRIPT_DIR}/fabric-samples/bin/peer"
-elif [ -f "${SCRIPT_DIR}/bin/peer" ]; then
-    PEER_BIN="${SCRIPT_DIR}/bin/peer"
-else
-    PEER_BIN="peer"
-fi
-echo "✅ Using peer binary: $PEER_BIN"
+# ─── Mode Parsing ─────────────────────────────────────────────────────────────
 
-# ── configtxgen needs FABRIC_CFG_PATH pointing to the blockchain dir ──
-export FABRIC_CFG_PATH="${SCRIPT_DIR}"
+MODE="${1:-start}"
 
-echo "🔑 Generating fresh crypto material..."
-cryptogen generate --config=./config/crypto-config.yaml --output="organizations"
+case "$MODE" in
+  --teardown)
+    echo "[TEARDOWN] Stopping and removing DePIN Fabric containers only..."
+    docker compose -p "$FABRIC_PROJECT_NAME" -f "$COMPOSE_FILE" down --volumes --remove-orphans 2>/dev/null || true
+    echo "[TEARDOWN] Complete. Non-Fabric containers untouched."
+    exit 0
+    ;;
+  --reset)
+    echo "[RESET] Stopping DePIN Fabric containers only..."
+    docker compose -p "$FABRIC_PROJECT_NAME" -f "$COMPOSE_FILE" down --volumes --remove-orphans 2>/dev/null || true
+    echo "[RESET] Cleaned. Proceeding to regenerate and restart..."
+    ;;
+  start)
+    echo "[START] Starting DePIN Fabric network..."
+    ;;
+  *)
+    echo "Unknown mode: $MODE"
+    echo "Usage: $0 [--reset | --teardown]"
+    exit 1
+    ;;
+esac
 
-echo "📦 Generating genesis block..."
-configtxgen -profile TwoOrgsOrdererGenesis -channelID system-channel \
-    -outputBlock ./channel-artifacts/genesis.block
+# ─── Prerequisite Checks ──────────────────────────────────────────────────────
 
-echo "📄 Generating channel transaction..."
-configtxgen -profile TwoOrgsChannel \
-    -outputCreateChannelTx ./channel-artifacts/channel.tx \
-    -channelID mychannel
+check_prereqs() {
+  echo "[CHECK] Verifying prerequisites..."
 
-echo "🚀 Starting network..."
-docker-compose -f ../docker/docker-compose.yml up -d
+  local missing=0
+  for tool in cryptogen configtxgen docker; do
+    if ! command -v "$tool" &>/dev/null; then
+      echo "[ERROR] Required tool not found: $tool"
+      missing=1
+    fi
+  done
 
-echo "⏳ Waiting 10 seconds for peers to fully initialize..."
-sleep 10
+  if [[ ! -f "$CONFIG_DIR/crypto-config.yaml" ]]; then
+    echo "[ERROR] crypto-config.yaml not found at $CONFIG_DIR"
+    missing=1
+  fi
 
-# ── Switch to fabric-samples/config for peer CLI commands ──
-export FABRIC_CFG_PATH="${SCRIPT_DIR}/fabric-samples/config"
+  if [[ ! -f "$BLOCKCHAIN_DIR/configtx.yaml" ]]; then
+    echo "[ERROR] configtx.yaml not found at $BLOCKCHAIN_DIR"
+    missing=1
+  fi
 
-ORDERER_CA="${SCRIPT_DIR}/organizations/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
-MFR_TLS="${SCRIPT_DIR}/organizations/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/ca.crt"
-MFR_MSP="${SCRIPT_DIR}/organizations/peerOrganizations/manufacturer.example.com/users/Admin@manufacturer.example.com/msp"
-MNT_TLS="${SCRIPT_DIR}/organizations/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/ca.crt"
-MNT_MSP="${SCRIPT_DIR}/organizations/peerOrganizations/maintenance.example.com/users/Admin@maintenance.example.com/msp"
+  if [[ $missing -eq 1 ]]; then
+    echo "[ABORT] Prerequisites not met. Fix errors above before retrying."
+    exit 1
+  fi
 
-echo "🌍 Creating channel 'mychannel' as Manufacturer Admin..."
-export CORE_PEER_LOCALMSPID="ManufacturerMSP"
-export CORE_PEER_TLS_ENABLED=true
-export CORE_PEER_TLS_ROOTCERT_FILE="$MFR_TLS"
-export CORE_PEER_MSPCONFIGPATH="$MFR_MSP"
-export CORE_PEER_ADDRESS=localhost:7051
+  echo "[CHECK] All prerequisites satisfied."
+}
 
-$PEER_BIN channel create \
-    -o localhost:7050 \
-    -c mychannel \
-    -f ./channel-artifacts/channel.tx \
-    --outputBlock ./channel-artifacts/mychannel.block \
-    --tls --cafile "$ORDERER_CA" \
-    || { echo "❌ Channel create failed"; exit 1; }
+# ─── Artifact Generation ──────────────────────────────────────────────────────
 
-echo "🤝 Joining Manufacturer Peer..."
-$PEER_BIN channel join -b ./channel-artifacts/mychannel.block \
-    || echo "⚠️ Manufacturer join failed (may already be joined)"
+generate_crypto() {
+  echo "[CRYPTO] Generating cryptographic material..."
 
-echo "🤝 Joining Maintenance Peer..."
-export CORE_PEER_LOCALMSPID="MaintenanceMSP"
-export CORE_PEER_TLS_ROOTCERT_FILE="$MNT_TLS"
-export CORE_PEER_MSPCONFIGPATH="$MNT_MSP"
-export CORE_PEER_ADDRESS=localhost:9051
+  if [[ -d "$ORGS_DIR" && "$MODE" == "start" ]]; then
+    echo "[CRYPTO] organizations/ already exists — skipping (use --reset to regenerate)"
+    return 0
+  fi
 
-$PEER_BIN channel join -b ./channel-artifacts/mychannel.block \
-    || echo "⚠️ Maintenance join failed (may already be joined)"
+  rm -rf "$ORGS_DIR"
+  cryptogen generate \
+    --config="$CONFIG_DIR/crypto-config.yaml" \
+    --output="$ORGS_DIR"
 
-echo "✅ Channel created and peers joined!"
-echo "🐳 Running containers:"
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+  echo "[CRYPTO] Cryptographic material generated at $ORGS_DIR"
+}
+
+generate_artifacts() {
+  echo "[ARTIFACTS] Generating genesis block and channel tx..."
+
+  mkdir -p "$ARTIFACTS_DIR"
+
+  if [[ -f "$ARTIFACTS_DIR/genesis.block" && "$MODE" == "start" ]]; then
+    echo "[ARTIFACTS] Artifacts already exist — skipping (use --reset to regenerate)"
+    return 0
+  fi
+
+  FABRIC_CFG_PATH="$BLOCKCHAIN_DIR" configtxgen \
+    -profile ManufacturerMaintenanceOrdererGenesis \
+    -channelID system-channel \
+    -outputBlock "$ARTIFACTS_DIR/genesis.block"
+
+  FABRIC_CFG_PATH="$BLOCKCHAIN_DIR" configtxgen \
+    -profile ManufacturerMaintenanceChannel \
+    -outputCreateChannelTx "$ARTIFACTS_DIR/${CHANNEL_NAME}.tx" \
+    -channelID "$CHANNEL_NAME"
+
+  echo "[ARTIFACTS] Genesis block and channel tx written."
+}
+
+# ─── Network Startup ──────────────────────────────────────────────────────────
+
+start_containers() {
+  echo "[DOCKER] Starting Fabric containers..."
+
+  docker compose \
+    -p "$FABRIC_PROJECT_NAME" \
+    -f "$COMPOSE_FILE" \
+    up -d --remove-orphans
+
+  echo "[DOCKER] Waiting for peers and orderer to become ready..."
+  sleep 8
+
+  # Verify containers actually started
+  local expected_containers=("peer0.manufacturer" "peer0.maintenance" "orderer")
+  for container in "${expected_containers[@]}"; do
+    if ! docker ps --format '{{.Names}}' | grep -q "$container"; then
+      echo "[ERROR] Container $container did not start."
+      echo "[ERROR] Check logs: docker compose -p $FABRIC_PROJECT_NAME logs"
+      exit 1
+    fi
+  done
+
+  echo "[DOCKER] All Fabric containers running."
+}
+
+# ─── Main Execution ───────────────────────────────────────────────────────────
+
+main() {
+  check_prereqs
+  generate_crypto
+  generate_artifacts
+  start_containers
+
+  echo ""
+  echo "══════════════════════════════════════════════"
+  echo " DePIN-Guard Fabric Network is RUNNING"
+  echo " Channel artifacts: $ARTIFACTS_DIR"
+  echo " Organizations:     $ORGS_DIR"
+  echo " To reset:    $0 --reset"
+  echo " To teardown: $0 --teardown"
+  echo "══════════════════════════════════════════════"
+}
+
+main
