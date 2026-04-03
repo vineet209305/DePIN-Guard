@@ -19,17 +19,14 @@ export default function LiveChart({ onConnect }) {
 
     const connect = () => {
       const WS_URL = getWsUrl();
-      console.log('🔌 Connecting to WebSocket:', WS_URL);
       ws = new WebSocket(WS_URL);
 
       ws.onopen = () => {
-        console.log('✅ WebSocket connected');
         setConnected(true);
         onConnect?.();
       };
 
       ws.onclose = () => {
-        console.log('❌ WebSocket disconnected — retrying in 3s...');
         setConnected(false);
         retryTimeout = setTimeout(connect, 3000);
       };
