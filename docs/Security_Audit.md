@@ -78,10 +78,10 @@ Observed controls:
 - .env is excluded by .gitignore.
 - Runtime reads sensitive values from environment variables.
 
-Gaps and risks:
+Current status:
 
-- Code-level fallback secrets exist when environment values are missing (backend/auth service).
-- This means "never hardcoded" cannot be claimed as an absolute guarantee.
+- Backend and auth-service now fail fast when required secrets are missing.
+- No default runtime secret fallback is used in backend/auth startup paths.
 
 ## 7. Security Test Statement (What Is Verified vs Not Verified)
 
@@ -98,8 +98,8 @@ Not verified in this document:
 ## 8. Known Limitations
 
 1. Mixed auth model complexity increases misconfiguration risk.
-2. Development CORS origins and tunnel URLs are still present in runtime defaults.
-3. Default secret fallback behavior should be removed for strict production posture.
+2. Default CORS origins are local-development focused and should be overridden in production via env.
+3. Some auxiliary scripts still rely on environment discipline and should be included in ops hardening checks.
 4. Local sqlite + demo admin account in auth service is not enterprise IAM.
 5. Rate limiting state resets on process restart.
 
@@ -107,7 +107,7 @@ Not verified in this document:
 
 P0:
 
-1. Remove default fallback secrets and fail fast when required env values are missing.
+1. Keep fail-fast secret loading enforced and document required env variables in .env.example.
 2. Split CORS policy by environment (dev vs production allowlists).
 3. Standardize endpoint auth policy and document endpoint-by-endpoint requirements.
 
