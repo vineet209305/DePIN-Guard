@@ -12,11 +12,9 @@ const DashboardPage = () => {
   const [timePeriod, setTimePeriod] = useState('24h');
   const [chartData, setChartData]   = useState([]);
 
-  // ✅ Fallback chart sirf ek baar generate hoga — ref mein store
   const fallbackChartRef = useRef({});
 
   const generateFallbackChart = (period) => {
-    // Agar pehle se bana hua hai toh wahi return karo — random change nahi hoga
     if (fallbackChartRef.current[period]) {
       return fallbackChartRef.current[period];
     }
@@ -30,7 +28,6 @@ const DashboardPage = () => {
     return chart;
   };
 
-  // ✅ Real stats + sensor feeds from /api/dashboard
   const fetchDashboardData = async () => {
     try {
       const response = await authenticatedFetch('/api/dashboard');
@@ -54,14 +51,12 @@ const DashboardPage = () => {
           })));
         }
       }
-    } catch (err) {
-      console.log('Dashboard API not available:', err);
+    } catch {
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Real chart from /api/history/all — fallback sirf tab jo pehle se bana hua hai
   const fetchChartData = async (period) => {
     try {
       const response = await authenticatedFetch('/api/history/all');
@@ -70,7 +65,6 @@ const DashboardPage = () => {
         const history = json.history ?? [];
 
         if (history.length === 0) {
-          // Backend se data nahi aaya — existing fallback use karo (random nahi)
           setChartData(generateFallbackChart(period));
           return;
         }
@@ -122,17 +116,14 @@ const DashboardPage = () => {
           raw:   b.count,
         }));
 
-        // ✅ Sirf tab update karo jab real data ho
         setChartData(newChart);
 
       }
-    } catch (err) {
-      // Error pe bhi existing fallback use karo — random nahi
+    } catch {
       setChartData(prev => prev.length > 0 ? prev : generateFallbackChart(period));
     }
   };
 
-  // Mount pe fetch + har 10 second mein refresh (chart ke liye 10s kaafi hai)
   useEffect(() => {
     fetchDashboardData();
     fetchChartData(timePeriod);
@@ -146,7 +137,6 @@ const DashboardPage = () => {
     };
   }, []);
 
-  // Period change hone pe chart update karo
   useEffect(() => {
     fetchChartData(timePeriod);
   }, [timePeriod]);
