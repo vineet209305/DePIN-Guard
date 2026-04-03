@@ -3,11 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Footer from './Footer';
 import './Layout.css';
 
-// ✅ Theme turant apply karo
 const savedTheme = localStorage.getItem('theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
 
-// ✅ Search pages list
 const SEARCH_PAGES = [
   { keywords: ['dashboard', 'home', 'overview', 'stats'],  path: '/dashboard',    icon: '📊', label: 'Dashboard'    },
   { keywords: ['blockchain', 'block', 'chain', 'ledger'],  path: '/blockchain',   icon: '🔗', label: 'Blockchain'   },
@@ -31,7 +29,6 @@ const Layout = ({ children }) => {
   const navigate   = useNavigate();
   const profileRef = useRef(null);
 
-  // ✅ Real online/offline detection
   useEffect(() => {
     const onOnline  = () => setIsOnline(true);
     const onOffline = () => setIsOnline(false);
@@ -49,7 +46,6 @@ const Layout = ({ children }) => {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Profile dropdown bahar click pe band
   useEffect(() => {
     const handleClick = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
@@ -60,7 +56,6 @@ const Layout = ({ children }) => {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Escape se search band
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') {
@@ -73,7 +68,6 @@ const Layout = ({ children }) => {
     return () => document.removeEventListener('keydown', handleEsc);
   }, []);
 
-  // ✅ Search — page pe navigate karo
   const handleSearch = (e) => {
     e.preventDefault();
     const q = searchQuery.toLowerCase().trim();
@@ -99,18 +93,19 @@ const Layout = ({ children }) => {
     setSearchResult('');
   };
 
-  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
+      localStorage.removeItem('token');
       localStorage.removeItem('isAuthenticated');
       localStorage.removeItem('security_unlocked');
+      localStorage.removeItem('userName');
+      localStorage.removeItem('userEmail');
       navigate('/login');
     }
   };
 
-  const userName  = localStorage.getItem('username') || localStorage.getItem('user') || 'Admin User';
-  const userEmail = localStorage.getItem('email') || 'admin@iot.com';
+  const userName  = localStorage.getItem('userName') || localStorage.getItem('username') || localStorage.getItem('user') || 'Admin User';
+  const userEmail = localStorage.getItem('userEmail') || localStorage.getItem('email') || 'admin@iot.com';
 
   const navItems = [
     { path: '/dashboard',    icon: '📊', label: 'Dashboard'    },
@@ -125,7 +120,6 @@ const Layout = ({ children }) => {
   return (
     <div className={`layout ${theme}-theme`}>
 
-      {/* ✅ Search Overlay */}
       {searchOpen && (
         <div className="search-overlay" onClick={closeSearch}>
           <div className="search-container" onClick={e => e.stopPropagation()}>
@@ -140,7 +134,6 @@ const Layout = ({ children }) => {
               <button type="submit">Go →</button>
             </form>
 
-            {/* Quick links — click karke directly navigate karo */}
             <div className="search-quick-links">
               {SEARCH_PAGES.map(page => (
                 <button
@@ -168,7 +161,6 @@ const Layout = ({ children }) => {
 
         <div className="header-right">
 
-          {/* ✅ Online/Offline */}
           <div
             className={`status-indicator ${isOnline ? 'online' : 'offline'}`}
             title={isOnline ? 'Connected to internet' : 'No internet connection'}
@@ -177,12 +169,9 @@ const Layout = ({ children }) => {
             <span>{isOnline ? 'Online' : 'Offline'}</span>
           </div>
 
-          {/* ✅ Search */}
           <button className="header-button" title="Search pages (Ctrl+K)" onClick={() => setSearchOpen(true)}>
             🔍
           </button>
-
-          {/* ✅ Theme toggle */}
 
 
           {/* Profile */}
