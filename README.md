@@ -47,7 +47,7 @@ IoT Simulator ──► Backend API ──► AI Inference (LSTM) ──► Anom
 | **🕸️ Graph Neural Network (GNN)** | An advanced GCN-based model that analyzes the blockchain transaction graph to detect systemic, long-term fraud patterns such as collusion rings. Runs on a scheduled interval via APScheduler.                                      |
 | **📊 Real-Time Dashboard**        | A React-based frontend with protected routes, live data visualization, AI analysis page, blockchain explorer, device history, and fraud alert reporting.                                                                            |
 | **🔐 Defense-in-Depth Security**  | JWT authentication, bcrypt password hashing, API rate limiting (SlowAPI), input validation against injection attacks, TLS-encrypted MQTT, and audit logging middleware.                                                             |
-| **🐳 Containerized Deployment**   | Full Docker Compose orchestration — spin up the entire stack (AI, Backend, Frontend, Blockchain) with a single command.                                                                                                             |
+| **🐳 Containerized Deployment**   | Docker Compose orchestration for the 4 core services (AI, Backend, Frontend, Auth) with a single command.                                                                                                                           |
 | **📡 IoT Simulator**              | A Python-based multi-device simulator that generates realistic sensor data (temperature, vibration, power usage) with configurable anomaly injection for demo purposes.                                                             |
 
 ---
@@ -56,14 +56,14 @@ IoT Simulator ──► Backend API ──► AI Inference (LSTM) ──► Anom
 
 ### Services Overview
 
-| Service           | Technology                   |      Port       | Purpose                                                              |
-| :---------------- | :--------------------------- | :-------------: | :------------------------------------------------------------------- |
-| **Frontend**      | React 18, React Router, Vite | `3000` / `5173` | User-facing dashboard with auth, live charts, and fraud alerts       |
-| **Backend**       | FastAPI, Uvicorn, Python     |     `8000`      | REST API, WebSocket streaming, Fabric CLI integration, orchestration |
-| **AI Service**    | Flask, PyTorch, Scikit-learn |     `5000`      | LSTM Autoencoder inference API with sliding-window buffering         |
-| **Auth Service**  | FastAPI, PyJWT, bcrypt       |     `3000`      | JWT token issuance & verification microservice                       |
-| **Blockchain**    | Hyperledger Fabric 2.x, Go   |     `7051`      | Permissioned ledger with custom chaincode for asset management       |
-| **IoT Simulator** | Python, Requests             |        —        | Synthetic multi-device data generator with anomaly injection         |
+| Service           | Technology                   |  Port   | Purpose                                                              |
+| :---------------- | :--------------------------- | :-----: | :------------------------------------------------------------------- |
+| **Frontend**      | React 18, React Router, Vite | `5173`  | User-facing dashboard with auth, live charts, and fraud alerts       |
+| **Backend**       | FastAPI, Uvicorn, Python     | `8000`  | REST API, WebSocket streaming, Fabric CLI integration, orchestration |
+| **AI Service**    | Flask, PyTorch, Scikit-learn | `10000` | LSTM Autoencoder inference API with sliding-window buffering         |
+| **Auth Service**  | FastAPI, PyJWT, bcrypt       | `8001`  | JWT token issuance & verification microservice                       |
+| **Blockchain**    | Hyperledger Fabric 2.x, Go   | `7051`  | Permissioned ledger with custom chaincode for asset management       |
+| **IoT Simulator** | Python, Requests             |    —    | Synthetic multi-device data generator with anomaly injection         |
 
 ### Full Technology Stack
 
@@ -91,7 +91,6 @@ DePIN-Guard/
 │   ├── model.py                # LSTM Autoencoder architecture (PyTorch)
 │   ├── preprocessing.py        # Data scaling pipeline (MinMaxScaler)
 │   ├── train.py                # LSTM training script
-│   ├── train_isolation_forest.py
 │   ├── lstm_autoencoder.pth    # Trained model weights
 │   ├── scaler.save             # Fitted scaler artifact
 │   ├── threshold.txt           # Anomaly detection threshold
@@ -105,23 +104,13 @@ DePIN-Guard/
 │   └── requirements.txt
 │
 ├── backend/                    # ⚙️ Core Backend API
-│   ├── app.py                  # FastAPI app with CORS & route registration
 │   ├── main.py                 # Entry point with JWT verification & scheduling
 │   ├── fabric_manager.py       # Hyperledger Fabric CLI integration
-│   ├── config/
-│   │   └── settings.py         # Environment & app configuration
-│   ├── models/
-│   │   ├── device.py           # Device data models
-│   │   └── user.py             # User data models
 │   ├── routes/
-│   │   ├── auth.py             # Auth endpoints
-│   │   ├── data.py             # Data ingestion & history endpoints
-│   │   └── devices.py          # Device management endpoints
-│   ├── services/
-│   │   ├── ai_service.py       # AI service client
-│   │   ├── blockchain_service.py  # Blockchain interaction layer
-│   │   └── mqtt_service.py     # MQTT subscriber
-│   ├── dockerfile
+│   │   ├── stream.py           # WebSocket route and broadcaster
+│   │   └── fraud.py            # Fraud report endpoints
+│   ├── data/
+│   │   └── fraud_reports.json  # Fraud alert storage
 │   └── requirements.txt
 │
 ├── blockchain/                 # 🔗 Hyperledger Fabric Network
@@ -131,8 +120,7 @@ DePIN-Guard/
 │   ├── chaincode-go/
 │   │   ├── assetTransfer.go    # Chaincode entry point
 │   │   └── chaincode/
-│   │       ├── smartcontract.go      # Smart contract (CRUD for Assets)
-│   │       └── smartcontract_test.go # Contract unit tests
+│   │       └── smartcontract.go      # Smart contract for sensor + fraud records
 │   ├── config/
 │   │   └── crypto-config.yaml  # Organization & certificate definitions
 │   ├── channel-artifacts/      # Generated channel transaction
@@ -163,9 +151,10 @@ DePIN-Guard/
 │   └── config.py               # Simulator configuration
 │
 └── docker/                     # 🐳 Additional Docker configs
-    ├── docker-compose.yml
-    ├── Dockerfile.backend
-    └── Dockerfile.frontend
+  ├── docker-compose.yml
+  ├── docker-compose-custom.yaml
+  ├── certs/
+  └── mosquitto/
 ```
 
 ---
@@ -192,9 +181,9 @@ docker-compose up --build
 
 | Service            | URL                            |
 | :----------------- | :----------------------------- |
-| Frontend Dashboard | `http://localhost:3000`        |
+| Frontend Dashboard | `http://localhost:5173`        |
 | Backend API        | `http://localhost:8000`        |
-| AI Inference API   | `http://localhost:5000`        |
+| AI Inference API   | `http://localhost:10000`       |
 | API Health Check   | `http://localhost:8000/health` |
 
 ### Local Development
@@ -203,7 +192,7 @@ docker-compose up --build
 # Backend
 cd backend
 pip install -r requirements.txt
-uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 # AI Service
 cd ai-service
@@ -246,7 +235,7 @@ python simulator.py
 | Layer                    | Mechanism                                                                        |
 | :----------------------- | :------------------------------------------------------------------------------- |
 | **Authentication**       | JWT-based token system with 1-hour expiry, bcrypt-hashed passwords               |
-| **API Protection**       | Bearer token verification on all protected endpoints                             |
+| **API Protection**       | X-API-Key on ingestion routes, JWT Bearer verification on token-protected routes |
 | **Rate Limiting**        | SlowAPI middleware — prevents DoS via request throttling                         |
 | **Input Validation**     | Server-side validation for physical bounds + injection attack detection          |
 | **Transport**            | TLS-encrypted MQTT (port 8883) with mutual certificate authentication            |
@@ -273,9 +262,9 @@ python simulator.py
 ```json
 {
   "is_anomaly": false,
-  "anomaly_score": 0.001234,
+  "loss": 0.001234,
   "threshold": 0.045,
-  "status": "active"
+  "status": "normal"
 }
 ```
 
@@ -309,20 +298,24 @@ _Built with ❤️ by Team DePIN-Guard_
 ## 🐳 Deployment Modes
 
 ### Lab Mode (Full Docker Stack)
+
 Runs all 4 services via Docker Compose — for validation and completeness only.
+
 ```bash
 docker-compose up --build
 ```
 
-| Service      | URL                       |
-| :----------- | :------------------------ |
-| Frontend     | `http://localhost:5173`   |
-| Backend      | `http://localhost:8000`   |
-| AI Service   | `http://localhost:5000`   |
-| Auth Service | `http://localhost:8001`   |
+| Service      | URL                      |
+| :----------- | :----------------------- |
+| Frontend     | `http://localhost:5173`  |
+| Backend      | `http://localhost:8000`  |
+| AI Service   | `http://localhost:10000` |
+| Auth Service | `http://localhost:8001`  |
 
 ### Demo Mode (Hybrid Local — Recommended for Professor Demo)
+
 Run each service locally from known-good commands. Fabric runs in GitHub Codespace.
+
 ```bash
 # 1. AI Service
 cd ai-service && python app.py
@@ -342,3 +335,11 @@ cd iot-simulator && python simulator.py
 
 > **Note:** Fabric blockchain runs in GitHub Codespace — start it before the presentation.
 > If Fabric is unavailable, the backend falls back to in-memory simulated blockchain automatically.
+
+### Multi-Laptop Tunnel Mode
+
+For 4-laptop split service runs (AI/Auth/Backend/Frontend), use:
+
+- docs/Tunnel_Multi_Laptop_Runbook.md
+
+It includes tunnel URL mapping, required env variables, startup order, and cross-service health checks.
