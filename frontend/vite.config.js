@@ -11,62 +11,43 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
-      port: 3000,
+      port: 5173,
       open: true,
       proxy: {
         '/api': {
           target: BACKEND_URL,
           changeOrigin: true,
           secure: false,
-          headers: {
-            'bypass-tunnel-reminder': 'true',
-            'User-Agent': 'depin-guard-bot',
-          },
         },
         '/fraud-alerts': {
           target: BACKEND_URL,
           changeOrigin: true,
           secure: false,
-          headers: {
-            'bypass-tunnel-reminder': 'true',
-            'User-Agent': 'depin-guard-bot',
-          },
         },
         '/report-fraud': {
           target: BACKEND_URL,
           changeOrigin: true,
           secure: false,
-          headers: {
-            'bypass-tunnel-reminder': 'true',
-            'User-Agent': 'depin-guard-bot',
-          },
         },
         '/login': {
           target: AUTH_URL,
           changeOrigin: true,
           secure: false,
-          headers: {
-            'bypass-tunnel-reminder': 'true',
-            'User-Agent': 'depin-guard-bot',
-          },
+        },
+        '/signup': {
+          target: AUTH_URL,
+          changeOrigin: true,
+          secure: false,
         },
         '/verify': {
           target: AUTH_URL,
           changeOrigin: true,
           secure: false,
-          headers: {
-            'bypass-tunnel-reminder': 'true',
-            'User-Agent': 'depin-guard-bot',
-          },
         },
         '/ws': {
           target: WS_BACKEND,
           ws: true,
           changeOrigin: true,
-          headers: {
-            'bypass-tunnel-reminder': 'true',
-            'User-Agent': 'depin-guard-bot',
-          },
         },
       },
     },
