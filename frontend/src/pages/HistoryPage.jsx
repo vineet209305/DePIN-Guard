@@ -11,7 +11,6 @@ const HistoryPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // ✅ Backend se real history fetch karo
   const fetchHistory = async () => {
     try {
       const res = await authenticatedFetch('/api/history/all');
@@ -20,21 +19,17 @@ const HistoryPage = () => {
 
       if (data && data.history && data.history.length > 0) {
         setHistoryData(prev => {
-          // Purane data ke saath merge — duplicates hata ke
           const existingIds = new Set(prev.map(h => h.id));
           const newEntries = data.history.filter(h => !existingIds.has(h.id));
-          // Naye entries upar, purane neeche — sab store karo
           return [...data.history, ...prev.filter(h => !data.history.find(d => d.id === h.id))];
         });
       }
-    } catch (err) {
-      console.log('History API not available:', err);
+    } catch {
     } finally {
       setLoading(false);
     }
   };
 
-  // Page load pe fetch + har 5 second mein refresh
   useEffect(() => {
     fetchHistory();
     const interval = setInterval(fetchHistory, 5000);
