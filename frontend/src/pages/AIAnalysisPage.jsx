@@ -14,7 +14,6 @@ const AIAnalysisPage = () => {
 
   const aiModels = ['LSTM Autoencoder', 'Isolation Forest', 'Graph Neural Network'];
 
-  // ✅ Backend se real AI analysis fetch karo
   const fetchAIData = async () => {
     try {
       const res = await authenticatedFetch('/api/ai-analysis');
@@ -22,7 +21,6 @@ const AIAnalysisPage = () => {
       const data = await res.json();
 
       if (data) {
-        // Stats update karo
         setAiStats({
           totalAnalyses:    data.total_analyses   ?? 0,
           anomaliesDetected:data.anomalies_found  ?? 0,
@@ -30,7 +28,6 @@ const AIAnalysisPage = () => {
           modelsActive:     3,
         });
 
-        // Recent results update karo — purane bhi rakho
         if (data.recent_results && data.recent_results.length > 0) {
           setAnalysisResults(prev => {
             const existingIds = new Set(prev.map(r => r.timestamp + r.device));
@@ -47,18 +44,16 @@ const AIAnalysisPage = () => {
                 recommendation: rec.recommendation ?? 'Inspect device immediately.',
                 aiModel:        'LSTM Autoencoder',
               }));
-            return [...newResults, ...prev].slice(0, 50); // max 50 store karo
+            return [...newResults, ...prev].slice(0, 50);
           });
         }
       }
-    } catch (err) {
-      console.log('AI Analysis API not available:', err);
+    } catch {
     } finally {
       setLoading(false);
     }
   };
 
-  // Page load pe fetch + har 5 second mein refresh
   useEffect(() => {
     fetchAIData();
     const interval = setInterval(fetchAIData, 5000);
