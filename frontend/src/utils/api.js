@@ -1,8 +1,9 @@
 // frontend/src/utils/api.js
-// In local dev: uses Vite proxy (relative paths → localhost:8000)
-// In production/localtunnel: set VITE_API_URL in .env to override
+// In local dev: uses Vite proxy (relative paths -> backend)
+// In production: set VITE_API_URL and VITE_API_KEY in environment
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || '';
+const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 export const authenticatedFetch = async (path, options = {}) => {
   const url = path.startsWith('http') ? path : `${BACKEND_URL}${path}`;
@@ -11,11 +12,12 @@ export const authenticatedFetch = async (path, options = {}) => {
 
   const headers = {
     'Content-Type': 'application/json',
-    'X-API-Key': import.meta.env.VITE_API_KEY || 'Depin_Project_Secret_Key_999',
-    'bypass-tunnel-reminder': 'true',
-    'User-Agent': 'depin-guard-bot',
     ...options.headers,
   };
+
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
 
   if (token && token !== 'null') {
     headers['Authorization'] = `Bearer ${token}`;
