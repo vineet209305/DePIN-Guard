@@ -1,31 +1,20 @@
+# blockchain/configtx.yaml — HA-ready structure
+# Current: single orderer + single peer per org (demo)
+# To enable HA: add orderer2/orderer3 to Addresses and EtcdRaft.Consenters
+
 Organizations:
 
-  - &OrdererOrg
-    Name: OrdererMSP
-    ID: OrdererMSP
-    MSPDir: organizations/ordererOrganizations/orderer.example.com/msp
-    Policies:
-      Readers:
-        Type: Signature
-        Rule: "OR('OrdererMSP.member')"
-      Writers:
-        Type: Signature
-        Rule: "OR('OrdererMSP.member')"
-      Admins:
-        Type: Signature
-        Rule: "OR('OrdererMSP.admin')"
-
-  - &Manufacturer
+  - &ManufacturerOrg
     Name: ManufacturerMSP
     ID: ManufacturerMSP
-    MSPDir: organizations/peerOrganizations/manufacturer.example.com/msp
+    MSPDir: ../organizations/peerOrganizations/manufacturer.example.com/msp
     Policies:
       Readers:
         Type: Signature
-        Rule: "OR('ManufacturerMSP.admin', 'ManufacturerMSP.peer', 'ManufacturerMSP.client')"
+        Rule: "OR('ManufacturerMSP.member')"
       Writers:
         Type: Signature
-        Rule: "OR('ManufacturerMSP.admin', 'ManufacturerMSP.client')"
+        Rule: "OR('ManufacturerMSP.member')"
       Admins:
         Type: Signature
         Rule: "OR('ManufacturerMSP.admin')"
@@ -36,23 +25,23 @@ Organizations:
       - Host: peer0.manufacturer.example.com
         Port: 7051
 
-  - &Maintenance
-    Name: MaintenanceMSP
-    ID: MaintenanceMSP
-    MSPDir: organizations/peerOrganizations/maintenance.example.com/msp
+  - &MaintenanceProviderOrg
+    Name: MaintenanceProviderMSP
+    ID: MaintenanceProviderMSP
+    MSPDir: ../organizations/peerOrganizations/maintenance.example.com/msp
     Policies:
       Readers:
         Type: Signature
-        Rule: "OR('MaintenanceMSP.admin', 'MaintenanceMSP.peer', 'MaintenanceMSP.client')"
+        Rule: "OR('MaintenanceProviderMSP.member')"
       Writers:
         Type: Signature
-        Rule: "OR('MaintenanceMSP.admin', 'MaintenanceMSP.client')"
+        Rule: "OR('MaintenanceProviderMSP.member')"
       Admins:
         Type: Signature
-        Rule: "OR('MaintenanceMSP.admin')"
+        Rule: "OR('MaintenanceProviderMSP.admin')"
       Endorsement:
         Type: Signature
-        Rule: "OR('MaintenanceMSP.peer')"
+        Rule: "OR('MaintenanceProviderMSP.peer')"
     AnchorPeers:
       - Host: peer0.maintenance.example.com
         Port: 9051
@@ -63,7 +52,7 @@ Capabilities:
   Orderer: &OrdererCapabilities
     V2_0: true
   Application: &ApplicationCapabilities
-    V2_0: true
+    V2_5: true
 
 Application: &ApplicationDefaults
   Organizations:
@@ -87,14 +76,22 @@ Application: &ApplicationDefaults
     <<: *ApplicationCapabilities
 
 Orderer: &OrdererDefaults
-  OrdererType: solo
+  OrdererType: etcdraft
   Addresses:
     - orderer.example.com:7050
+    # HA: add orderer2.example.com:7050 and orderer3.example.com:7050 here
   BatchTimeout: 2s
   BatchSize:
-    MaxMessageCount: 500
-    AbsoluteMaxBytes: 10 MB
-    PreferredMaxBytes: 2 MB
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  EtcdRaft:
+    Consenters:
+      - Host: orderer.example.com
+        Port: 7050
+        ClientTLSCert: ../organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+        ServerTLSCert: ../organizations/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+        # HA: add consenters for orderer2 and orderer3 here
   Policies:
     Readers:
       Type: ImplicitMeta
@@ -108,7 +105,6 @@ Orderer: &OrdererDefaults
     BlockValidation:
       Type: ImplicitMeta
       Rule: "ANY Writers"
-  Organizations:
   Capabilities:
     <<: *OrdererCapabilities
 
@@ -128,25 +124,27 @@ Channel: &ChannelDefaults
 
 Profiles:
 
-  TwoOrgsOrdererGenesis:
+  # Current demo profile — 1 orderer, 1 peer per org
+  ManufacturerMaintenanceOrdererGenesis:
     <<: *ChannelDefaults
     Orderer:
       <<: *OrdererDefaults
       Organizations:
-        - *OrdererOrg
+        - *ManufacturerOrg
+        - *MaintenanceProviderOrg
     Consortiums:
-      SampleConsortium:
+      DePINConsortium:
         Organizations:
-          - *Manufacturer
-          - *Maintenance
+          - *ManufacturerOrg
+          - *MaintenanceProviderOrg
 
-  TwoOrgsChannel:
-    Consortium: SampleConsortium
-    <<: *ChannelDefaults
+  ManufacturerMaintenanceChannel:
+    Consortium: DePINConsortium
+    <<: *ApplicationDefaults
     Application:
       <<: *ApplicationDefaults
       Organizations:
-        - *Manufacturer
-        - *Maintenance
+        - *ManufacturerOrg
+        - *MaintenanceProviderOrg
       Capabilities:
         <<: *ApplicationCapabilities

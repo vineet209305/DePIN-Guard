@@ -27,7 +27,7 @@ async def audit_logging_middleware(request: Request, call_next):
         with open(LOG_FILE, "r") as f:
             try:
                 logs = json.load(f)
-            except:
+            except Exception:
                 logs = []
 
     logs.append(log_entry)

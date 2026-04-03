@@ -7,9 +7,9 @@ import requests as http_requests
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, HTTPException, Security, status, Depends, Header, Request
+from fastapi import FastAPI, HTTPException, Security, status, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import APIKeyHeader
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -28,11 +28,16 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 API_KEY    = os.getenv("DEPIN_API_KEY")
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "my_super_secret_key")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:5000/predict")
+AI_TIMEOUT_SECONDS = float(os.getenv("AI_TIMEOUT_SECONDS", "4"))
+AI_RETRY_COUNT = int(os.getenv("AI_RETRY_COUNT", "1"))
 
 FRAUD_DB = os.path.join(os.path.dirname(__file__), "data", "fraud_reports.json")
 KNOWN_DEVICES = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
+
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY is required for backend startup")
 
 # ---------------------------------------------------------------------------
 # In-memory state
@@ -117,11 +122,12 @@ app.include_router(stream_router)
 # Security
 # ---------------------------------------------------------------------------
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+bearer_scheme = HTTPBearer(auto_error=True)
 
 if not API_KEY:
-    print("WARNING: DEPIN_API_KEY not set in environment")
-else:
-    print("API Key loaded successfully")
+    raise RuntimeError("DEPIN_API_KEY is required for backend startup")
+
+print("API Key loaded successfully")
 
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
@@ -138,15 +144,14 @@ app.include_router(fraud_router, dependencies=[Depends(verify_api_key)])
 # ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
-trusted_origins = [
+default_origins = [
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
-    "https://depin-backend.loca.lt",
-    "https://depin-ai.loca.lt",
-    "https://depin-auth.loca.lt",
 ]
+cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+trusted_origins = [origin.strip() for origin in cors_env.split(",") if origin.strip()] or default_origins
 
 app.add_middleware(
     CORSMiddleware,
@@ -198,6 +203,15 @@ def read_root():
     return {"status": "DePIN-Guard API is live", "blockchain_active": BLOCKCHAIN_ACTIVE}
 
 
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "backend",
+        "blockchain_active": BLOCKCHAIN_ACTIVE,
+    }
+
+
 @app.get("/api/dashboard", dependencies=[Depends(verify_api_key)])
 def get_dashboard():
     return {
@@ -241,15 +255,30 @@ async def process_data(request: Request, data: SensorData):
         is_anomaly     = False
         recommendation = "Normal Operation"
 
-        try:
-            response  = http_requests.post(AI_SERVICE_URL, json=data.dict(), timeout=2)
-            ai_result = response.json()
-            if ai_result.get("anomaly", False) or data.temperature > 100.0:
-                is_anomaly = True
-        except Exception as e:
-            print(f"AI service warning: {e}")
-            if data.temperature > 100.0:
-                is_anomaly = True
+        ai_source = "model"
+        ai_result = {}
+        ai_error = None
+        for attempt in range(AI_RETRY_COUNT + 1):
+            try:
+                response = http_requests.post(
+                    AI_SERVICE_URL,
+                    json=data.dict(),
+                    timeout=AI_TIMEOUT_SECONDS,
+                )
+                response.raise_for_status()
+                ai_result = response.json()
+                if ai_result.get("is_anomaly") or ai_result.get("anomaly") or data.temperature > 100.0:
+                    is_anomaly = True
+                ai_error = None
+                break
+            except Exception as e:
+                ai_error = str(e)
+                if attempt < AI_RETRY_COUNT:
+                    continue
+                print(f"AI service warning after retries: {e}")
+                ai_source = "fallback"
+                if data.temperature > 100.0:
+                    is_anomaly = True
 
         if is_anomaly:
             if data.temperature > 100:
@@ -334,7 +363,12 @@ async def process_data(request: Request, data: SensorData):
         if len(system_state["history"]) > 100:
             system_state["history"].pop(0)
 
-        return {"status": "Processed", "anomaly": is_anomaly}
+        return {
+            "status": "Processed",
+            "anomaly": is_anomaly,
+            "ai_source": ai_source,
+            "ai_error": ai_error,
+        }
 
     except Exception as e:
         print(f"process_data error: {e}")
@@ -344,11 +378,9 @@ async def process_data(request: Request, data: SensorData):
 # ---------------------------------------------------------------------------
 # JWT verification (used by /submit-data)
 # ---------------------------------------------------------------------------
-def verify_token(authorization: str = Header(None)):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing token")
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
     try:
-        token   = authorization.split(" ")[1]
+        token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload
     except Exception:
@@ -359,4 +391,7 @@ def verify_token(authorization: str = Header(None)):
 @limiter.limit("60/minute")
 async def submit_data(request: Request, data: dict, user=Depends(verify_token)):
     await broadcast_data(data)
-    return {"status": "Data accepted", "user": user["user"]}
+    return {
+        "status": "Data accepted",
+        "user": user.get("user") or user.get("sub") or "unknown",
+    }
