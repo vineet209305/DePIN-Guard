@@ -3,7 +3,7 @@ import sys
 
 import requests
 
-BASE_URL = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:5000")
+BASE_URL = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:10000")
 
 
 def post_json(path, payload):
