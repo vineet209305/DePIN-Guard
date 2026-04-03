@@ -9,7 +9,6 @@ const BlockchainPage = () => {
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [loading, setLoading]         = useState(true);
 
-  // ✅ Backend se real blockchain data fetch karo
   const fetchBlockchainData = async () => {
     try {
       const res = await authenticatedFetch('/api/blockchain');
@@ -17,30 +16,25 @@ const BlockchainPage = () => {
       const data = await res.json();
 
       if (data) {
-        // Stats update karo
         setStats({
           totalBlocks:  data.total_blocks  ?? data.totalBlocks  ?? 0,
           transactions: data.transactions  ?? 0,
         });
 
-        // Blocks update karo — recent_blocks use karo
         if (data.recent_blocks && data.recent_blocks.length > 0) {
           setBlocks(prev => {
-            // Purane blocks ke saath merge karo — duplicates hata ke
             const existingIds = new Set(prev.map(b => b.id));
             const newBlocks = data.recent_blocks.filter(b => !existingIds.has(b.id));
-            return [...newBlocks, ...prev].slice(0, 50); // max 50 blocks store
+            return [...newBlocks, ...prev].slice(0, 50);
           });
         }
       }
-    } catch (err) {
-      console.log('Blockchain API not available:', err);
+    } catch {
     } finally {
       setLoading(false);
     }
   };
 
-  // Page load pe fetch + har 5 second mein refresh
   useEffect(() => {
     fetchBlockchainData();
     const interval = setInterval(fetchBlockchainData, 5000);
