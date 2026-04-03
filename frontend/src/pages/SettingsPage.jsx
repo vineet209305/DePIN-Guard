@@ -24,21 +24,15 @@ const SettingsPage = () => {
   const [passwordData, setPasswordData] = useState({ current: '', newPass: '', confirm: '' });
   const [passwordMsg, setPasswordMsg] = useState('');
 
-  // ✅ Load settings — signup data + saved settings
+  // ✅ Load settings from current authenticated session + saved preferences
   useEffect(() => {
-    // Signup se aaya hua data
     const userEmail = localStorage.getItem('userEmail') || '';
     const userName = localStorage.getItem('userName') || '';
 
-    // Registered users list se phone bhi nikalo agar ho
-    const registeredUsersRaw = localStorage.getItem('registeredUsers');
-    const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
-    const matchedUser = registeredUsers.find(u => u.email?.toLowerCase() === userEmail.toLowerCase());
-
     const baseProfile = {
-      fullName: matchedUser?.fullName || userName || 'User',
-      email: matchedUser?.email || userEmail || '',
-      phone: matchedUser?.phone || '',
+      fullName: userName || 'User',
+      email: userEmail || '',
+      phone: '',
     };
 
     // Pehle saved settings dekho
@@ -102,16 +96,6 @@ const SettingsPage = () => {
     localStorage.setItem('userName', settings.fullName);
     localStorage.setItem('userEmail', settings.email);
 
-    // registeredUsers mein bhi update karo
-    const registeredUsersRaw = localStorage.getItem('registeredUsers');
-    if (registeredUsersRaw) {
-      const users = JSON.parse(registeredUsersRaw);
-      const idx = users.findIndex(u => u.email?.toLowerCase() === originalSettings.email?.toLowerCase());
-      if (idx !== -1) {
-        users[idx] = { ...users[idx], fullName: settings.fullName, email: settings.email, phone: settings.phone };
-        localStorage.setItem('registeredUsers', JSON.stringify(users));
-      }
-    }
 
     setOriginalSettings(settings);
     setIsSaving(false);
@@ -120,7 +104,7 @@ const SettingsPage = () => {
     setTimeout(() => setSaveMessage(''), 3000);
   };
 
-  // ✅ Password change
+  // ✅ Password change (delegated to auth-service in production)
   const handlePasswordChange = () => {
     setPasswordMsg('');
     if (!passwordData.current || !passwordData.newPass || !passwordData.confirm) {
@@ -136,21 +120,7 @@ const SettingsPage = () => {
       return;
     }
 
-    // Verify current password
-    const registeredUsersRaw = localStorage.getItem('registeredUsers');
-    const users = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
-    const idx = users.findIndex(u => u.email?.toLowerCase() === settings.email?.toLowerCase());
-
-    if (idx === -1 || users[idx].password !== passwordData.current) {
-      setPasswordMsg('❌ Current password is incorrect.');
-      return;
-    }
-
-    users[idx].password = passwordData.newPass;
-    localStorage.setItem('registeredUsers', JSON.stringify(users));
-    setPasswordData({ current: '', newPass: '', confirm: '' });
-    setPasswordMsg('✅ Password changed successfully!');
-    setTimeout(() => setPasswordMsg(''), 3000);
+    setPasswordMsg('⚠️ Password update endpoint is not yet enabled. Contact admin to rotate credentials.');
   };
 
   const handleReset = () => {
@@ -182,13 +152,6 @@ const SettingsPage = () => {
     if (window.confirm('⚠️ This will permanently delete your account. Cannot be undone!')) {
       const confirmation = window.prompt('Type DELETE to confirm:');
       if (confirmation === 'DELETE') {
-        // Remove this user from registeredUsers
-        const registeredUsersRaw = localStorage.getItem('registeredUsers');
-        if (registeredUsersRaw) {
-          const users = JSON.parse(registeredUsersRaw);
-          const filtered = users.filter(u => u.email?.toLowerCase() !== settings.email?.toLowerCase());
-          localStorage.setItem('registeredUsers', JSON.stringify(filtered));
-        }
         localStorage.removeItem('token');
         localStorage.removeItem('isAuthenticated');
         localStorage.removeItem('userEmail');
