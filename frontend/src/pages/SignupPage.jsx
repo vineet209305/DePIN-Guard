@@ -59,39 +59,27 @@ const SignupPage = () => {
     setError('');
 
     try {
-      
-      const registeredUsersRaw = localStorage.getItem('registeredUsers');
-      const registeredUsers = registeredUsersRaw ? JSON.parse(registeredUsersRaw) : [];
+      const response = await fetch('/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.email.toLowerCase(),
+          password: formData.password,
+        }),
+      });
 
-      const alreadyExists = registeredUsers.find(
-        (u) => u.email.toLowerCase() === formData.email.toLowerCase()
-      );
-
-      if (alreadyExists) {
-        setError('An account with this email already exists. Please login.');
-        setIsLoading(false);
-        return;
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Signup failed. Please try again.');
       }
 
-     
-      const newUser = {
-        fullName: formData.fullName.trim(),
-        email: formData.email.toLowerCase(),
-        password: formData.password,
-        createdAt: new Date().toISOString(),
-      };
-
-      registeredUsers.push(newUser);
-      localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
-
-    
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      alert(`✅ Account created successfully!\nWelcome, ${newUser.fullName}!\nPlease login to continue.`);
+      alert(`✅ Account created successfully!\nWelcome, ${formData.fullName.trim()}!\nPlease login to continue.`);
       navigate('/login');
 
     } catch (err) {
-      setError('Signup failed. Please try again.');
+      setError(err.message || 'Signup failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
