@@ -1,4 +1,4 @@
-fastapi
-uvicorn
-pyjwt
-bcrypt
+fastapi==0.111.0
+uvicorn==0.29.0
+pyjwt==2.8.0
+bcrypt==4.1.3

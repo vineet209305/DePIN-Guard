@@ -3,6 +3,14 @@ from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 import datetime, os
+import sys
+
+# Safety check — don't overwrite existing keys
+if os.path.exists("docker/certs/ca.key"):
+    print("⚠️  Keys already exist! Use --force to regenerate.")
+    print("    python cert_gen.py --force")
+    if "--force" not in sys.argv:
+        sys.exit(0)
 
 # ─── Generate CA private key ───
 ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
