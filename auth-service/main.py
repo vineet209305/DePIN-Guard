@@ -1,13 +1,33 @@
-# auth-service/main.py — Production Ready
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
-import jwt, datetime, bcrypt, os, sqlite3
+import datetime
+import os
+import sqlite3
 
-# ==========================================
-# 🔒 SECRET KEY — Hard fail if not set
-# ==========================================
+import bcrypt
+import jwt
+
+
+def _load_env_file(path: str):
+    if not os.path.exists(path):
+        return
+
+    with open(path, "r", encoding="utf-8") as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            if key and key not in os.environ:
+                os.environ[key] = value.strip()
+
+
+_load_env_file(os.path.join(os.path.dirname(__file__), ".env"))
+_load_env_file(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY not set in .env file!")
@@ -18,9 +38,6 @@ BOOTSTRAP_ADMIN_PASSWORD = os.getenv("BOOTSTRAP_ADMIN_PASSWORD")
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_HOURS = 24
 
-# ==========================================
-# 🗄️ DATABASE SETUP — SQLite
-# ==========================================
 def init_db():
     conn = sqlite3.connect("users.db")
     conn.execute("""
@@ -102,9 +119,19 @@ def get_user(username: str):
     conn.close()
     return user
 
-# ==========================================
-# 🚀 LIFESPAN — Init DB on startup
-# ==========================================
+
+def create_user(username: str, password: str):
+    conn = sqlite3.connect("users.db")
+    try:
+        hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+        conn.execute(
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+            (username, hashed),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -112,16 +139,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# ==========================================
-# 🔐 BEARER SCHEME
-# ==========================================
 bearer_scheme = HTTPBearer(auto_error=True)
 
 MAX_ATTEMPTS = 5
 
-# ==========================================
-# ✅ PASSWORD VALIDATOR
-# ==========================================
 def validate_password(password: str):
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters")
@@ -131,9 +152,6 @@ def validate_password(password: str):
         raise ValueError("Password must have at least 1 number")
     return True
 
-# ==========================================
-# 🔍 TOKEN VERIFIER — HTTPBearer only
-# ==========================================
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> dict:
     token = credentials.credentials
     if token_is_revoked(token):
@@ -148,62 +166,72 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-# ==========================================
-# 📋 MODELS
-# ==========================================
 class UserLogin(BaseModel):
     username: str
     password: str
 
-# ==========================================
-# 🏥 HEALTH CHECK
-# ==========================================
+
+class UserSignup(BaseModel):
+    username: str
+    password: str
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "service": "auth-service"}
 
-# ==========================================
-# 🔐 ENDPOINTS
-# ==========================================
+@app.post("/signup")
+def signup(user: UserSignup):
+    username = user.username.strip().lower()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
+
+    try:
+        validate_password(user.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    if get_user(username):
+        raise HTTPException(status_code=409, detail="User already exists")
+
+    create_user(username, user.password)
+    return {"message": "User created", "username": username}
+
 
 @app.post("/login")
 def login(user: UserLogin):
-    # 1. Check failed attempts
-    attempts = get_failed_attempts(user.username)
+    username = user.username.strip().lower()
+
+    attempts = get_failed_attempts(username)
     if attempts >= MAX_ATTEMPTS:
         raise HTTPException(
             status_code=429,
             detail="Account locked — too many failed attempts"
         )
 
-    # 2. Get user from database
-    db_user = get_user(user.username)
+    db_user = get_user(username)
     if not db_user:
-        set_failed_attempts(user.username, attempts + 1)
+        set_failed_attempts(username, attempts + 1)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # 3. Verify password with bcrypt
     password_ok = bcrypt.checkpw(
         user.password.encode(),
         db_user[2]
     )
 
     if not password_ok:
-        set_failed_attempts(user.username, attempts + 1)
+        set_failed_attempts(username, attempts + 1)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # 4. Reset failed attempts on success
-    set_failed_attempts(user.username, 0)
+    set_failed_attempts(username, 0)
 
-    # 5. Generate access + refresh tokens
     access_token = jwt.encode({
-        "sub": user.username,
+        "sub": username,
         "type": "access",
         "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     }, SECRET_KEY, algorithm="HS256")
 
     refresh_token_val = jwt.encode({
-        "sub": user.username,
+        "sub": username,
         "type": "refresh",
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=REFRESH_TOKEN_EXPIRE_HOURS)
     }, SECRET_KEY, algorithm="HS256")
@@ -243,9 +271,7 @@ def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sch
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
-        # Blacklist old token
         revoke_token(token)
-        # Issue new access token
         new_access = jwt.encode({
             "sub": payload["sub"],
             "type": "access",
