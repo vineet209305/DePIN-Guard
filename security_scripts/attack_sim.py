@@ -54,14 +54,16 @@ if not blocked:
     print("❌ FAILED — Rate limit never triggered after 65 requests")
 
 # ─── Test 5: SQL Injection Attempt ───
-print("\n[TEST 5] Sending SQL Injection payload...")
-response = requests.post(f"{BASE_URL}/api/process_data", json={
-    "device_id": "'; DROP TABLE users; --",
-    "temperature": 50.0,
-    "vibration": 5.0,
-    "power_usage": 100.0,
-    "timestamp": "2026-01-01T00:00:00"
-})
+print("\n[TEST 5] Sending SQL Injection payload with valid API key...")
+response = requests.post(f"{BASE_URL}/api/process_data", 
+    json={
+        "device_id": "'; DROP TABLE users; --",
+        "temperature": 50.0,
+        "vibration": 5.0,
+        "power_usage": 100.0,
+        "timestamp": "2026-01-01T00:00:00"
+    },
+    headers={"X-API-Key": "Depin_Project_Secret_Key_999"})  # ✅ Valid API key added
 if response.status_code in [400, 422]:
     print(f"✅ PASSED — Injection blocked with {response.status_code}")
 else:
