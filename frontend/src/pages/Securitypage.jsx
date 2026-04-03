@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Layout from '../components/layout/Layout';
-import './SecurityPage.css';
+import './securitypage.css';
 
 
 const ALLOWED_EMAILS = ['vineet', 'priyanshu', 'mohit', 'prateek'];
