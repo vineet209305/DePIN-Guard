@@ -5,38 +5,47 @@ import shutil
 import socket
 from typing import Any, Dict, List
 
-REPO_ROOT    = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+REPO_ROOT      = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 BLOCKCHAIN_DIR = os.path.join(REPO_ROOT, "blockchain")
-BIN_DIR      = os.path.join(BLOCKCHAIN_DIR, "fabric-samples", "bin")
-CONFIG_DIR   = os.path.join(BLOCKCHAIN_DIR, "fabric-samples", "config")
+BIN_DIR        = os.path.join(BLOCKCHAIN_DIR, "fabric-samples", "bin")
+CONFIG_DIR     = os.path.join(BLOCKCHAIN_DIR, "fabric-samples", "config")
 
 ORDERER_ADDRESS = os.getenv("FABRIC_ORDERER_ADDRESS", "127.0.0.1:7050")
-PEER1_ADDRESS   = os.getenv("FABRIC_PEER1_ADDRESS", "127.0.0.1:7051")
-PEER2_ADDRESS   = os.getenv("FABRIC_PEER2_ADDRESS", "127.0.0.1:9051")
+PEER1_ADDRESS   = os.getenv("FABRIC_PEER1_ADDRESS",   "127.0.0.1:7051")
+PEER2_ADDRESS   = os.getenv("FABRIC_PEER2_ADDRESS",   "127.0.0.1:9051")
 
-# Certificate paths — our custom network (not test-network)
-MFR_TLS  = os.path.join(BLOCKCHAIN_DIR, "organizations", "peerOrganizations",
-                         "manufacturer.example.com", "peers",
-                         "peer0.manufacturer.example.com", "tls", "ca.crt")
-MFR_MSP  = os.path.join(BLOCKCHAIN_DIR, "organizations", "peerOrganizations",
-                         "manufacturer.example.com", "users",
-                         "Admin@manufacturer.example.com", "msp")
-MNT_TLS  = os.path.join(BLOCKCHAIN_DIR, "organizations", "peerOrganizations",
-                         "maintenance.example.com", "peers",
-                         "peer0.maintenance.example.com", "tls", "ca.crt")
-ORDERER_CA = os.path.join(BLOCKCHAIN_DIR, "organizations", "ordererOrganizations",
-                           "orderer.example.com", "orderers",
-                           "orderer.orderer.example.com", "msp", "tlscacerts",
-                           "tlsca.orderer.example.com-cert.pem")
+# Certificate paths — custom network (manufacturer + maintenance orgs)
+MFR_TLS = os.path.join(
+    BLOCKCHAIN_DIR, "organizations", "peerOrganizations",
+    "manufacturer.example.com", "peers",
+    "peer0.manufacturer.example.com", "tls", "ca.crt"
+)
+MFR_MSP = os.path.join(
+    BLOCKCHAIN_DIR, "organizations", "peerOrganizations",
+    "manufacturer.example.com", "users",
+    "Admin@manufacturer.example.com", "msp"
+)
+MNT_TLS = os.path.join(
+    BLOCKCHAIN_DIR, "organizations", "peerOrganizations",
+    "maintenance.example.com", "peers",
+    "peer0.maintenance.example.com", "tls", "ca.crt"
+)
+# FIX: orderer FQDN is orderer.orderer.example.com (hostname=orderer, domain=orderer.example.com)
+ORDERER_CA = os.path.join(
+    BLOCKCHAIN_DIR, "organizations", "ordererOrganizations",
+    "orderer.example.com", "orderers",
+    "orderer.orderer.example.com", "msp", "tlscacerts",
+    "tlsca.orderer.example.com-cert.pem"
+)
 
 env = os.environ.copy()
-env["PATH"]             = f"{BIN_DIR}{os.pathsep}{env.get('PATH', '')}"
-env["FABRIC_CFG_PATH"]  = CONFIG_DIR
-env["CORE_PEER_TLS_ENABLED"]     = "true"
-env["CORE_PEER_LOCALMSPID"]      = "ManufacturerMSP"
-env["CORE_PEER_TLS_ROOTCERT_FILE"] = MFR_TLS
-env["CORE_PEER_MSPCONFIGPATH"]   = MFR_MSP
-env["CORE_PEER_ADDRESS"]         = PEER1_ADDRESS
+env["PATH"]                          = f"{BIN_DIR}{os.pathsep}{env.get('PATH', '')}"
+env["FABRIC_CFG_PATH"]               = CONFIG_DIR
+env["CORE_PEER_TLS_ENABLED"]         = "true"
+env["CORE_PEER_LOCALMSPID"]          = "ManufacturerMSP"
+env["CORE_PEER_TLS_ROOTCERT_FILE"]   = MFR_TLS
+env["CORE_PEER_MSPCONFIGPATH"]       = MFR_MSP
+env["CORE_PEER_ADDRESS"]             = PEER1_ADDRESS
 
 
 def _is_tcp_reachable(address: str, timeout_seconds: float = 1.2) -> bool:
@@ -45,7 +54,6 @@ def _is_tcp_reachable(address: str, timeout_seconds: float = 1.2) -> bool:
         port = int(port_text)
     except ValueError:
         return False
-
     try:
         with socket.create_connection((host, port), timeout=timeout_seconds):
             return True
@@ -55,45 +63,48 @@ def _is_tcp_reachable(address: str, timeout_seconds: float = 1.2) -> bool:
 
 class FabricManager:
     def __init__(self):
-        self.peer_executable = os.path.join(BIN_DIR, "peer") if os.path.exists(
-            os.path.join(BIN_DIR, "peer")) else shutil.which("peer")
+        self.peer_executable = (
+            os.path.join(BIN_DIR, "peer")
+            if os.path.exists(os.path.join(BIN_DIR, "peer"))
+            else shutil.which("peer")
+        )
 
         if self.peer_executable:
             print(f"✅ Hyperledger Fabric found at: {self.peer_executable}")
-            print(f"🔗 Targeted Peers: {PEER1_ADDRESS} (Manufacturer) & {PEER2_ADDRESS} (Maintenance)")
+            print(f"🔗 Peers: {PEER1_ADDRESS} (Manufacturer) | {PEER2_ADDRESS} (Maintenance)")
         else:
-            print("⚠️ 'peer' binary not found. Running in SIMULATION MODE.")
+            print("⚠️  'peer' binary not found — running in SIMULATION MODE")
 
     def network_status(self) -> Dict[str, Any]:
         checks = {
             "orderer": _is_tcp_reachable(ORDERER_ADDRESS),
-            "peer1": _is_tcp_reachable(PEER1_ADDRESS),
-            "peer2": _is_tcp_reachable(PEER2_ADDRESS),
+            "peer1":   _is_tcp_reachable(PEER1_ADDRESS),
+            "peer2":   _is_tcp_reachable(PEER2_ADDRESS),
         }
         return {
             "ready": all(checks.values()),
             "addresses": {
                 "orderer": ORDERER_ADDRESS,
-                "peer1": PEER1_ADDRESS,
-                "peer2": PEER2_ADDRESS,
+                "peer1":   PEER1_ADDRESS,
+                "peer2":   PEER2_ADDRESS,
             },
             "checks": checks,
         }
 
     def submit_transaction(self, function_name: str, args_list: List[str]) -> Dict[str, Any]:
-        print(f"⚡ BLOCKCHAIN: Submitting '{function_name}' with {args_list}")
+        print(f"⚡ BLOCKCHAIN: Submitting '{function_name}' with args {args_list}")
 
         if not self.peer_executable:
             return {"status": "simulated"}
 
         status = self.network_status()
         if not status["ready"]:
-            error_message = (
-                "Fabric network is not reachable from backend. "
-                f"Checks={status['checks']} Addresses={status['addresses']}"
+            msg = (
+                f"Fabric network unreachable — "
+                f"checks={status['checks']} addresses={status['addresses']}"
             )
-            print(f"❌ Transaction Skipped: {error_message}")
-            return {"status": "error", "error": error_message, "network": status}
+            print(f"❌ Transaction skipped: {msg}")
+            return {"status": "error", "error": msg, "network": status}
 
         cmd_args_json = json.dumps({"Args": [function_name] + args_list})
 
@@ -101,7 +112,8 @@ class FabricManager:
             command = [
                 self.peer_executable, "chaincode", "invoke",
                 "-o", ORDERER_ADDRESS,
-                "--ordererTLSHostnameOverride", "orderer.example.com",
+                # FIX: was "orderer.example.com" — must be the full FQDN from cryptogen
+                "--ordererTLSHostnameOverride", "orderer.orderer.example.com",
                 "--tls", "--cafile", ORDERER_CA,
                 "-C", "mychannel",
                 "-n", "depin_cc",
@@ -109,54 +121,63 @@ class FabricManager:
                 "--tlsRootCertFiles", MFR_TLS,
                 "--peerAddresses", PEER2_ADDRESS,
                 "--tlsRootCertFiles", MNT_TLS,
-                "-c", cmd_args_json
+                "-c", cmd_args_json,
+                "--waitForEvent",
             ]
 
-            result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=25)
+            result = subprocess.run(
+                command, env=env, capture_output=True, text=True, timeout=30
+            )
 
             if result.returncode == 0:
-                print("✅ Transaction Successful")
+                print("✅ Transaction committed successfully")
                 return {"status": "success", "output": result.stdout}
-            else:
-                stderr = (result.stderr or "").strip()
-                hint = ""
-                lowered = stderr.lower()
-                if "connection refused" in lowered or "broken pipe" in lowered:
-                    hint = (
-                        " Ensure Fabric containers and chaincode are running on the backend host. "
-                        "Check peer0/orderer container status and port mappings."
-                    )
-                print(f"❌ Transaction Failed: {stderr}{hint}")
-                return {"status": "error", "error": f"{stderr}{hint}"}
+
+            stderr = (result.stderr or "").strip()
+            hint   = ""
+            lowered = stderr.lower()
+            if "connection refused" in lowered or "broken pipe" in lowered:
+                hint = (
+                    " — ensure Fabric containers are running and ports 7050/7051/9051 are reachable"
+                )
+            if "does not exist" in lowered or "not found" in lowered:
+                hint = " — chaincode may not be deployed yet; run deploy_chaincode.sh first"
+            print(f"❌ Transaction failed: {stderr}{hint}")
+            return {"status": "error", "error": f"{stderr}{hint}"}
 
         except subprocess.TimeoutExpired:
-            timeout_msg = "Fabric invoke timed out after 25s"
-            print(f"❌ Transaction Timeout: {timeout_msg}")
-            return {"status": "error", "error": timeout_msg}
+            msg = "Fabric invoke timed out after 30s"
+            print(f"❌ Timeout: {msg}")
+            return {"status": "error", "error": msg}
 
-        except Exception as e:
-            print(f"❌ Execution Error: {e}")
-            return {"status": "error", "error": str(e)}
+        except Exception as exc:
+            print(f"❌ Execution error: {exc}")
+            return {"status": "error", "error": str(exc)}
 
-    def query_transaction(self, function_name: str, arg: str):
+    def query_transaction(self, function_name: str, arg: str) -> list:
         if not self.peer_executable:
             return []
 
-        print(f"🔍 BLOCKCHAIN: Querying '{function_name}' for {arg}")
+        print(f"🔍 BLOCKCHAIN: Querying '{function_name}' for '{arg}'")
         cmd_args_json = json.dumps({"Args": [function_name, arg]})
 
         try:
             command = [
                 self.peer_executable, "chaincode", "query",
-                "-C", "mychannel", "-n", "depin_cc",
-                "-c", cmd_args_json
+                "-C", "mychannel",
+                "-n", "depin_cc",
+                "-c", cmd_args_json,
             ]
-            result = subprocess.run(command, env=env, capture_output=True, text=True)
-            if result.returncode == 0:
+            result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=15)
+            if result.returncode == 0 and result.stdout.strip():
                 return json.loads(result.stdout)
+            print(f"⚠️  Query returned no data: {result.stderr.strip()}")
             return []
-        except Exception as e:
-            print(f"❌ Query Error: {e}")
+        except json.JSONDecodeError:
+            print(f"⚠️  Query response is not valid JSON: {result.stdout[:200]}")
+            return []
+        except Exception as exc:
+            print(f"❌ Query error: {exc}")
             return []
 
 
