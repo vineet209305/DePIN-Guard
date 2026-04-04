@@ -207,10 +207,18 @@ def read_root():
 
 @app.get("/health")
 def health_check():
+    blockchain_status = {"ready": False, "reason": "fabric manager unavailable"}
+    if BLOCKCHAIN_ACTIVE:
+        try:
+            blockchain_status = fabric_client.network_status()
+        except Exception as exc:
+            blockchain_status = {"ready": False, "error": str(exc)}
+
     return {
         "status": "healthy",
         "service": "backend",
         "blockchain_active": BLOCKCHAIN_ACTIVE,
+        "blockchain_status": blockchain_status,
     }
 
 
@@ -342,11 +350,13 @@ async def process_data(request: Request, data: SensorData):
 
             if BLOCKCHAIN_ACTIVE:
                 try:
-                    fabric_client.submit_transaction("CreateAsset", [
+                    tx_result = fabric_client.submit_transaction("CreateAsset", [
                         tx_hash, "CRITICAL",
                         str(int(data.vibration)), "AI",
                         str(int(data.temperature)),
                     ])
+                    if tx_result.get("status") != "success":
+                        print(f"Ledger write failed safely: {tx_result.get('error')}")
                 except Exception as e:
                     print(f"Ledger write failed: {e}")
 
