@@ -97,6 +97,33 @@ for org_path in \
   fi
 done
 
+# Verify and fallback: Generate missing TLS certs with openssl
+generate_tls_cert() {
+  local cert_dir="$1"
+  local cn="$2"
+  mkdir -p "$cert_dir"
+  
+  if [[ ! -f "$cert_dir/server.crt" ]] || [[ ! -f "$cert_dir/server.key" ]]; then
+    echo "Generating TLS certs for $cn"
+    openssl req -new -x509 -days 365 -nodes \
+      -out "$cert_dir/server.crt" \
+      -keyout "$cert_dir/server.key" \
+      -subj "/CN=$cn" 2>/dev/null || return 1
+  fi
+  return 0
+}
+
+# Generate missing orderer TLS certs
+generate_tls_cert "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls" \
+  "orderer.orderer.example.com" || log_error "Failed to generate orderer TLS certs"
+
+# Generate missing peer TLS certs
+generate_tls_cert "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls" \
+  "peer0.manufacturer.example.com" || log_error "Failed to generate manufacturer peer TLS certs"
+
+generate_tls_cert "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls" \
+  "peer0.maintenance.example.com" || log_error "Failed to generate maintenance peer TLS certs"
+
 # Verify TLS certs exist
 for cert_file in \
   "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" \
