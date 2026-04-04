@@ -80,6 +80,9 @@ log_step "2. Generate cryptographic material"
 rm -rf "$ORGS_DIR"
 mkdir -p "$ORGS_DIR"
 
+echo "Running cryptogen from: $CONFIG_DIR/crypto-config.yaml"
+echo "Output to: $ORGS_DIR"
+
 cryptogen generate --config="$CONFIG_DIR/crypto-config.yaml" --output="$ORGS_DIR" || \
   log_error "cryptogen failed"
 
@@ -87,12 +90,25 @@ cryptogen generate --config="$CONFIG_DIR/crypto-config.yaml" --output="$ORGS_DIR
 for org_path in \
   "$ORGS_DIR/peerOrganizations/manufacturer.example.com/msp/cacerts" \
   "$ORGS_DIR/peerOrganizations/maintenance.example.com/msp/cacerts" \
+  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls" \
   "$ORGS_DIR/ordererOrganizations/orderer.example.com/msp/cacerts"; do
   if [[ ! -d "$org_path" ]]; then
     log_error "Missing org path: $org_path"
   fi
 done
-log_info "All organization certificates generated"
+
+# Verify TLS certs exist
+for cert_file in \
+  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" \
+  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.key" \
+  "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/server.crt" \
+  "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/server.crt"; do
+  if [[ ! -f "$cert_file" ]]; then
+    log_error "Missing TLS certificate: $cert_file"
+  fi
+done
+
+log_info "All organization certificates and TLS certs verified"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # STEP 3: Generate channel artifacts
