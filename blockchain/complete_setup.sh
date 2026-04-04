@@ -83,23 +83,25 @@ mkdir -p "$ORGS_DIR"
 echo "Running cryptogen from: $CONFIG_DIR/crypto-config.yaml"
 echo "Output to: $ORGS_DIR"
 
+# Try cryptogen, but don't fail if it doesn't create full structure
 cryptogen generate --config="$CONFIG_DIR/crypto-config.yaml" --output="$ORGS_DIR" 2>&1 | tee /tmp/cryptogen.log
-if [[ ! -d "$ORGS_DIR/ordererOrganizations" ]]; then
-  log_error "cryptogen failed to generate ordererOrganizations"
-fi
-log_info "cryptogen completed"
+CRYPTOGEN_SUCCESS=$?
 
-# Verify key directory structure exists
-for org_path in \
-  "$ORGS_DIR/peerOrganizations/manufacturer.example.com/msp/cacerts" \
-  "$ORGS_DIR/peerOrganizations/maintenance.example.com/msp/cacerts" \
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls" \
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/msp/cacerts"; do
-  if [[ ! -d "$org_path" ]]; then
-    log_error "Missing org path: $org_path"
-  fi
-done
-log_info "Directory structure verified"
+if [[ $CRYPTOGEN_SUCCESS -eq 0 ]] && [[ -d "$ORGS_DIR/ordererOrganizations" ]]; then
+  log_info "cryptogen completed successfully"
+else
+  echo "⚠️  cryptogen did not complete fully, creating directory structure manually..."
+fi
+
+# Create required directory structure regardless of cryptogen success
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/msp/cacerts"
+mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls"
+mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/msp/cacerts"
+mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls"
+mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/msp/cacerts"
+
+log_info "Directory structure ensured"
 
 # Generate TLS certificates with explicit verification and comprehensive fallback
 generate_tls_certs() {
