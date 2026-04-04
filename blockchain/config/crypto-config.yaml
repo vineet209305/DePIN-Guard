@@ -2,8 +2,6 @@ OrdererOrgs:
   - Name: Orderer
     Domain: orderer.example.com
     EnableNodeOUs: true
-    CA:
-      CommonName: ca.orderer.example.com
     Specs:
       - Hostname: orderer
         SANS:
@@ -16,27 +14,21 @@ PeerOrgs:
   - Name: Manufacturer
     Domain: manufacturer.example.com
     EnableNodeOUs: true
-    CA:
-      CommonName: ca.manufacturer.example.com
     Template:
       Count: 1
       SANS:
         - "localhost"
         - "127.0.0.1"
-        - "{{.Hostname}}.manufacturer.example.com"
     Users:
       Count: 1
 
   - Name: Maintenance
     Domain: maintenance.example.com
     EnableNodeOUs: true
-    CA:
-      CommonName: ca.maintenance.example.com
     Template:
       Count: 1
       SANS:
         - "localhost"
         - "127.0.0.1"
-        - "{{.Hostname}}.maintenance.example.com"
     Users:
       Count: 1

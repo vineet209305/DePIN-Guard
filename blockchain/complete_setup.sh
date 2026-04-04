@@ -83,10 +83,13 @@ mkdir -p "$ORGS_DIR"
 echo "Running cryptogen from: $CONFIG_DIR/crypto-config.yaml"
 echo "Output to: $ORGS_DIR"
 
-cryptogen generate --config="$CONFIG_DIR/crypto-config.yaml" --output="$ORGS_DIR" || \
-  log_error "cryptogen failed"
+cryptogen generate --config="$CONFIG_DIR/crypto-config.yaml" --output="$ORGS_DIR" 2>&1 | tee /tmp/cryptogen.log
+if [[ ! -d "$ORGS_DIR/ordererOrganizations" ]]; then
+  log_error "cryptogen failed to generate ordererOrganizations"
+fi
+log_info "cryptogen completed"
 
-# Verify key files exist
+# Verify key directory structure exists
 for org_path in \
   "$ORGS_DIR/peerOrganizations/manufacturer.example.com/msp/cacerts" \
   "$ORGS_DIR/peerOrganizations/maintenance.example.com/msp/cacerts" \
@@ -96,46 +99,70 @@ for org_path in \
     log_error "Missing org path: $org_path"
   fi
 done
+log_info "Directory structure verified"
 
-# Verify and fallback: Generate missing TLS certs with openssl
-generate_tls_cert() {
+# Generate TLS certificates with explicit verification and fallback
+generate_tls_certs() {
   local cert_dir="$1"
   local cn="$2"
+  
   mkdir -p "$cert_dir"
   
+  # If certs already exist, skip
+  if [[ -f "$cert_dir/server.crt" ]] && [[ -f "$cert_dir/server.key" ]]; then
+    echo "  ✓ TLS certs already exist for $cn"
+    return 0
+  fi
+  
+  # Generate self-signed cert
+  echo "  Generating TLS cert for: $cn"
+  openssl req -new -x509 -days 365 -nodes \
+    -out "$cert_dir/server.crt" \
+    -keyout "$cert_dir/server.key" \
+    -subj "/CN=$cn" 2>&1
+  
   if [[ ! -f "$cert_dir/server.crt" ]] || [[ ! -f "$cert_dir/server.key" ]]; then
-    echo "Generating TLS certs for $cn"
-    openssl req -new -x509 -days 365 -nodes \
-      -out "$cert_dir/server.crt" \
-      -keyout "$cert_dir/server.key" \
-      -subj "/CN=$cn" 2>/dev/null || return 1
+    return 1
   fi
   return 0
 }
 
-# Generate missing orderer TLS certs
-generate_tls_cert "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls" \
-  "orderer.orderer.example.com" || log_error "Failed to generate orderer TLS certs"
+echo "Verifying/generating TLS certificates..."
 
-# Generate missing peer TLS certs
-generate_tls_cert "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls" \
-  "peer0.manufacturer.example.com" || log_error "Failed to generate manufacturer peer TLS certs"
+# Orderer TLS
+if ! generate_tls_certs "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls" \
+  "orderer.orderer.example.com"; then
+  log_error "Failed to create orderer TLS certificates"
+fi
 
-generate_tls_cert "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls" \
-  "peer0.maintenance.example.com" || log_error "Failed to generate maintenance peer TLS certs"
+# Manufacturer peer TLS
+if ! generate_tls_certs "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls" \
+  "peer0.manufacturer.example.com"; then
+  log_error "Failed to create manufacturer peer TLS certificates"
+fi
 
-# Verify TLS certs exist
+# Maintenance peer TLS
+if ! generate_tls_certs "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls" \
+  "peer0.maintenance.example.com"; then
+  log_error "Failed to create maintenance peer TLS certificates"
+fi
+
+# Final verification
+echo "Final TLS certificate verification..."
 for cert_file in \
   "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" \
   "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.key" \
   "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/server.crt" \
   "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/server.crt"; do
   if [[ ! -f "$cert_file" ]]; then
-    log_error "Missing TLS certificate: $cert_file"
+    echo "  Missing: $cert_file"
+    log_error "TLS certificate verification failed"
+  else
+    echo "  ✓ Found: $(basename $cert_file)"
   fi
 done
 
-log_info "All organization certificates and TLS certs verified"
+log_info "All cryptographic material ready (organizations + TLS certificates)"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # STEP 3: Generate channel artifacts
