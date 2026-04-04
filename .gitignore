@@ -38,6 +38,13 @@ blockchain/fabric-samples/test-network/channel-artifacts/
 blockchain/fabric-samples/test-network/log.txt
 blockchain/crypto-config/
 blockchain/organizations/
+blockchain/channel-artifacts/
+blockchain/system-genesis-block/
+blockchain/*.tar.gz
+blockchain/log.txt
+blockchain/*.block
+blockchain/*.tx
+blockchain/depin_cc_*
 
 # --- Docker ---
 *.tar
