@@ -4,9 +4,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
-  const BACKEND_URL  = env.VITE_API_URL   || 'http://localhost:8000';
-  const AUTH_URL     = env.VITE_AUTH_URL  || 'http://localhost:8001';
-  const WS_BACKEND   = BACKEND_URL.replace(/^http/, 'ws');
+  const BACKEND_URL = env.VITE_API_URL  || 'http://localhost:8000';
+  const AUTH_URL    = env.VITE_AUTH_URL || 'http://localhost:8001';
+  const WS_BACKEND  = BACKEND_URL.replace(/^https?/, 'ws');
 
   return {
     plugins: [react()],
@@ -19,22 +19,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
-        '/fraud-alerts': {
-          target: BACKEND_URL,
-          changeOrigin: true,
-          secure: false,
-        },
-        '/report-fraud': {
-          target: BACKEND_URL,
-          changeOrigin: true,
-          secure: false,
-        },
         '/login': {
-          target: AUTH_URL,
-          changeOrigin: true,
-          secure: false,
-        },
-        '/signup': {
           target: AUTH_URL,
           changeOrigin: true,
           secure: false,

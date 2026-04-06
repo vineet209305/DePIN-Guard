@@ -4,14 +4,22 @@ import './LiveChart.css';
 const MAX_POINTS = 20;
 
 const getWsUrl = () => {
-  const base = import.meta.env.VITE_API_URL ?? `http://${window.location.hostname}:8000`;
-  return base.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws/live';
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  // No external URL set — use Vite WS proxy (relative, same origin)
+  if (!apiUrl) {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${proto}//${window.location.host}/ws/live`;
+  }
+
+  // External URL (tunnel/production) — convert http→ws, https→wss
+  return apiUrl.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws/live';
 };
 
 export default function LiveChart({ onConnect }) {
   const [data, setData]           = useState([]);
   const [connected, setConnected] = useState(false);
-  const wsRef = useRef(null);
+  const wsRef                     = useRef(null);
 
   useEffect(() => {
     let ws;
@@ -19,20 +27,24 @@ export default function LiveChart({ onConnect }) {
 
     const connect = () => {
       const WS_URL = getWsUrl();
+      console.log('[LiveChart] Connecting to:', WS_URL);
+
       ws = new WebSocket(WS_URL);
 
       ws.onopen = () => {
+        console.log('[LiveChart] Connected');
         setConnected(true);
         onConnect?.();
       };
 
       ws.onclose = () => {
+        console.log('[LiveChart] Disconnected — retrying in 3s');
         setConnected(false);
         retryTimeout = setTimeout(connect, 3000);
       };
 
       ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
+        console.error('[LiveChart] WebSocket error:', err);
         setConnected(false);
       };
 
@@ -49,6 +61,7 @@ export default function LiveChart({ onConnect }) {
     };
 
     connect();
+
     return () => {
       clearTimeout(retryTimeout);
       ws?.close();
@@ -67,7 +80,9 @@ export default function LiveChart({ onConnect }) {
 
       {data.length === 0 ? (
         <p className="live-chart-empty">
-          {connected ? '⏳ Waiting for data from simulator...' : '🔌 Connecting to backend WebSocket...'}
+          {connected
+            ? '⏳ Waiting for data from simulator...'
+            : '🔌 Connecting to backend WebSocket...'}
         </p>
       ) : (
         <div className="live-chart-table-wrapper">

@@ -1,11 +1,9 @@
-// frontend/src/utils/api.js
-// In local dev: uses Vite proxy (relative paths -> backend)
-// In production: set VITE_API_URL and VITE_API_KEY in environment
-
 const BACKEND_URL = import.meta.env.VITE_API_URL || '';
-const API_KEY = import.meta.env.VITE_API_KEY || '';
+const API_KEY     = import.meta.env.VITE_API_KEY  || '';
 
 export const authenticatedFetch = async (path, options = {}) => {
+  // If path is already absolute use it directly, otherwise prepend BACKEND_URL
+  // When BACKEND_URL is empty (local dev), path must be relative e.g. /api/dashboard
   const url = path.startsWith('http') ? path : `${BACKEND_URL}${path}`;
 
   const token = localStorage.getItem('token');
@@ -40,12 +38,10 @@ export const authenticatedFetch = async (path, options = {}) => {
   }
 };
 
-export const apiGet = (path) => authenticatedFetch(path);
-
-export const apiPost = (path, body) =>
-  authenticatedFetch(path, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
+export const apiGet  = (path)       => authenticatedFetch(path);
+export const apiPost = (path, body) => authenticatedFetch(path, {
+  method: 'POST',
+  body: JSON.stringify(body),
+});
 
 export { BACKEND_URL };
