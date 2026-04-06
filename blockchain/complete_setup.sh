@@ -26,13 +26,40 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 log_info() { echo -e "${GREEN}[✓]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 log_error() { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 log_step() { echo -e "\n${YELLOW}Step: $1${NC}"; }
+
+wait_for_port() {
+  local port="$1"
+  local label="$2"
+  local timeout_seconds="${3:-60}"
+  local elapsed=0
+
+  while ! (exec 3<>"/dev/tcp/localhost/$port") 2>/dev/null; do
+    if [[ $elapsed -ge $timeout_seconds ]]; then
+      log_error "$label on port $port not responding after ${timeout_seconds}s"
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+}
+
+ensure_fabric_image() {
+  local image_name="$1"
+  if ! docker image inspect "$image_name" >/dev/null 2>&1; then
+    log_info "Pulling missing Fabric image: $image_name"
+    docker pull "$image_name" || log_error "Failed to pull $image_name"
+  fi
+}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # STEP 1: Verify and install prerequisites
 # ═══════════════════════════════════════════════════════════════════════════════
 log_step "1. Verify prerequisites"
+
+# Ensure local Fabric binaries are on PATH before checking for them.
+export PATH="$BLOCKCHAIN_DIR/fabric-samples/bin:$PATH"
 
 # Check Docker
 if ! docker --version &>/dev/null; then
@@ -49,8 +76,8 @@ log_info "Docker daemon running"
 # ─── Install Fabric binaries if missing ───
 if ! command -v cryptogen &>/dev/null; then
   log_info "cryptogen not found, installing Fabric binaries..."
-  ./install-fabric.sh binary
-  export PATH=$PWD/fabric-samples/bin:$PATH
+  "$BLOCKCHAIN_DIR/install-fabric.sh" binary
+  export PATH="$BLOCKCHAIN_DIR/fabric-samples/bin:$PATH"
 fi
 
 if ! command -v cryptogen &>/dev/null; then
@@ -96,6 +123,7 @@ fi
 # Create required directory structure regardless of cryptogen success
 mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls"
 mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/msp/cacerts"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts"
 mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls"
 mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/msp/cacerts"
 mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls"
@@ -116,6 +144,9 @@ generate_tls_certs() {
   
   # If certs already exist, skip
   if [[ -f "$cert_dir/server.crt" ]] && [[ -f "$cert_dir/server.key" ]]; then
+    if [[ ! -f "$cert_dir/ca.crt" ]]; then
+      cp "$cert_dir/server.crt" "$cert_dir/ca.crt"
+    fi
     echo "  ✓ TLS certs already exist for $cn"
     return 0
   fi
@@ -128,6 +159,7 @@ generate_tls_certs() {
       -keyout "$cert_dir/server.key" \
       -subj "/CN=$cn" 2>/tmp/openssl_err.log; then
       if [[ -f "$cert_dir/server.crt" ]] && [[ -f "$cert_dir/server.key" ]]; then
+        cp "$cert_dir/server.crt" "$cert_dir/ca.crt"
         echo "    ✓ OpenSSL generation successful"
         return 0
       fi
@@ -141,6 +173,7 @@ generate_tls_certs() {
   if openssl genrsa -out "$cert_dir/server.key" 2048 2>/dev/null && \
      openssl req -new -x509 -key "$cert_dir/server.key" -out "$cert_dir/server.crt" \
      -days 365 -subj "/CN=$cn" 2>/dev/null; then
+    cp "$cert_dir/server.crt" "$cert_dir/ca.crt"
     echo "    ✓ Alternative generation successful"
     return 0
   fi
@@ -163,6 +196,15 @@ for tls_entry in \
     log_error "Failed to create TLS certificates for $cn at $cert_dir"
   fi
 done
+
+# Ensure the orderer CA file exists at the path used later in the script.
+if [[ -f "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/ca.crt" ]]; then
+  cp "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/ca.crt" \
+    "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
+elif [[ -f "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" ]]; then
+  cp "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" \
+    "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
+fi
 
 # Final verification with detailed output
 echo ""
@@ -224,7 +266,10 @@ docker compose -p "$FABRIC_PROJECT_NAME" -f "$COMPOSE_FILE" up -d --remove-orpha
   log_error "docker-compose up failed"
 
 # Wait for containers to start
-sleep 12
+for port_label in "7050:orderer" "7051:manufacturer peer" "9051:maintenance peer"; do
+  IFS=':' read -r port label <<< "$port_label"
+  wait_for_port "$port" "$label" 90
+done
 
 # Verify containers are running
 for container in "orderer.example.com" "peer0.manufacturer.example.com" "peer0.maintenance.example.com"; do
@@ -236,7 +281,7 @@ log_info "All Fabric containers running"
 
 # Verify ports are open
 for port in 7050 7051 9051; do
-  if ! nc -z -w 2 localhost $port 2>/dev/null; then
+  if ! (exec 3<>"/dev/tcp/localhost/$port") 2>/dev/null; then
     log_error "Port $port not responding"
   fi
 done
@@ -246,6 +291,9 @@ log_info "All ports responding (7050, 7051, 9051)"
 # STEP 5: Create channel and join peers
 # ═══════════════════════════════════════════════════════════════════════════════
 log_step "5. Create channel and join peers"
+
+echo "Waiting briefly for orderer Raft initialization..."
+sleep 5
 
 # Paths to certificates
 ORDERER_CA="$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
@@ -272,15 +320,24 @@ export FABRIC_CFG_PATH="$BLOCKCHAIN_DIR/fabric-samples/config"
 
 rm -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.block"
 
-peer channel create \
-  -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
-  -c "$CHANNEL_NAME" \
-  -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.tx" \
-  --tls --cafile "$ORDERER_CA" \
-  --outputBlock "$ARTIFACTS_DIR/${CHANNEL_NAME}.block" \
-  --timeout 30s || \
-  log_error "Channel creation failed"
+# Retry channel creation if orderer is still initializing
+for attempt in {1..10}; do
+  peer channel create \
+    -o localhost:7050 \
+    --ordererTLSHostnameOverride orderer.orderer.example.com \
+    -c "$CHANNEL_NAME" \
+    -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.tx" \
+    --tls --cafile "$ORDERER_CA" \
+    --outputBlock "$ARTIFACTS_DIR/${CHANNEL_NAME}.block" \
+    --timeout 30s && break
+  
+  if [[ $attempt -lt 10 ]]; then
+    echo "Channel creation attempt $attempt failed; retrying in 3 seconds..."
+    sleep 3
+  else
+    log_error "Channel creation failed after 10 attempts"
+  fi
+done
 log_info "Channel created: $CHANNEL_NAME"
 
 # Join Manufacturer peer
@@ -302,6 +359,9 @@ log_info "Maintenance peer joined"
 # STEP 6: Deploy chaincode
 # ═══════════════════════════════════════════════════════════════════════════════
 log_step "6. Deploy chaincode"
+
+ensure_fabric_image "hyperledger/fabric-ccenv:2.5"
+ensure_fabric_image "hyperledger/fabric-baseos:2.5"
 
 cd "$BLOCKCHAIN_DIR"
 export FABRIC_CFG_PATH="$BLOCKCHAIN_DIR/fabric-samples/config"
@@ -400,22 +460,16 @@ log_info "Chaincode committed to channel"
 # ═══════════════════════════════════════════════════════════════════════════════
 log_step "7. Verify backend blockchain connectivity"
 
-HEALTH_RESPONSE=$(curl -s http://127.0.0.1:8000/health)
+HEALTH_RESPONSE=$(curl -s --max-time 5 http://127.0.0.1:8000/health || true)
 if echo "$HEALTH_RESPONSE" | grep -q '"ready":true'; then
   log_info "Backend blockchain_status.ready = true ✅"
 else
-  echo "$HEALTH_RESPONSE" | grep -q '"blockchain_active":true' && \
-    log_info "Blockchain module loaded, checking port connectivity..." || \
-    log_error "Backend not responding or blockchain module failed"
-  
-  # Check if ports are still open
-  for port in 7050 7051 9051; do
-    if ! nc -z -w 2 localhost $port 2>/dev/null; then
-      log_error "Port $port unreachable"
-    fi
-  done
-  
-  log_error "Backend shows blockchain_active=true but ready=false. Check docker logs."
+  if echo "$HEALTH_RESPONSE" | grep -q '"blockchain_active":true'; then
+    log_warn "Backend blockchain module is loaded but not ready yet"
+  else
+    log_warn "Backend not responding yet; blockchain network is up"
+  fi
+  log_warn "You can start the backend separately and re-check /health later"
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════

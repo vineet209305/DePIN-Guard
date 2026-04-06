@@ -23,6 +23,22 @@ FABRIC_PROJECT_NAME="depin-fabric"
 export PATH=$PATH:$BLOCKCHAIN_DIR/fabric-samples/bin
 export FABRIC_CFG_PATH="$BLOCKCHAIN_DIR/fabric-samples/config"
 
+wait_for_port() {
+  local port="$1"
+  local label="$2"
+  local timeout_seconds="${3:-60}"
+  local elapsed=0
+
+  while ! (exec 3<>"/dev/tcp/localhost/$port") 2>/dev/null; do
+    if [[ $elapsed -ge $timeout_seconds ]]; then
+      echo "[ERROR] $label on port $port not responding after ${timeout_seconds}s"
+      exit 1
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+}
+
 MODE="${1:-start}"
 
 case "$MODE" in
@@ -120,8 +136,12 @@ start_containers() {
     -f "$COMPOSE_FILE" \
     up -d --remove-orphans
 
-  echo "[DOCKER] Waiting 12s for peers and orderer to initialise..."
-  sleep 12
+  echo "[DOCKER] Waiting for peers and orderer to initialise..."
+  wait_for_port 7050 "orderer" 90
+  wait_for_port 7051 "manufacturer peer" 90
+  wait_for_port 9051 "maintenance peer" 90
+  echo "[DOCKER] Waiting briefly for orderer Raft initialization..."
+  sleep 5
 
   local expected_containers=("peer0.manufacturer" "peer0.maintenance" "orderer")
   for container in "${expected_containers[@]}"; do

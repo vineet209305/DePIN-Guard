@@ -3,10 +3,28 @@
 # FIX: EtcdRaft consenter host aligned to orderer.orderer.example.com
 
 Organizations:
+  - &OrdererOrg
+    Name: OrdererMSP
+    ID: OrdererMSP
+    MSPDir: organizations/ordererOrganizations/orderer.example.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+
   - &ManufacturerOrg
     Name: ManufacturerMSP
     ID: ManufacturerMSP
-    MSPDir: ../organizations/peerOrganizations/manufacturer.example.com/msp
+    MSPDir: organizations/peerOrganizations/manufacturer.example.com/msp
     Policies:
       Readers:
         Type: Signature
@@ -27,7 +45,7 @@ Organizations:
   - &MaintenanceProviderOrg
     Name: MaintenanceProviderMSP
     ID: MaintenanceProviderMSP
-    MSPDir: ../organizations/peerOrganizations/maintenance.example.com/msp
+    MSPDir: organizations/peerOrganizations/maintenance.example.com/msp
     Policies:
       Readers:
         Type: Signature
@@ -89,8 +107,8 @@ Orderer: &OrdererDefaults
       # FIX: Host must be orderer.orderer.example.com (hostname=orderer, domain=orderer.example.com)
       - Host: orderer.orderer.example.com
         Port: 7050
-        ClientTLSCert: ../organizations/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt
-        ServerTLSCert: ../organizations/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt
+        ClientTLSCert: organizations/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt
+        ServerTLSCert: organizations/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt
   Policies:
     Readers:
       Type: ImplicitMeta
@@ -127,6 +145,7 @@ Profiles:
     Orderer:
       <<: *OrdererDefaults
       Organizations:
+        - *OrdererOrg
         - *ManufacturerOrg
         - *MaintenanceProviderOrg
     Consortiums:

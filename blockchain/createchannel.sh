@@ -48,7 +48,7 @@ echo "[CHECK] Checking peer and orderer connectivity..."
 for addr in "localhost:7050" "localhost:7051" "localhost:9051"; do
   host="${addr%%:*}"
   port="${addr##*:}"
-  if ! nc -z -w 2 "$host" "$port" 2>/dev/null; then
+  if ! (exec 3<>"/dev/tcp/$host/$port") 2>/dev/null; then
     echo "[ERROR] Cannot reach $addr — ensure Docker containers are running."
     echo "        Run: docker ps | grep -E 'orderer|peer'"
     exit 1

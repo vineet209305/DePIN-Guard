@@ -5,23 +5,44 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BLOCKCHAIN_DIR="$SCRIPT_DIR"
 CHANNEL_NAME="mychannel"
 CC_NAME="depin_cc"
 CC_VERSION="1.0"
 CC_SEQUENCE=1
 
-CC_SRC_PATH="./chaincode-go/"
+CC_SRC_PATH="$BLOCKCHAIN_DIR/chaincode-go/"
 CC_LANG="golang"
 
-export FABRIC_CFG_PATH=${PWD}/fabric-samples/config
+export PATH="$PATH:$BLOCKCHAIN_DIR/fabric-samples/bin"
+export FABRIC_CFG_PATH="$BLOCKCHAIN_DIR/fabric-samples/config"
 
-ORDERER_CA=${PWD}/organizations/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem
+ORDERER_CA="$BLOCKCHAIN_DIR/organizations/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
 
-MFR_TLS=${PWD}/organizations/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/ca.crt
-MFR_MSP=${PWD}/organizations/peerOrganizations/manufacturer.example.com/users/Admin@manufacturer.example.com/msp
+MFR_TLS="$BLOCKCHAIN_DIR/organizations/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/ca.crt"
+MFR_MSP="$BLOCKCHAIN_DIR/organizations/peerOrganizations/manufacturer.example.com/users/Admin@manufacturer.example.com/msp"
 
-MNT_TLS=${PWD}/organizations/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/ca.crt
-MNT_MSP=${PWD}/organizations/peerOrganizations/maintenance.example.com/users/Admin@maintenance.example.com/msp
+MNT_TLS="$BLOCKCHAIN_DIR/organizations/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/ca.crt"
+MNT_MSP="$BLOCKCHAIN_DIR/organizations/peerOrganizations/maintenance.example.com/users/Admin@maintenance.example.com/msp"
+
+for required_path in "$CC_SRC_PATH" "$ORDERER_CA" "$MFR_TLS" "$MFR_MSP" "$MNT_TLS" "$MNT_MSP"; do
+  if [[ ! -e "$required_path" ]]; then
+    echo "ERROR: Missing required path: $required_path"
+    exit 1
+  fi
+done
+
+ensure_fabric_image() {
+  local image_name="$1"
+  if ! docker image inspect "$image_name" >/dev/null 2>&1; then
+    echo "INFO: Pulling missing Fabric image: $image_name"
+    docker pull "$image_name" || { echo "ERROR: Failed to pull $image_name"; exit 1; }
+  fi
+}
+
+ensure_fabric_image "hyperledger/fabric-ccenv:2.5"
+ensure_fabric_image "hyperledger/fabric-baseos:2.5"
 
 export CORE_PEER_TLS_ENABLED=true
 
@@ -32,7 +53,7 @@ echo "=========================================="
 
 echo ""
 echo "📦 Step 1: Packaging chaincode..."
-./fabric-samples/bin/peer lifecycle chaincode package ${CC_NAME}.tar.gz \
+peer lifecycle chaincode package ${CC_NAME}.tar.gz \
   --path ${CC_SRC_PATH} \
   --lang ${CC_LANG} \
   --label ${CC_NAME}_${CC_VERSION}
@@ -44,7 +65,7 @@ export CORE_PEER_LOCALMSPID="ManufacturerMSP"
 export CORE_PEER_TLS_ROOTCERT_FILE=$MFR_TLS
 export CORE_PEER_MSPCONFIGPATH=$MFR_MSP
 export CORE_PEER_ADDRESS=localhost:7051
-./fabric-samples/bin/peer lifecycle chaincode install ${CC_NAME}.tar.gz
+peer lifecycle chaincode install ${CC_NAME}.tar.gz
 
 echo ""
 echo "⚙️  Step 3: Installing on Maintenance peer (localhost:9051)..."
@@ -53,7 +74,7 @@ export CORE_PEER_LOCALMSPID="MaintenanceProviderMSP"
 export CORE_PEER_TLS_ROOTCERT_FILE=$MNT_TLS
 export CORE_PEER_MSPCONFIGPATH=$MNT_MSP
 export CORE_PEER_ADDRESS=localhost:9051
-./fabric-samples/bin/peer lifecycle chaincode install ${CC_NAME}.tar.gz
+peer lifecycle chaincode install ${CC_NAME}.tar.gz
 
 echo ""
 echo "🔍 Step 4: Getting Package ID from Manufacturer peer..."
@@ -61,7 +82,7 @@ export CORE_PEER_LOCALMSPID="ManufacturerMSP"
 export CORE_PEER_TLS_ROOTCERT_FILE=$MFR_TLS
 export CORE_PEER_MSPCONFIGPATH=$MFR_MSP
 export CORE_PEER_ADDRESS=localhost:7051
-./fabric-samples/bin/peer lifecycle chaincode queryinstalled > log.txt 2>&1
+peer lifecycle chaincode queryinstalled > log.txt 2>&1
 cat log.txt
 PACKAGE_ID=$(sed -n "/${CC_NAME}_${CC_VERSION}/{s/^Package ID: //; s/, Label:.*$//; p;}" log.txt)
 if [ -z "$PACKAGE_ID" ]; then
@@ -76,7 +97,7 @@ export CORE_PEER_LOCALMSPID="ManufacturerMSP"
 export CORE_PEER_TLS_ROOTCERT_FILE=$MFR_TLS
 export CORE_PEER_MSPCONFIGPATH=$MFR_MSP
 export CORE_PEER_ADDRESS=localhost:7051
-./fabric-samples/bin/peer lifecycle chaincode approveformyorg \
+peer lifecycle chaincode approveformyorg \
   -o localhost:7050 \
   --ordererTLSHostnameOverride orderer.orderer.example.com \
   --channelID $CHANNEL_NAME \
@@ -93,7 +114,7 @@ export CORE_PEER_LOCALMSPID="MaintenanceProviderMSP"
 export CORE_PEER_TLS_ROOTCERT_FILE=$MNT_TLS
 export CORE_PEER_MSPCONFIGPATH=$MNT_MSP
 export CORE_PEER_ADDRESS=localhost:9051
-./fabric-samples/bin/peer lifecycle chaincode approveformyorg \
+peer lifecycle chaincode approveformyorg \
   -o localhost:7050 \
   --ordererTLSHostnameOverride orderer.orderer.example.com \
   --channelID $CHANNEL_NAME \
@@ -109,7 +130,7 @@ export CORE_PEER_LOCALMSPID="ManufacturerMSP"
 export CORE_PEER_TLS_ROOTCERT_FILE=$MFR_TLS
 export CORE_PEER_MSPCONFIGPATH=$MFR_MSP
 export CORE_PEER_ADDRESS=localhost:7051
-./fabric-samples/bin/peer lifecycle chaincode checkcommitreadiness \
+peer lifecycle chaincode checkcommitreadiness \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --version $CC_VERSION \
@@ -119,7 +140,7 @@ export CORE_PEER_ADDRESS=localhost:7051
 
 echo ""
 echo "🚀 Step 8: Committing chaincode to channel..."
-./fabric-samples/bin/peer lifecycle chaincode commit \
+peer lifecycle chaincode commit \
   -o localhost:7050 \
   --ordererTLSHostnameOverride orderer.orderer.example.com \
   --channelID $CHANNEL_NAME \
@@ -134,7 +155,7 @@ echo "🚀 Step 8: Committing chaincode to channel..."
 
 echo ""
 echo "🔍 Step 9: Verifying committed chaincode..."
-./fabric-samples/bin/peer lifecycle chaincode querycommitted \
+peer lifecycle chaincode querycommitted \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --tls --cafile $ORDERER_CA
