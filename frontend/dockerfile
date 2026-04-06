@@ -1,17 +1,29 @@
-# frontend/Dockerfile
+# Stage 1: Build
+FROM node:18-slim AS builder
+
+WORKDIR /app
+
+COPY package*.json .
+RUN npm install
+
+COPY . .
+
+# Build for production
+RUN npm run build
+
+# Stage 2: Runtime
 FROM node:18-slim
 
 WORKDIR /app
 
-# Install dependencies first for caching
+# Install only production dependencies
 COPY package*.json .
-RUN npm install
+RUN npm install --only=production && npm install -g serve
 
-# Copy all source files
-COPY . .
+# Copy built files from builder stage
+COPY --from=builder /app/dist ./dist
 
-# Expose Vite dev server port
 EXPOSE 5173
 
-# --host flag exposes Vite outside the container
-CMD ["npm", "run", "dev", "--", "--host"]
+# Serve production build
+CMD ["serve", "-s", "dist", "-l", "5173"]
