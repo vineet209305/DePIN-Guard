@@ -1,90 +1,42 @@
-# docker-compose.yml — Production Deployment (all services)
-# For local/lab development: run each service individually with commands in How_we_start_depin.md
-# For production: docker-compose up
-
-version: '3.8'
+# docker-compose.yml — Lab mode (full stack)
+# For demo mode: run each service locally with the commands listed in Demo_Runbook.md
 
 services:
 
   ai-service:
-    build:
-      context: ./ai-service
-      dockerfile: Dockerfile
-    container_name: depin-ai
+    build: ./ai-service
     ports:
-      - "5000:5000"
+      - "10000:10000"
     restart: unless-stopped
     environment:
-      - FLASK_ENV=${FLASK_ENV:-production}
-      - PORT=5000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
+      - FLASK_ENV=production
+      - PORT=10000
 
   auth-service:
-    build:
-      context: ./auth-service
-      dockerfile: Dockerfile
-    container_name: depin-auth
+    build: ./auth-service
     ports:
       - "8001:8001"
     restart: unless-stopped
     environment:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-    depends_on:
-      - ai-service
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: depin-backend
+    build: ./backend
     ports:
       - "8000:8000"
     restart: unless-stopped
     environment:
       - DEPIN_API_KEY=${DEPIN_API_KEY}
+      - AI_SERVICE_URL=http://ai-service:10000/predict
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - AI_SERVICE_URL=${AI_SERVICE_URL}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
-      - CORS_ALLOWED_ORIGIN_REGEX=${CORS_ALLOWED_ORIGIN_REGEX}
-      - FABRIC_ORDERER_ADDRESS=${FABRIC_ORDERER_ADDRESS}
-      - FABRIC_PEER1_ADDRESS=${FABRIC_PEER1_ADDRESS}
-      - FABRIC_PEER2_ADDRESS=${FABRIC_PEER2_ADDRESS}
     depends_on:
-      ai-service:
-        condition: service_healthy
-      auth-service:
-        condition: service_healthy
-    volumes:
-      - ./backend/data:/app/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      - ai-service
+      - auth-service
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: dockerfile
-    container_name: depin-frontend
+    build: ./frontend
     ports:
       - "5173:5173"
     restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
-    environment:
-      - NODE_ENV=production
-
+      - backend
