@@ -19,6 +19,7 @@ ai-service/models/
 # --- Backend ---
 backend/venv/
 backend/__pycache__/
+backend/data/*.sqlite3
 
 # --- Node.js / Frontend ---
 node_modules/
