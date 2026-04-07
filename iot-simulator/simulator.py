@@ -8,7 +8,7 @@ import hashlib
 import ssl
 import os
 import paho.mqtt.client as mqtt
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -57,12 +57,23 @@ def generate_sensor_data(device_id):
 
 def _normalize_payload(row, fallback_device):
     device_id = row.get("device_id") or row.get("device") or fallback_device
+    raw_timestamp = row.get("timestamp")
+    normalized_timestamp = datetime.now().isoformat()
+
+    if raw_timestamp:
+        try:
+            parsed_timestamp = datetime.fromisoformat(str(raw_timestamp).replace("Z", "+00:00"))
+            if abs((datetime.now(parsed_timestamp.tzinfo) if parsed_timestamp.tzinfo else datetime.now()) - parsed_timestamp) <= timedelta(minutes=10):
+                normalized_timestamp = parsed_timestamp.isoformat()
+        except Exception:
+            normalized_timestamp = datetime.now().isoformat()
+
     return {
         "device_id":   device_id,
         "temperature": round(float(row.get("temperature") or row.get("temp") or 0.0), 2),
         "vibration":   round(float(row.get("vibration") or row.get("vib") or 0.0), 2),
         "power_usage": round(float(row.get("power_usage") or row.get("pwr") or 0.0), 2),
-        "timestamp":   row.get("timestamp") or datetime.now().isoformat(),
+        "timestamp":   normalized_timestamp,
     }
 
 
