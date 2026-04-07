@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import datetime
 import os
 import sqlite3
+from typing import Optional
 
 import bcrypt
 import jwt
@@ -57,6 +58,15 @@ def init_db():
         CREATE TABLE IF NOT EXISTS revoked_tokens (
             token TEXT PRIMARY KEY,
             revoked_at TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS profiles (
+            username TEXT PRIMARY KEY,
+            full_name TEXT,
+            email TEXT,
+            phone TEXT,
+            updated_at TEXT NOT NULL
         )
     """)
 
@@ -132,6 +142,57 @@ def create_user(username: str, password: str):
     finally:
         conn.close()
 
+
+def upsert_profile(username: str, full_name: str = None, email: str = None, phone: str = None):
+    conn = sqlite3.connect("users.db")
+    try:
+        existing = conn.execute(
+            "SELECT full_name, email, phone FROM profiles WHERE username=?",
+            (username,),
+        ).fetchone()
+        current_full_name = full_name if full_name is not None else (existing[0] if existing else username)
+        current_email = email if email is not None else (existing[1] if existing else username)
+        current_phone = phone if phone is not None else (existing[2] if existing else "")
+        conn.execute(
+            """
+            INSERT INTO profiles (username, full_name, email, phone, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(username) DO UPDATE SET
+                full_name=excluded.full_name,
+                email=excluded.email,
+                phone=excluded.phone,
+                updated_at=excluded.updated_at
+            """,
+            (username, current_full_name, current_email, current_phone, datetime.datetime.utcnow().isoformat()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_profile(username: str):
+    conn = sqlite3.connect("users.db")
+    profile = conn.execute(
+        "SELECT username, full_name, email, phone, updated_at FROM profiles WHERE username=?",
+        (username,),
+    ).fetchone()
+    conn.close()
+    if profile:
+        return {
+            "username": profile[0],
+            "full_name": profile[1],
+            "email": profile[2],
+            "phone": profile[3],
+            "updated_at": profile[4],
+        }
+    return {
+        "username": username,
+        "full_name": username,
+        "email": username,
+        "phone": "",
+        "updated_at": None,
+    }
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -174,6 +235,13 @@ class UserLogin(BaseModel):
 class UserSignup(BaseModel):
     username: str
     password: str
+    full_name: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
 
 @app.get("/health")
 def health_check():
@@ -194,6 +262,7 @@ def signup(user: UserSignup):
         raise HTTPException(status_code=409, detail="User already exists")
 
     create_user(username, user.password)
+    upsert_profile(username, full_name=user.full_name or username, email=username)
     return {"message": "User created", "username": username}
 
 
@@ -223,6 +292,7 @@ def login(user: UserLogin):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     set_failed_attempts(username, 0)
+    profile = get_profile(username)
 
     access_token = jwt.encode({
         "sub": username,
@@ -240,8 +310,27 @@ def login(user: UserLogin):
         "access_token": access_token,
         "refresh_token": refresh_token_val,
         "token_type": "bearer",
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "profile": profile,
     }
+
+
+@app.get("/profile")
+def read_profile(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    payload = verify_token(credentials)
+    return {"profile": get_profile(payload["sub"])}
+
+
+@app.post("/profile")
+def update_profile(data: ProfileUpdate, credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    payload = verify_token(credentials)
+    upsert_profile(
+        payload["sub"],
+        full_name=data.full_name,
+        email=data.email,
+        phone=data.phone,
+    )
+    return {"message": "Profile saved", "profile": get_profile(payload["sub"])}
 
 
 @app.post("/verify")

@@ -24,7 +24,27 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        '/signup': {
+          target: AUTH_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/profile': {
+          target: AUTH_URL,
+          changeOrigin: true,
+          secure: false,
+        },
         '/verify': {
+          target: AUTH_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/logout': {
+          target: AUTH_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/refresh': {
           target: AUTH_URL,
           changeOrigin: true,
           secure: false,

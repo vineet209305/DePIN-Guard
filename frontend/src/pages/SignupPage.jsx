@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './AuthPages.css';
+import { authFetch } from '../utils/authApi';
+import { storeUserProfile } from '../utils/sessionAuth';
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -59,7 +61,7 @@ const SignupPage = () => {
     setError('');
 
     try {
-      const response = await fetch('/signup', {
+      const response = await authFetch('/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,6 +69,7 @@ const SignupPage = () => {
         body: JSON.stringify({
           username: formData.email.toLowerCase(),
           password: formData.password,
+          full_name: formData.fullName.trim(),
         }),
       });
 
@@ -75,6 +78,8 @@ const SignupPage = () => {
         throw new Error(errData.detail || 'Signup failed. Please try again.');
       }
 
+      storeUserProfile({ email: formData.email.toLowerCase(), full_name: formData.fullName.trim() });
+      localStorage.setItem('savedEmail', formData.email.toLowerCase());
       alert(`✅ Account created successfully!\nWelcome, ${formData.fullName.trim()}!\nPlease login to continue.`);
       navigate('/login');
 

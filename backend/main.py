@@ -1,6 +1,7 @@
 import time as _time
 import os
 import hashlib
+import hmac
 import json
 import random
 import requests as http_requests
@@ -18,6 +19,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import jwt
 
+from db import fetch_sensor_readings, get_dashboard_metrics, init_db, save_sensor_reading
 from routes.stream import broadcast_data, router as stream_router
 from routes.fraud import router as fraud_router, _read_alerts, _write_alerts
 
@@ -72,6 +74,47 @@ system_state = {
     "history": [],
 }
 
+
+def _hydrate_system_state():
+    metrics = get_dashboard_metrics()
+    recent_history = fetch_sensor_readings(limit=100, newest_first=False)
+    critical_history = [record for record in recent_history if record.get("status") == "critical"]
+
+    system_state["dashboard"]["active_devices"] = {
+        record.get("device") for record in recent_history if record.get("device")
+    }
+    system_state["dashboard"]["total_scans"] = metrics["scans"]
+    system_state["dashboard"]["anomalies"] = metrics["anomalies"]
+    system_state["dashboard"]["uptime"] = metrics["uptime"]
+
+    system_state["ai"]["total_analyses"] = metrics["scans"]
+    system_state["ai"]["anomalies_found"] = metrics["anomalies"]
+    system_state["ai"]["recent_results"] = [
+        {
+            "device": record.get("device"),
+            "confidence": 0.95,
+            "recommendation": record.get("recommendation") or "Alert",
+            "timestamp": record.get("timestamp"),
+            "severity": "high",
+        }
+        for record in critical_history[-10:]
+    ]
+
+    system_state["blockchain"]["total_blocks"] = metrics["anomalies"]
+    system_state["blockchain"]["transactions"] = metrics["anomalies"]
+    system_state["blockchain"]["recent_blocks"] = [
+        {
+            "id": record.get("id"),
+            "hash": record.get("hash") or "---",
+            "prev_hash": "0000000000000000",
+            "timestamp": record.get("timestamp"),
+            "status": "Confirmed",
+        }
+        for record in critical_history[-10:]
+    ]
+
+    system_state["history"] = recent_history[-100:]
+
 # ---------------------------------------------------------------------------
 # Blockchain integration (optional — falls back to simulation)
 # ---------------------------------------------------------------------------
@@ -86,7 +129,7 @@ except ImportError:
 # GNN scheduler — writes directly to JSON store
 # ---------------------------------------------------------------------------
 def run_gnn_analysis():
-    history = system_state["history"]
+    history = fetch_sensor_readings(limit=500, newest_first=True)
     if not history:
         print("[GNN] No history yet — skipping analysis run")
         return
@@ -98,7 +141,7 @@ def run_gnn_analysis():
 
     alerts = _read_alerts()
     added  = 0
-    for rec in fraud_candidates[-3:]:
+    for rec in fraud_candidates[:3]:
         alert = {
             "timestamp":  datetime.now().isoformat(),
             "asset_id":   rec.get("device", "unknown"),
@@ -130,6 +173,8 @@ def run_gnn_analysis():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
+    _hydrate_system_state()
     scheduler = BackgroundScheduler()
     scheduler.add_job(run_gnn_analysis, "interval", minutes=5)
     scheduler.start()
@@ -231,6 +276,31 @@ class SensorData(BaseModel):
     vibration:   float
     power_usage: float
     timestamp:   str
+    signature:   str = ""
+
+
+def _sensor_signature(data: SensorData) -> str:
+    secret = (API_KEY or "").encode("utf-8")
+    message = f"{data.device_id}|{data.temperature}|{data.vibration}|{data.power_usage}|{data.timestamp}"
+    return hmac.new(secret, message.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def _verify_sensor_payload(data: SensorData):
+    if not data.signature:
+        raise HTTPException(status_code=403, detail="Unsigned sensor payload rejected")
+
+    expected = _sensor_signature(data)
+    if not hmac.compare_digest(expected, data.signature):
+        raise HTTPException(status_code=403, detail="Invalid sensor payload signature")
+
+    try:
+        received_at = datetime.fromisoformat(data.timestamp.replace("Z", "+00:00"))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid timestamp format")
+
+    current_time = datetime.now(received_at.tzinfo) if received_at.tzinfo else datetime.now()
+    if abs((current_time - received_at).total_seconds()) > 600:
+        raise HTTPException(status_code=403, detail="Sensor payload is stale")
 
 
 # ---------------------------------------------------------------------------
@@ -263,14 +333,10 @@ def health_check():
 
 @app.get("/api/dashboard", dependencies=[Depends(verify_api_key)])
 def get_dashboard():
+    metrics = get_dashboard_metrics()
     return {
-        "stats": {
-            "active":    len(system_state["dashboard"]["active_devices"]),
-            "scans":     system_state["dashboard"]["total_scans"],
-            "anomalies": system_state["dashboard"]["anomalies"],
-            "uptime":    system_state["dashboard"]["uptime"],
-        },
-        "recent_data": system_state["history"][-5:],
+        "stats": metrics,
+        "recent_data": fetch_sensor_readings(limit=5, newest_first=True),
     }
 
 
@@ -286,14 +352,15 @@ def get_ai_analysis():
 
 @app.get("/api/history", dependencies=[Depends(verify_api_key)])
 def get_history():
-    return system_state["history"]
+    return fetch_sensor_readings(newest_first=True)
 
 
 @app.get("/api/history/all", dependencies=[Depends(verify_api_key)])
 def get_all_history():
+    history = fetch_sensor_readings(newest_first=True)
     return {
-        "history": system_state["history"],
-        "count":   len(system_state["history"]),
+        "history": history,
+        "count":   len(history),
     }
 
 
@@ -301,6 +368,7 @@ def get_all_history():
 @limiter.limit("60/minute")
 async def process_data(request: Request, data: SensorData):
     try:
+        _verify_sensor_payload(data)
         is_anomaly     = False
         recommendation = "Normal Operation"
         ai_source      = "model"
@@ -424,7 +492,6 @@ async def process_data(request: Request, data: SensorData):
 
         # --- Append to history ---
         history_record = {
-            "id":        system_state["dashboard"]["total_scans"],
             "device":    data.device_id,
             "hash":      tx_hash,
             "value":     f"{data.temperature}C",
@@ -433,10 +500,22 @@ async def process_data(request: Request, data: SensorData):
             "temp":      data.temperature,
             "vib":       data.vibration,
             "pwr":       data.power_usage,
+            "anomaly":   is_anomaly,
+            "ai_source": ai_source,
+            "ai_error":  ai_error,
+            "recommendation": recommendation,
         }
+        stored_record = save_sensor_reading(history_record)
+        history_record["id"] = stored_record["id"]
+
         system_state["history"].append(history_record)
         if len(system_state["history"]) > 100:
             system_state["history"].pop(0)
+
+        system_state["dashboard"]["total_scans"] = stored_record["id"]
+        system_state["dashboard"]["active_devices"].add(data.device_id)
+        if is_anomaly:
+            system_state["dashboard"]["anomalies"] += 1
 
         return {
             "status":    "Processed",

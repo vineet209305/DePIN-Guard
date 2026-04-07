@@ -3,6 +3,8 @@ import time
 import random
 import json
 import csv
+import hmac
+import hashlib
 import ssl
 import os
 import paho.mqtt.client as mqtt
@@ -14,11 +16,15 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/") + "/api/process_data"
 API_KEY     = os.getenv("DEPIN_API_KEY", "")
+SENSOR_SECRET = API_KEY
 
 if not API_KEY:
     raise RuntimeError("DEPIN_API_KEY is required for iot-simulator runtime")
 
 DEVICES     = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
+SIMULATOR_MODE = os.getenv("SIMULATOR_MODE", "synthetic").strip().lower()
+DATA_SOURCE_FILE = os.getenv("SIMULATOR_DATA_FILE", "").strip()
+DEFAULT_REPLAY_FILE = os.path.join(os.path.dirname(__file__), "normal_training_data.csv")
 
 CA_CERT     = "ca.crt"
 CLIENT_CERT = "client.crt"
@@ -49,6 +55,45 @@ def generate_sensor_data(device_id):
     }
 
 
+def _normalize_payload(row, fallback_device):
+    device_id = row.get("device_id") or row.get("device") or fallback_device
+    return {
+        "device_id":   device_id,
+        "temperature": round(float(row.get("temperature") or row.get("temp") or 0.0), 2),
+        "vibration":   round(float(row.get("vibration") or row.get("vib") or 0.0), 2),
+        "power_usage": round(float(row.get("power_usage") or row.get("pwr") or 0.0), 2),
+        "timestamp":   row.get("timestamp") or datetime.now().isoformat(),
+    }
+
+
+def _load_replay_rows(file_path):
+    if not os.path.exists(file_path):
+        return []
+
+    if file_path.lower().endswith(".csv"):
+        with open(file_path, "r", encoding="utf-8") as csv_file:
+            reader = csv.DictReader(csv_file)
+            return [_normalize_payload(row, random.choice(DEVICES)) for row in reader]
+
+    if file_path.lower().endswith(".json"):
+        with open(file_path, "r", encoding="utf-8") as json_file:
+            payload = json.load(json_file)
+        rows = payload.get("records") if isinstance(payload, dict) else payload
+        return [_normalize_payload(row, random.choice(DEVICES)) for row in rows]
+
+    return []
+
+
+def _sign_payload(payload):
+    message = f"{payload['device_id']}|{payload['temperature']}|{payload['vibration']}|{payload['power_usage']}|{payload['timestamp']}"
+    payload["signature"] = hmac.new(
+        SENSOR_SECRET.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return payload
+
+
 def run_simulator():
     print(f"DePIN-Guard IoT Simulator Started")
     print(f"Sending data to: {BACKEND_URL}")
@@ -59,6 +104,7 @@ def run_simulator():
         while True:
             for device in DEVICES:
                 data = generate_sensor_data(device)
+                data = _sign_payload(data)
                 try:
                     headers = {
                         "X-API-Key": API_KEY,
@@ -79,6 +125,47 @@ def run_simulator():
             time.sleep(2)
     except KeyboardInterrupt:
         print("\nSimulator stopped.")
+
+
+def run_replay_simulator():
+    replay_file = DATA_SOURCE_FILE or DEFAULT_REPLAY_FILE
+    rows = _load_replay_rows(replay_file)
+
+    if not rows:
+        print(f"No replay data found at {replay_file}; falling back to synthetic mode.")
+        run_simulator()
+        return
+
+    print("DePIN-Guard IoT Replay Started")
+    print(f"Replaying data from: {replay_file}")
+    print(f"Sending data to: {BACKEND_URL}")
+    print(f"Rows loaded: {len(rows)}")
+    print("Press Ctrl+C to stop.\n")
+
+    try:
+        while True:
+            for data in rows:
+                try:
+                    data = _sign_payload(dict(data))
+                    headers = {
+                        "X-API-Key": API_KEY,
+                        "Content-Type": "application/json",
+                    }
+                    response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
+                    if response.status_code == 200:
+                        result = response.json()
+                        status_icon = "🔴" if result.get("anomaly") else "🟢"
+                        print(f"{status_icon} {data['device_id']}: {data['temperature']}°C → HTTP {response.status_code}")
+                    else:
+                        print(f"❌ Error {response.status_code}: {response.text}")
+                except requests.exceptions.ConnectionError:
+                    print("❌ Connection failed — backend chal raha hai? (uvicorn main:app --port 8000)")
+                except Exception as e:
+                    print(f"⚠️ Error: {e}")
+                time.sleep(1)
+            time.sleep(2)
+    except KeyboardInterrupt:
+        print("\nReplay simulator stopped.")
 
 
 def run_secure_simulator():
@@ -161,5 +248,9 @@ if __name__ == "__main__":
         generate_training_data(10000)
     elif len(sys.argv) > 1 and sys.argv[1] == "secure":
         run_secure_simulator()
+    elif len(sys.argv) > 1 and sys.argv[1] == "replay":
+        run_replay_simulator()
+    elif SIMULATOR_MODE == "replay":
+        run_replay_simulator()
     else:
         run_simulator()

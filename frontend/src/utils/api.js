@@ -1,3 +1,5 @@
+import { getStoredToken } from './sessionAuth';
+
 const BACKEND_URL = import.meta.env.VITE_API_URL || '';
 const API_KEY     = import.meta.env.VITE_API_KEY  || '';
 
@@ -6,7 +8,7 @@ export const authenticatedFetch = async (path, options = {}) => {
   // When BACKEND_URL is empty (local dev), path must be relative e.g. /api/dashboard
   const url = path.startsWith('http') ? path : `${BACKEND_URL}${path}`;
 
-  const token = localStorage.getItem('token');
+  const token = getStoredToken();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -26,6 +28,7 @@ export const authenticatedFetch = async (path, options = {}) => {
 
     if (response.status === 401) {
       localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
       localStorage.removeItem('isAuthenticated');
       window.location.href = '/login';
       return null;

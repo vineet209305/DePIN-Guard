@@ -1,11 +1,10 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-import json
-import os
 from datetime import datetime
 
+from db import fetch_fraud_alerts, replace_fraud_alerts
+
 router  = APIRouter()
-DB_FILE = os.path.join(os.path.dirname(__file__), "..", "data", "fraud_reports.json")
 
 
 class FraudAlert(BaseModel):
@@ -15,16 +14,11 @@ class FraudAlert(BaseModel):
 
 
 def _read_alerts() -> list:
-    if not os.path.exists(DB_FILE):
-        return []
-    with open(DB_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return fetch_fraud_alerts()
 
 
 def _write_alerts(data: list) -> None:
-    os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    replace_fraud_alerts(data)
 
 
 @router.post("/report-fraud")

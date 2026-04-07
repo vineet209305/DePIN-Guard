@@ -35,26 +35,26 @@ IoT Simulator ──► Backend API ──► AI Inference ──► Anomaly Det
 
 ## ✨ Key Features
 
-| Feature                  | Description |
-| :----------------------- | :---------- |
-| **🔗 Immutable Ledger**  | Hyperledger Fabric ensures tamper-proof data recording |
-| **🧠 AI Anomaly Detection** | LSTM Autoencoder for real-time operational anomalies |
-| **🕸️ Fraud Pattern Analysis** | Graph Neural Network detects systemic fraud |
-| **📊 Real-Time Dashboard** | React-based UI with live charts and alerts |
-| **🔐 Security** | JWT authentication, rate limiting, and input validation |
-| **🐳 Easy Deployment** | Docker Compose for full-stack orchestration |
+| Feature                       | Description                                             |
+| :---------------------------- | :------------------------------------------------------ |
+| **🔗 Immutable Ledger**       | Hyperledger Fabric ensures tamper-proof data recording  |
+| **🧠 AI Anomaly Detection**   | LSTM Autoencoder for real-time operational anomalies    |
+| **🕸️ Fraud Pattern Analysis** | Graph Neural Network detects systemic fraud             |
+| **📊 Real-Time Dashboard**    | React-based UI with live charts and alerts              |
+| **🔐 Security**               | JWT authentication, rate limiting, and input validation |
+| **🐳 Easy Deployment**        | Docker Compose for full-stack orchestration             |
 
 ---
 
 ## 🏗️ Technology Stack
 
-| Component | Technology |
-| :-------- | :--------- |
-| **Blockchain** | Hyperledger Fabric 2.x |
-| **AI/ML** | PyTorch, LSTM, GNN |
-| **Backend** | FastAPI, Python |
-| **Frontend** | React 18, Vite |
-| **IoT** | MQTT, Python Simulator |
+| Component          | Technology             |
+| :----------------- | :--------------------- |
+| **Blockchain**     | Hyperledger Fabric 2.x |
+| **AI/ML**          | PyTorch, LSTM, GNN     |
+| **Backend**        | FastAPI, Python        |
+| **Frontend**       | React 18, Vite         |
+| **IoT**            | MQTT, Python Simulator |
 | **Infrastructure** | Docker, Docker Compose |
 
 ---
@@ -62,21 +62,30 @@ IoT Simulator ──► Backend API ──► AI Inference ──► Anomaly Det
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Docker & Docker Compose
 - Python 3.9+ (optional for local dev)
 - Node.js 18+ (optional for local dev)
 
 ### Quick Start
+
 ```bash
 git clone https://github.com/MohitSingh-2335/DePIN-Guard.git
 cd DePIN-Guard
 docker-compose up --build
 ```
 
-| Service | URL |
-| :------ | :-- |
+| Service   | URL                     |
+| :-------- | :---------------------- |
 | Dashboard | `http://localhost:5173` |
-| API | `http://localhost:8000` |
+| API       | `http://localhost:8000` |
+
+### Persistence and data ingest
+
+- Backend sensor history and fraud alerts are now stored in SQLite at `backend/data/depin_guard.sqlite3`.
+- To replay recorded sensor traces, set `SIMULATOR_MODE=replay` and optionally `SIMULATOR_DATA_FILE` to a CSV or JSON export.
+- The backend dashboard and history endpoints now read from the database, so data remains available after restarts.
+- Sensor payloads are signed with the shared API key and the backend rejects unsigned or stale readings.
 
 ---
 
