@@ -25,6 +25,8 @@ DEVICES     = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-0
 SIMULATOR_MODE = os.getenv("SIMULATOR_MODE", "synthetic").strip().lower()
 DATA_SOURCE_FILE = os.getenv("SIMULATOR_DATA_FILE", "").strip()
 DEFAULT_REPLAY_FILE = os.path.join(os.path.dirname(__file__), "normal_training_data.csv")
+REAL_DATA_URL = os.getenv("REAL_DATA_URL", "").strip()
+REAL_DATA_ROOT_KEY = os.getenv("REAL_DATA_ROOT_KEY", "").strip()
 
 CA_CERT     = "ca.crt"
 CLIENT_CERT = "client.crt"
@@ -93,6 +95,37 @@ def _load_replay_rows(file_path):
         return [_normalize_payload(row, random.choice(DEVICES)) for row in rows]
 
     return []
+
+
+def _extract_online_rows(payload):
+    if isinstance(payload, list):
+        return payload
+
+    if isinstance(payload, dict):
+        if REAL_DATA_ROOT_KEY and isinstance(payload.get(REAL_DATA_ROOT_KEY), list):
+            return payload.get(REAL_DATA_ROOT_KEY)
+
+        for key in ("records", "data", "items", "results"):
+            if isinstance(payload.get(key), list):
+                return payload.get(key)
+
+    return []
+
+
+def _fetch_online_rows():
+    if not REAL_DATA_URL:
+        return []
+
+    try:
+        response = requests.get(REAL_DATA_URL, timeout=20)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:
+        print(f"⚠️ Real-data fetch failed: {exc}")
+        return []
+
+    rows = _extract_online_rows(payload)
+    return [_normalize_payload(row, random.choice(DEVICES)) for row in rows if isinstance(row, dict)]
 
 
 def _sign_payload(payload):
@@ -179,6 +212,51 @@ def run_replay_simulator():
         print("\nReplay simulator stopped.")
 
 
+def run_online_simulator():
+    if not REAL_DATA_URL:
+        print("REAL_DATA_URL is not set; falling back to synthetic mode.")
+        run_simulator()
+        return
+
+    print("DePIN-Guard IoT Online Data Mode Started")
+    print(f"Source API: {REAL_DATA_URL}")
+    print(f"Sending data to: {BACKEND_URL}")
+    print("Press Ctrl+C to stop.\n")
+
+    try:
+        while True:
+            rows = _fetch_online_rows()
+            if not rows:
+                print("No online rows available right now; retrying...")
+                time.sleep(5)
+                continue
+
+            for data in rows:
+                try:
+                    data["timestamp"] = datetime.now().isoformat()
+                    data = _sign_payload(dict(data))
+                    headers = {
+                        "X-API-Key": API_KEY,
+                        "Content-Type": "application/json",
+                    }
+                    response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
+                    if response.status_code == 200:
+                        result = response.json()
+                        status_icon = "🔴" if result.get("anomaly") else "🟢"
+                        print(f"{status_icon} {data['device_id']}: {data['temperature']}°C → HTTP {response.status_code}")
+                    else:
+                        print(f"❌ Error {response.status_code}: {response.text}")
+                except requests.exceptions.ConnectionError:
+                    print("❌ Connection failed — backend chal raha hai? (uvicorn main:app --port 8000)")
+                except Exception as exc:
+                    print(f"⚠️ Error: {exc}")
+                time.sleep(1)
+
+            time.sleep(5)
+    except KeyboardInterrupt:
+        print("\nOnline-data simulator stopped.")
+
+
 def run_secure_simulator():
     print(f"DePIN-Guard SECURE IoT Simulator Started")
     print(f"Connecting to MQTT Broker: {MQTT_BROKER}:{MQTT_PORT} (TLS)")
@@ -261,6 +339,10 @@ if __name__ == "__main__":
         run_secure_simulator()
     elif len(sys.argv) > 1 and sys.argv[1] == "replay":
         run_replay_simulator()
+    elif len(sys.argv) > 1 and sys.argv[1] == "online":
+        run_online_simulator()
+    elif SIMULATOR_MODE == "online":
+        run_online_simulator()
     elif SIMULATOR_MODE == "replay":
         run_replay_simulator()
     else:
