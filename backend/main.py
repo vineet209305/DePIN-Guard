@@ -383,9 +383,6 @@ async def process_data(request: Request, data: SensorData):
                     json=data.dict(),
                     timeout=AI_TIMEOUT_SECONDS,
                 )
-                    except HTTPException:
-                        raise
-                    except Exception as exc:
                 ai_result = response.json()
                 if ai_result.get("is_anomaly") or ai_result.get("anomaly"):
                     is_anomaly = True
@@ -527,6 +524,8 @@ async def process_data(request: Request, data: SensorData):
             "tx_hash":   tx_hash if is_anomaly else None,
         }
 
+    except HTTPException:
+        raise
     except Exception as exc:
            import traceback
            error_msg = str(exc) if str(exc) else repr(exc)
