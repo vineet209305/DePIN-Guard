@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
@@ -199,6 +200,28 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+
+default_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+cors_regex_env = os.getenv(
+    "CORS_ALLOWED_ORIGIN_REGEX",
+    r"https://.*\.trycloudflare\.com$",
+).strip()
+trusted_origins = [o.strip() for o in cors_env.split(",") if o.strip()] or default_origins
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=trusted_origins,
+    allow_origin_regex=cors_regex_env or None,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 bearer_scheme = HTTPBearer(auto_error=True)
 

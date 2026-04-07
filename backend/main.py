@@ -526,8 +526,12 @@ async def process_data(request: Request, data: SensorData):
         }
 
     except Exception as exc:
-        print(f"process_data unhandled error: {exc}")
-        raise HTTPException(status_code=500, detail=str(exc))
+           import traceback
+           error_msg = str(exc) if str(exc) else repr(exc)
+           traceback_str = traceback.format_exc()
+           print(f"process_data unhandled error: {error_msg}")
+           print(f"FULL TRACEBACK:\n{traceback_str}")
+           raise HTTPException(status_code=500, detail=f"Error: {error_msg or 'Unknown error'}")
 
 
 # ---------------------------------------------------------------------------
