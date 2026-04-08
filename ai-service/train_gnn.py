@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
 
+from data_adapter import load_canonical_iot_csv
 from gnn_model import FraudGNN
 
 
@@ -14,11 +15,23 @@ SQLITE_PATHS = [
     "../backend/data/depin_guard.sqlite3",
     "backend/data/depin_guard.sqlite3",
 ]
+CSV_PATHS = [
+    "DATA/smart_manufacturing_data.csv",
+    "normal_training_data.csv",
+    "../iot-simulator/normal_training_data.csv",
+]
 TRAINING_SOURCE = os.getenv("TRAINING_SOURCE", "auto").strip().lower()
 
 
 def find_sqlite_path():
     for candidate in SQLITE_PATHS:
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def find_csv_path():
+    for candidate in CSV_PATHS:
         if os.path.exists(candidate):
             return candidate
     return None
@@ -94,9 +107,68 @@ def load_graph_from_sqlite() -> Data | None:
     return Data(x=x, edge_index=edge_index, y=y, train_mask=train_mask)
 
 
+def load_graph_from_csv() -> Data | None:
+    csv_path = find_csv_path()
+    if not csv_path:
+        return None
+
+    try:
+        df = load_canonical_iot_csv(csv_path)
+    except Exception as exc:
+        print(f"CSV graph source unavailable ({exc}); using fallback")
+        return None
+
+    if len(df) < 10:
+        print(f"CSV found at {csv_path} but only {len(df)} rows; need >= 10")
+        return None
+
+    features = []
+    labels = []
+    prev_temp = float(df.iloc[0]["temperature"])
+
+    for _, row in df.iterrows():
+        temp = float(row["temperature"])
+        vib = float(row["vibration"])
+        pwr = float(row["power_usage"])
+        temp_delta = temp - prev_temp
+        prev_temp = temp
+
+        maint_value = row.get("maintenance_required", 0)
+        anomaly_value = row.get("anomaly", 0)
+        if maint_value != maint_value:
+            maint_value = 0
+        if anomaly_value != anomaly_value:
+            anomaly_value = 0
+        label = int(maint_value or anomaly_value)
+
+        features.append([temp, vib, pwr, temp_delta])
+        labels.append(label)
+
+    x = torch.tensor(features, dtype=torch.float32)
+    y = torch.tensor(labels, dtype=torch.long)
+
+    num_nodes = len(features)
+    edge_index = torch.tensor(
+        [
+            [i for i in range(num_nodes - 1)],
+            [i + 1 for i in range(num_nodes - 1)],
+        ],
+        dtype=torch.long,
+    )
+    train_mask = torch.ones(num_nodes, dtype=torch.bool)
+
+    print(f"Loaded GNN training graph from CSV: {csv_path} ({num_nodes} nodes)")
+    return Data(x=x, edge_index=edge_index, y=y, train_mask=train_mask)
+
+
 def load_training_graph() -> Data:
     if TRAINING_SOURCE in ("auto", "sqlite"):
         graph = load_graph_from_sqlite()
+        if graph is not None:
+            return graph
+
+    if TRAINING_SOURCE in ("auto", "csv"):
+        graph = load_graph_from_csv()
         if graph is not None:
             return graph
 
