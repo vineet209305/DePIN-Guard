@@ -5,6 +5,7 @@ import pandas as pd
 import os
 import sqlite3
 
+from data_adapter import load_canonical_iot_csv
 from model import LSTMAutoencoder
 from preprocessing import preprocess_data
 
@@ -13,6 +14,7 @@ FEATURES   = 3
 EPOCHS     = 50
 LR         = 0.001
 CSV_PATHS  = [
+    "DATA/smart_manufacturing_data.csv",
     "normal_training_data.csv",
     "../iot-simulator/normal_training_data.csv",
 ]
@@ -60,7 +62,7 @@ def load_training_frame() -> pd.DataFrame:
 
     csv_path = find_csv_path()
     print(f"Loading training data from CSV: {csv_path}")
-    return pd.read_csv(csv_path)
+    return load_canonical_iot_csv(csv_path)
 
 
 def create_sequences(data, seq_length):
