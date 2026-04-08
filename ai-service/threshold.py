@@ -82,7 +82,10 @@ def load_threshold_frame() -> pd.DataFrame:
                     """
                     SELECT temp AS temperature, vib AS vibration, pwr AS pressure
                     FROM sensor_readings
-                    WHERE temp IS NOT NULL AND vib IS NOT NULL AND pwr IS NOT NULL
+                                        WHERE temp IS NOT NULL
+                                            AND vib IS NOT NULL
+                                            AND pwr IS NOT NULL
+                                            AND COALESCE(anomaly, 0) = 0
                     ORDER BY id ASC
                     """,
                     connection,
