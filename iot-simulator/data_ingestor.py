@@ -7,6 +7,8 @@ import hmac
 import hashlib
 import ssl
 import os
+import glob
+import re
 import paho.mqtt.client as mqtt
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -47,6 +49,45 @@ MQTT_BROKER = "localhost"
 MQTT_PORT   = 8883
 MQTT_TOPIC  = "depin/sensors"
 
+_TEMP_ALIASES = (
+    "temperature", "temp", "temperature_c", "temperature_motor", "meantemp", "mean_temp"
+)
+_VIB_ALIASES = (
+    "vibration", "vib", "vibrationmms", "vibrationmms", "vibrationrms", "rmsvibration", "vibrationmm_s"
+)
+_POWER_ALIASES = (
+    "powerusage", "powerconsumptionkw", "powerconsumption", "pwr"
+)
+_CURRENT_ALIASES = ("current", "currentphaseavg")
+_VOLTAGE_ALIASES = ("voltage",)
+_DEVICE_ALIASES = ("device_id", "device", "machine_id", "machineid", "machine")
+_TIMESTAMP_ALIASES = ("timestamp", "time", "datetime")
+
+
+def _clean_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(value).strip().lower())
+
+
+def _row_get_any(row, aliases):
+    normalized_row = {_clean_key(key): row.get(key) for key in row.keys()}
+    for alias in aliases:
+        value = normalized_row.get(_clean_key(alias))
+        if value is not None and str(value).strip() != "":
+            return value
+    return None
+
+
+def _to_float(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except Exception:
+        return None
+
 
 def generate_sensor_data(device_id):
     is_anomaly = random.random() < 0.25
@@ -70,8 +111,9 @@ def generate_sensor_data(device_id):
 
 
 def _normalize_payload(row, fallback_device):
-    device_id = row.get("device_id") or row.get("device") or fallback_device
-    raw_timestamp = row.get("timestamp")
+    raw_device = _row_get_any(row, _DEVICE_ALIASES)
+    device_id = str(raw_device).strip() if raw_device is not None else fallback_device
+    raw_timestamp = _row_get_any(row, _TIMESTAMP_ALIASES)
     normalized_timestamp = datetime.now().isoformat()
 
     if raw_timestamp:
@@ -82,31 +124,75 @@ def _normalize_payload(row, fallback_device):
         except Exception:
             normalized_timestamp = datetime.now().isoformat()
 
+    temperature = _to_float(_row_get_any(row, _TEMP_ALIASES))
+    vibration = _to_float(_row_get_any(row, _VIB_ALIASES))
+    power_usage = _to_float(_row_get_any(row, _POWER_ALIASES))
+
+    # Estimate power for datasets that only include electrical current/voltage.
+    if power_usage is None:
+        current_val = _to_float(_row_get_any(row, _CURRENT_ALIASES))
+        voltage_val = _to_float(_row_get_any(row, _VOLTAGE_ALIASES))
+        if current_val is not None and voltage_val is not None:
+            power_usage = (current_val * voltage_val) / 1000.0
+        elif current_val is not None:
+            power_usage = current_val * 10.0
+
+    if temperature is None or vibration is None or power_usage is None:
+        return None
+
     return {
         "device_id":   device_id,
-        "temperature": round(float(row.get("temperature") or row.get("temp") or 0.0), 2),
-        "vibration":   round(float(row.get("vibration") or row.get("vib") or 0.0), 2),
-        "power_usage": round(float(row.get("power_usage") or row.get("pwr") or 0.0), 2),
+        "temperature": round(float(temperature), 2),
+        "vibration":   round(float(vibration), 2),
+        "power_usage": round(float(power_usage), 2),
         "timestamp":   normalized_timestamp,
     }
 
 
-def _load_replay_rows(file_path):
-    if not os.path.exists(file_path):
-        return []
+def _resolve_replay_files(file_path):
+    if not file_path:
+        return [DEFAULT_REPLAY_FILE]
 
-    if file_path.lower().endswith(".csv"):
-        with open(file_path, "r", encoding="utf-8") as csv_file:
-            reader = csv.DictReader(csv_file)
-            return [_normalize_payload(row, random.choice(DEVICES)) for row in reader]
+    if os.path.isdir(file_path):
+        return sorted(glob.glob(os.path.join(file_path, "*.csv")))
 
-    if file_path.lower().endswith(".json"):
-        with open(file_path, "r", encoding="utf-8") as json_file:
-            payload = json.load(json_file)
-        rows = payload.get("records") if isinstance(payload, dict) else payload
-        return [_normalize_payload(row, random.choice(DEVICES)) for row in rows]
+    if "*" in file_path or "?" in file_path:
+        return sorted(glob.glob(file_path))
+
+    if os.path.exists(file_path):
+        return [file_path]
 
     return []
+
+
+def _load_replay_rows(file_path):
+    replay_rows = []
+    replay_files = _resolve_replay_files(file_path)
+    if not replay_files:
+        return []
+
+    for replay_file in replay_files:
+        if replay_file.lower().endswith(".csv"):
+            with open(replay_file, "r", encoding="utf-8") as csv_file:
+                reader = csv.DictReader(csv_file)
+                for row in reader:
+                    normalized = _normalize_payload(row, random.choice(DEVICES))
+                    if normalized:
+                        replay_rows.append(normalized)
+            continue
+
+        if replay_file.lower().endswith(".json"):
+            with open(replay_file, "r", encoding="utf-8") as json_file:
+                payload = json.load(json_file)
+            rows = payload.get("records") if isinstance(payload, dict) else payload
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                normalized = _normalize_payload(row, random.choice(DEVICES))
+                if normalized:
+                    replay_rows.append(normalized)
+
+    return replay_rows
 
 
 def _extract_online_rows(payload):
@@ -114,6 +200,22 @@ def _extract_online_rows(payload):
         return payload
 
     if isinstance(payload, dict):
+        # Open-Meteo current weather payload support.
+        current = payload.get("current")
+        if isinstance(current, dict):
+            temp = current.get("temperature_2m")
+            wind = current.get("wind_speed_10m")
+            if temp is not None:
+                temp_val = float(temp)
+                wind_val = float(wind) if wind is not None else 0.0
+                return [{
+                    "device_id": "Weather-Station-001",
+                    "temperature": temp_val,
+                    "vibration": round(max(wind_val / 20.0, 0.05), 2),
+                    "power_usage": round(20.0 + (temp_val * 0.35) + (wind_val * 0.15), 2),
+                    "timestamp": current.get("time") or datetime.now().isoformat(),
+                }]
+
         if REAL_DATA_ROOT_KEY and isinstance(payload.get(REAL_DATA_ROOT_KEY), list):
             return payload.get(REAL_DATA_ROOT_KEY)
 
@@ -151,7 +253,7 @@ def _sign_payload(payload):
 
 
 def run_simulator():
-    print(f"DePIN-Guard IoT Simulator Started")
+    print(f"DePIN-Guard IoT Synthetic Data Ingestor Started")
     print(f"Sending data to: {BACKEND_URL}")
     print(f"Devices: {len(DEVICES)} active")
     print("Press Ctrl+C to stop.\n")
@@ -188,11 +290,16 @@ def run_replay_simulator():
     rows = _load_replay_rows(replay_file)
 
     if not rows:
+        if DATA_SOURCE_FILE:
+            print(f"No replay data found at {replay_file}.")
+            print("Provide a valid external CSV/JSON file in SIMULATOR_DATA_FILE and retry.")
+            return
+
         print(f"No replay data found at {replay_file}; falling back to synthetic mode.")
         run_simulator()
         return
 
-    print("DePIN-Guard IoT Replay Started")
+    print("DePIN-Guard IoT CSV Data Ingestor Started")
     print(f"Replaying data from: {replay_file}")
     print(f"Sending data to: {BACKEND_URL}")
     print(f"Rows loaded: {len(rows)}")
@@ -232,7 +339,7 @@ def run_online_simulator():
         run_replay_simulator()
         return
 
-    print("DePIN-Guard IoT Online Data Mode Started")
+    print("DePIN-Guard IoT Online Data Ingestor Started")
     print(f"Source API: {REAL_DATA_URL}")
     print(f"Sending data to: {BACKEND_URL}")
     print("Press Ctrl+C to stop.\n")
