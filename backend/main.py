@@ -31,7 +31,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 API_KEY            = os.getenv("DEPIN_API_KEY")
 SECRET_KEY         = os.getenv("JWT_SECRET_KEY")
-AI_SERVICE_URL     = os.getenv("AI_SERVICE_URL", "http://localhost:5000/predict")
+AI_SERVICE_URL     = os.getenv("AI_SERVICE_URL", "http://localhost:10000/predict")
 AI_TIMEOUT_SECONDS = float(os.getenv("AI_TIMEOUT_SECONDS", "4"))
 AI_RETRY_COUNT     = int(os.getenv("AI_RETRY_COUNT", "1"))
 SENSOR_PAYLOAD_MAX_AGE_SECONDS = int(os.getenv("SENSOR_PAYLOAD_MAX_AGE_SECONDS", "86400"))
@@ -454,12 +454,24 @@ async def process_data(request: Request, data: SensorData):
                 system_state["blockchain"]["recent_blocks"][:10]
 
             ai_record = {
+                "confidence": 95.0,
                 "device":         data.device_id,
-                "confidence":     ai_result.get("anomaly_score", 0.95),
                 "recommendation": recommendation,
                 "timestamp":      datetime.now().strftime("%H:%M:%S"),
                 "severity":       "high",
             }
+
+            confidence_raw = ai_result.get("anomaly_score")
+            if confidence_raw is None:
+                confidence_raw = ai_result.get("loss", 0.95)
+            try:
+                confidence_value = float(confidence_raw)
+                if confidence_value <= 1.0:
+                    confidence_value *= 100.0
+                ai_record["confidence"] = round(max(0.0, min(confidence_value, 100.0)), 2)
+            except Exception:
+                pass
+
             system_state["ai"]["recent_results"].insert(0, ai_record)
             system_state["ai"]["recent_results"] = \
                 system_state["ai"]["recent_results"][:10]
@@ -515,8 +527,6 @@ async def process_data(request: Request, data: SensorData):
 
         system_state["dashboard"]["total_scans"] = stored_record["id"]
         system_state["dashboard"]["active_devices"].add(data.device_id)
-        if is_anomaly:
-            system_state["dashboard"]["anomalies"] += 1
 
         return {
             "status":    "Processed",
