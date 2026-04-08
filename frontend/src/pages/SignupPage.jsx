@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './AuthPages.css';
-import { authFetch } from '../utils/authApi';
-import { storeUserProfile } from '../utils/sessionAuth';
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -15,22 +13,7 @@ const SignupPage = () => {
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const getPasswordStrength = (password) => {
-    if (!password) return 0;
-    let s = 0;
-    if (password.length >= 8) s++;
-    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) s++;
-    if (/\d/.test(password)) s++;
-    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) s++;
-    return s;
-  };
-
-  const strength = getPasswordStrength(formData.password);
-  const getStrengthInfo = () => {
-    if (strength <= 1) return { label: '❌ Weak (min 8 chars)', cls: 'weak' };
-    if (strength === 2) return { label: '⚠️ Medium', cls: 'medium' };
-    return { label: '✅ Strong', cls: 'strong' };
-  };
+  // Strength calculation functions ko hata diya gaya hai
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -61,15 +44,12 @@ const SignupPage = () => {
     setError('');
 
     try {
-      const response = await authFetch('/signup', {
+      const response = await fetch('/signup', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: formData.email.toLowerCase(),
           password: formData.password,
-          full_name: formData.fullName.trim(),
         }),
       });
 
@@ -78,9 +58,7 @@ const SignupPage = () => {
         throw new Error(errData.detail || 'Signup failed. Please try again.');
       }
 
-      storeUserProfile({ email: formData.email.toLowerCase(), full_name: formData.fullName.trim() });
-      localStorage.setItem('savedEmail', formData.email.toLowerCase());
-      alert(`✅ Account created successfully!\nWelcome, ${formData.fullName.trim()}!\nPlease login to continue.`);
+      alert(`✅ Account created successfully!\nWelcome, ${formData.fullName.trim()}!`);
       navigate('/login');
 
     } catch (err) {
@@ -89,8 +67,6 @@ const SignupPage = () => {
       setIsLoading(false);
     }
   };
-
-  const { label: strengthLabel, cls: strengthCls } = getStrengthInfo();
 
   return (
     <div className="auth-container">
@@ -118,11 +94,9 @@ const SignupPage = () => {
               </svg>
               <div className="brand-name-tag">DePIN-Guard</div>
             </div>
-            <h1 className="auth-title">Create Your Account </h1>
+            <h1 className="auth-title">Create Your Account</h1>
             <p className="auth-subtitle">
-              Join DePIN-Guard to monitor your <span className="highlight-text">IoT devices</span>,
-              detect <span className="highlight-text">AI anomalies</span>, and secure data with
-              <span className="highlight-text"> blockchain technology</span>.
+              Join DePIN-Guard to monitor your <span className="highlight-text">IoT devices</span>.
             </p>
           </div>
 
@@ -131,21 +105,17 @@ const SignupPage = () => {
 
             <div className="form-group">
               <label className="form-label">Full Name</label>
-              <div className="input-wrapper">
-                <input type="text" name="fullName" value={formData.fullName} onChange={handleChange}
-                  placeholder="Enter your full name"
-                  className={`form-input ${fieldErrors.fullName ? 'input-error' : ''}`} />
-              </div>
+              <input type="text" name="fullName" value={formData.fullName} onChange={handleChange}
+                placeholder="Enter your full name"
+                className={`form-input ${fieldErrors.fullName ? 'input-error' : ''}`} />
               {fieldErrors.fullName && <span className="field-error">{fieldErrors.fullName}</span>}
             </div>
 
             <div className="form-group">
               <label className="form-label">Email Address</label>
-              <div className="input-wrapper">
-                <input type="email" name="email" value={formData.email} onChange={handleChange}
-                  placeholder="your@email.com"
-                  className={`form-input ${fieldErrors.email ? 'input-error' : ''}`} />
-              </div>
+              <input type="email" name="email" value={formData.email} onChange={handleChange}
+                placeholder="your@email.com"
+                className={`form-input ${fieldErrors.email ? 'input-error' : ''}`} />
               {fieldErrors.email && <span className="field-error">{fieldErrors.email}</span>}
             </div>
 
@@ -161,12 +131,7 @@ const SignupPage = () => {
                 </button>
               </div>
               {fieldErrors.password && <span className="field-error">{fieldErrors.password}</span>}
-              {formData.password && (
-                <div className="password-strength">
-                  <div className={`strength-bar ${strengthCls}`} />
-                  <span className="strength-label">{strengthLabel}</span>
-                </div>
-              )}
+              {/* Yahan se Strength meter line hata di gayi hai */}
             </div>
 
             <div className="form-group">
@@ -181,32 +146,24 @@ const SignupPage = () => {
                 </button>
               </div>
               {fieldErrors.confirmPassword && <span className="field-error">{fieldErrors.confirmPassword}</span>}
-              {formData.confirmPassword && formData.password && (
-                <span className="field-error" style={{ color: formData.password === formData.confirmPassword ? '#22c55e' : '#ff6666' }}>
-                  {formData.password === formData.confirmPassword ? '✅ Passwords match' : '❌ Passwords do not match'}
-                </span>
-              )}
             </div>
 
             <div className="form-group">
               <label className="checkbox-label">
                 <input type="checkbox" name="agreeToTerms" checked={formData.agreeToTerms} onChange={handleChange} />
-                <span>I agree to the <Link to="/terms" className="forgot-link">Terms</Link> & <Link to="/privacy" className="forgot-link">Privacy Policy</Link></span>
+                <span>I agree to the <Link to="/terms" className="forgot-link">Terms</Link></span>
               </label>
               {fieldErrors.agreeToTerms && <span className="field-error">{fieldErrors.agreeToTerms}</span>}
             </div>
 
             <button type="submit" className="submit-button" disabled={isLoading}>
-              {isLoading ? '🔐 Creating account...' : 'Create Account & Start Monitoring →'}
+              {isLoading ? '🔐 Creating account...' : 'Create Account →'}
             </button>
           </form>
 
           <div className="auth-footer">
             <p className="footer-text">
               Already have an account? <Link to="/login" className="footer-link">Login</Link>
-            </p>
-            <p className="footer-text" style={{ marginTop: '0.5rem' }}>
-              <Link to="/" className="footer-link">← Back to Home</Link>
             </p>
           </div>
         </div>
