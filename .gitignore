@@ -16,6 +16,7 @@ data/
 *.save
 *.joblib
 *.h5
+*.txt
 ai-service/models/
 
 # --- Backend ---
