@@ -24,6 +24,9 @@ export default function FraudReport() {
 
   useEffect(() => {
     fetchAlerts();
+
+    const interval = setInterval(fetchAlerts, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const getConfidenceColor = (confidence) => {
@@ -47,8 +50,8 @@ export default function FraudReport() {
 
         <div className="fraud-header">
           <div>
-            <h1 className="fraud-title">🚨 Fraud Alerts</h1>
-            <p className="fraud-subtitle">AI-detected systemic fraud patterns from blockchain transaction analysis</p>
+            <h1 className="fraud-title">Fraud Review</h1>
+            <p className="fraud-subtitle">Shows alerts created by the backend risk analysis pipeline.</p>
           </div>
           <button className="fraud-refresh-btn" onClick={fetchAlerts}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
@@ -96,8 +99,8 @@ export default function FraudReport() {
         ) : alerts.length === 0 ? (
           <div className="fraud-empty">
             <span>✅</span>
-            <h3>No Fraud Detected</h3>
-            <p>No fraud alerts recorded yet. Check back after the GNN scheduler runs.</p>
+            <h3>No Alerts Yet</h3>
+            <p>No fraud alerts have been saved yet. Run the validation tests or wait for the scheduler to create one.</p>
           </div>
         ) : (
           <div className="fraud-table-container">
