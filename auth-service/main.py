@@ -1,124 +1,84 @@
+# auth-service/main.py — Production Ready with OTP + Signup + Last Login
 from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
-import datetime
-import os
-import sqlite3
-from typing import Optional
+import jwt, datetime, bcrypt, os, sqlite3, random, smtplib
+from email.mime.text import MIMEText
 
-import bcrypt
-import jwt
-
-
-def _load_env_file(path: str):
-    if not os.path.exists(path):
-        return
-
-    with open(path, "r", encoding="utf-8") as env_file:
-        for raw_line in env_file:
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            if key and key not in os.environ:
-                os.environ[key] = value.strip()
-
-
-_load_env_file(os.path.join(os.path.dirname(__file__), ".env"))
-_load_env_file(os.path.join(os.path.dirname(__file__), "..", ".env"))
-
+# ==========================================
+# 🔒 SECRET KEY
+# ==========================================
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY not set in .env file!")
 
-BOOTSTRAP_ADMIN_USER = os.getenv("BOOTSTRAP_ADMIN_USER")
-BOOTSTRAP_ADMIN_PASSWORD = os.getenv("BOOTSTRAP_ADMIN_PASSWORD")
-
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_HOURS = 24
 
+# ==========================================
+# 📧 EMAIL CONFIG — Load from .env
+# ==========================================
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USER = os.getenv("EMAIL_USER")
+EMAIL_PASS = os.getenv("EMAIL_PASS")
+
+# ==========================================
+# 🗄️ DATABASE SETUP
+# ==========================================
 def init_db():
     conn = sqlite3.connect("users.db")
+    
+    # Users table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
             username TEXT UNIQUE,
-            password_hash BLOB
+            password_hash BLOB,
+            full_name TEXT,
+            phone TEXT,
+            last_login TEXT,
+            created_at TEXT
         )
     """)
+    
+    # OTP table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS otp_store (
+            username TEXT PRIMARY KEY,
+            otp TEXT,
+            expires_at TEXT
+        )
+    """)
+    
+    # Failed attempts table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS failed_attempts (
             username TEXT PRIMARY KEY,
-            attempts INTEGER NOT NULL DEFAULT 0
+            attempts INTEGER DEFAULT 0,
+            locked_until TEXT
         )
     """)
+    
+    # Revoked tokens table
     conn.execute("""
         CREATE TABLE IF NOT EXISTS revoked_tokens (
             token TEXT PRIMARY KEY,
-            revoked_at TEXT NOT NULL
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS profiles (
-            username TEXT PRIMARY KEY,
-            full_name TEXT,
-            email TEXT,
-            phone TEXT,
-            updated_at TEXT NOT NULL
+            revoked_at TEXT
         )
     """)
 
-    if BOOTSTRAP_ADMIN_USER and BOOTSTRAP_ADMIN_PASSWORD:
-        existing = conn.execute(
-            "SELECT 1 FROM users WHERE username=?", (BOOTSTRAP_ADMIN_USER,)
-        ).fetchone()
-        if not existing:
-            hashed = bcrypt.hashpw(BOOTSTRAP_ADMIN_PASSWORD.encode(), bcrypt.gensalt())
-            conn.execute(
-                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-                (BOOTSTRAP_ADMIN_USER, hashed)
-            )
-
-    conn.commit()
-    conn.close()
-
-
-def token_is_revoked(token: str) -> bool:
-    conn = sqlite3.connect("users.db")
-    row = conn.execute("SELECT 1 FROM revoked_tokens WHERE token=?", (token,)).fetchone()
-    conn.close()
-    return row is not None
-
-
-def revoke_token(token: str):
-    conn = sqlite3.connect("users.db")
-    conn.execute(
-        "INSERT OR IGNORE INTO revoked_tokens (token, revoked_at) VALUES (?, ?)",
-        (token, datetime.datetime.utcnow().isoformat()),
-    )
-    conn.commit()
-    conn.close()
-
-
-def get_failed_attempts(username: str) -> int:
-    conn = sqlite3.connect("users.db")
-    row = conn.execute("SELECT attempts FROM failed_attempts WHERE username=?", (username,)).fetchone()
-    conn.close()
-    if not row:
-        return 0
-    return int(row[0])
-
-
-def set_failed_attempts(username: str, attempts: int):
-    conn = sqlite3.connect("users.db")
-    conn.execute(
-        "INSERT INTO failed_attempts (username, attempts) VALUES (?, ?) "
-        "ON CONFLICT(username) DO UPDATE SET attempts=excluded.attempts",
-        (username, attempts),
-    )
+    # Add default admin if not exists
+    existing = conn.execute(
+        "SELECT * FROM users WHERE username=?", ("admin",)
+    ).fetchone()
+    if not existing:
+        hashed = bcrypt.hashpw(b"securepass", bcrypt.gensalt())
+        conn.execute(
+            "INSERT INTO users (username, password_hash, full_name, created_at) VALUES (?, ?, ?, ?)",
+            ("admin", hashed, "Admin User", datetime.datetime.utcnow().isoformat())
+        )
     conn.commit()
     conn.close()
 
@@ -130,70 +90,18 @@ def get_user(username: str):
     conn.close()
     return user
 
-
-def create_user(username: str, password: str):
+def update_last_login(username: str):
     conn = sqlite3.connect("users.db")
-    try:
-        hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-        conn.execute(
-            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-            (username, hashed),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def upsert_profile(username: str, full_name: str = None, email: str = None, phone: str = None):
-    conn = sqlite3.connect("users.db")
-    try:
-        existing = conn.execute(
-            "SELECT full_name, email, phone FROM profiles WHERE username=?",
-            (username,),
-        ).fetchone()
-        current_full_name = full_name if full_name is not None else (existing[0] if existing else username)
-        current_email = email if email is not None else (existing[1] if existing else username)
-        current_phone = phone if phone is not None else (existing[2] if existing else "")
-        conn.execute(
-            """
-            INSERT INTO profiles (username, full_name, email, phone, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(username) DO UPDATE SET
-                full_name=excluded.full_name,
-                email=excluded.email,
-                phone=excluded.phone,
-                updated_at=excluded.updated_at
-            """,
-            (username, current_full_name, current_email, current_phone, datetime.datetime.utcnow().isoformat()),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def get_profile(username: str):
-    conn = sqlite3.connect("users.db")
-    profile = conn.execute(
-        "SELECT username, full_name, email, phone, updated_at FROM profiles WHERE username=?",
-        (username,),
-    ).fetchone()
+    conn.execute(
+        "UPDATE users SET last_login=? WHERE username=?",
+        (datetime.datetime.utcnow().isoformat(), username)
+    )
+    conn.commit()
     conn.close()
-    if profile:
-        return {
-            "username": profile[0],
-            "full_name": profile[1],
-            "email": profile[2],
-            "phone": profile[3],
-            "updated_at": profile[4],
-        }
-    return {
-        "username": username,
-        "full_name": username,
-        "email": username,
-        "phone": "",
-        "updated_at": None,
-    }
 
+# ==========================================
+# 🚀 LIFESPAN
+# ==========================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -201,32 +109,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-default_origins = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:5173",
-]
-cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
-cors_regex_env = os.getenv(
-    "CORS_ALLOWED_ORIGIN_REGEX",
-    r"https://.*\.trycloudflare\.com$",
-).strip()
-trusted_origins = [o.strip() for o in cors_env.split(",") if o.strip()] or default_origins
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=trusted_origins,
-    allow_origin_regex=cors_regex_env or None,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# ==========================================
+# 🔐 BEARER SCHEME
+# ==========================================
 bearer_scheme = HTTPBearer(auto_error=True)
 
-MAX_ATTEMPTS = 5
-
+# ==========================================
+# ✅ PASSWORD VALIDATOR
+# ==========================================
 def validate_password(password: str):
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters")
@@ -236,95 +126,186 @@ def validate_password(password: str):
         raise ValueError("Password must have at least 1 number")
     return True
 
+# ==========================================
+# 📧 OTP SENDER
+# ==========================================
+def send_otp_email(to_email: str, otp: str):
+    if not EMAIL_USER or not EMAIL_PASS:
+        print(f"[DEV MODE] OTP for {to_email}: {otp}")
+        return True
+    try:
+        msg = MIMEText(f"""
+        Your DePIN-Guard verification code is:
+        
+        {otp}
+        
+        This code expires in 10 minutes.
+        Do not share this code with anyone.
+        """)
+        msg['Subject'] = 'DePIN-Guard OTP Verification'
+        msg['From'] = EMAIL_USER
+        msg['To'] = to_email
+        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
+            server.starttls()
+            server.login(EMAIL_USER, EMAIL_PASS)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Email send failed: {e}")
+        return False
+
+def generate_otp():
+    return str(random.randint(100000, 999999))
+
+def store_otp(username: str, otp: str):
+    conn = sqlite3.connect("users.db")
+    expires = (datetime.datetime.utcnow() + datetime.timedelta(minutes=10)).isoformat()
+    conn.execute(
+        "INSERT OR REPLACE INTO otp_store (username, otp, expires_at) VALUES (?, ?, ?)",
+        (username, otp, expires)
+    )
+    conn.commit()
+    conn.close()
+
+def verify_otp(username: str, otp: str) -> bool:
+    conn = sqlite3.connect("users.db")
+    row = conn.execute(
+        "SELECT otp, expires_at FROM otp_store WHERE username=?", (username,)
+    ).fetchone()
+    conn.close()
+    if not row:
+        return False
+    stored_otp, expires_at = row
+    if datetime.datetime.utcnow().isoformat() > expires_at:
+        return False
+    return stored_otp == otp
+
+# ==========================================
+# 🔍 TOKEN VERIFIER
+# ==========================================
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> dict:
     token = credentials.credentials
-    if token_is_revoked(token):
+    # Check revoked tokens in DB
+    conn = sqlite3.connect("users.db")
+    revoked = conn.execute(
+        "SELECT token FROM revoked_tokens WHERE token=?", (token,)
+    ).fetchone()
+    conn.close()
+    if revoked:
         raise HTTPException(status_code=401, detail="Token has been logged out")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Refresh tokens cannot authenticate API calls")
+            raise HTTPException(status_code=401, detail="Invalid token type")
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+# ==========================================
+# 📋 MODELS
+# ==========================================
 class UserLogin(BaseModel):
     username: str
     password: str
 
-
 class UserSignup(BaseModel):
     username: str
     password: str
-    full_name: Optional[str] = None
+    full_name: str
+    phone: str = None
 
+class OTPVerify(BaseModel):
+    username: str
+    otp: str
 
-class ProfileUpdate(BaseModel):
-    full_name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
+class OTPRequest(BaseModel):
+    username: str
 
+# ==========================================
+# 🏥 HEALTH CHECK
+# ==========================================
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "service": "auth-service"}
 
+# ==========================================
+# 📝 SIGNUP
+# ==========================================
 @app.post("/signup")
 def signup(user: UserSignup):
-    username = user.username.strip().lower()
-    if not username:
-        raise HTTPException(status_code=400, detail="Username is required")
-
+    # Validate password
     try:
         validate_password(user.password)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    if get_user(username):
-        raise HTTPException(status_code=409, detail="User already exists")
+    # Check if user exists
+    existing = get_user(user.username)
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already exists")
 
-    create_user(username, user.password)
-    upsert_profile(username, full_name=user.full_name or username, email=username)
-    return {"message": "User created", "username": username}
+    # Hash password and save
+    hashed = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt())
+    conn = sqlite3.connect("users.db")
+    conn.execute(
+        "INSERT INTO users (username, password_hash, full_name, phone, created_at) VALUES (?, ?, ?, ?, ?)",
+        (user.username, hashed, user.full_name, user.phone, datetime.datetime.utcnow().isoformat())
+    )
+    conn.commit()
+    conn.close()
 
+    return {"message": f"Account created successfully! Welcome {user.full_name}"}
 
+# ==========================================
+# 🔐 LOGIN
+# ==========================================
 @app.post("/login")
 def login(user: UserLogin):
-    username = user.username.strip().lower()
+    # Check failed attempts from DB
+    conn = sqlite3.connect("users.db")
+    attempt_row = conn.execute(
+        "SELECT attempts, locked_until FROM failed_attempts WHERE username=?",
+        (user.username,)
+    ).fetchone()
+    conn.close()
 
-    attempts = get_failed_attempts(username)
-    if attempts >= MAX_ATTEMPTS:
-        raise HTTPException(
-            status_code=429,
-            detail="Account locked — too many failed attempts"
-        )
+    if attempt_row:
+        attempts, locked_until = attempt_row
+        if locked_until and datetime.datetime.utcnow().isoformat() < locked_until:
+            raise HTTPException(
+                status_code=429,
+                detail="Account locked — too many failed attempts. Try after 15 minutes."
+            )
 
-    db_user = get_user(username)
+    # Get user
+    db_user = get_user(user.username)
     if not db_user:
-        set_failed_attempts(username, attempts + 1)
+        _increment_failed(user.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    password_ok = bcrypt.checkpw(
-        user.password.encode(),
-        db_user[2]
-    )
-
+    # Verify password
+    password_ok = bcrypt.checkpw(user.password.encode(), db_user[2])
     if not password_ok:
-        set_failed_attempts(username, attempts + 1)
+        _increment_failed(user.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    set_failed_attempts(username, 0)
-    profile = get_profile(username)
+    # Reset failed attempts
+    _reset_failed(user.username)
 
+    # Update last login
+    update_last_login(user.username)
+
+    # Generate tokens
     access_token = jwt.encode({
-        "sub": username,
+        "sub": user.username,
         "type": "access",
         "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     }, SECRET_KEY, algorithm="HS256")
 
     refresh_token_val = jwt.encode({
-        "sub": username,
+        "sub": user.username,
         "type": "refresh",
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=REFRESH_TOKEN_EXPIRE_HOURS)
     }, SECRET_KEY, algorithm="HS256")
@@ -334,56 +315,87 @@ def login(user: UserLogin):
         "refresh_token": refresh_token_val,
         "token_type": "bearer",
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "profile": profile,
+        "full_name": db_user[3],
+        "last_login": db_user[5]
     }
 
+# ==========================================
+# 📧 SEND OTP
+# ==========================================
+@app.post("/send-otp")
+def send_otp(request: OTPRequest):
+    user = get_user(request.username)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    otp = generate_otp()
+    store_otp(request.username, otp)
+    success = send_otp_email(request.username, otp)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to send OTP")
+    return {"message": "OTP sent successfully to your email"}
 
+# ==========================================
+# ✅ VERIFY OTP
+# ==========================================
+@app.post("/verify-otp")
+def verify_otp_endpoint(data: OTPVerify):
+    if not verify_otp(data.username, data.otp):
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    return {"message": "OTP verified successfully", "verified": True}
+
+# ==========================================
+# 👤 GET PROFILE
+# ==========================================
 @app.get("/profile")
-def read_profile(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    payload = verify_token(credentials)
-    return {"profile": get_profile(payload["sub"])}
+def get_profile(user: dict = Depends(verify_token)):
+    db_user = get_user(user["sub"])
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "username": db_user[0],
+        "full_name": db_user[3],
+        "phone": db_user[4],
+        "last_login": db_user[5],
+        "created_at": db_user[6]
+    }
 
-
-@app.post("/profile")
-def update_profile(data: ProfileUpdate, credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    payload = verify_token(credentials)
-    upsert_profile(
-        payload["sub"],
-        full_name=data.full_name,
-        email=data.email,
-        phone=data.phone,
-    )
-    return {"message": "Profile saved", "profile": get_profile(payload["sub"])}
-
-
+# ==========================================
+# 🔓 VERIFY TOKEN
+# ==========================================
 @app.post("/verify")
 def verify_token_endpoint(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
     token = credentials.credentials
-    if token_is_revoked(token):
-        return {"valid": False, "reason": "Token has been logged out"}
     try:
         decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return {"valid": True, "user": decoded.get("sub")}
     except Exception:
         return {"valid": False}
 
-
+# ==========================================
+# 🚪 LOGOUT
+# ==========================================
 @app.post("/logout")
 def logout(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    revoke_token(credentials.credentials)
+    token = credentials.credentials
+    conn = sqlite3.connect("users.db")
+    conn.execute(
+        "INSERT OR IGNORE INTO revoked_tokens (token, revoked_at) VALUES (?, ?)",
+        (token, datetime.datetime.utcnow().isoformat())
+    )
+    conn.commit()
+    conn.close()
     return {"message": "Logged out successfully"}
 
-
+# ==========================================
+# 🔄 REFRESH TOKEN
+# ==========================================
 @app.post("/refresh")
 def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
     token = credentials.credentials
-    if token_is_revoked(token):
-        raise HTTPException(status_code=401, detail="Token has been logged out")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
-        revoke_token(token)
         new_access = jwt.encode({
             "sub": payload["sub"],
             "type": "access",
@@ -394,3 +406,28 @@ def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sch
         raise HTTPException(status_code=401, detail="Refresh token expired — please log in again")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+# ==========================================
+# 🔧 HELPER FUNCTIONS
+# ==========================================
+def _increment_failed(username: str):
+    conn = sqlite3.connect("users.db")
+    row = conn.execute(
+        "SELECT attempts FROM failed_attempts WHERE username=?", (username,)
+    ).fetchone()
+    attempts = (row[0] if row else 0) + 1
+    locked_until = None
+    if attempts >= 5:
+        locked_until = (datetime.datetime.utcnow() + datetime.timedelta(minutes=15)).isoformat()
+    conn.execute(
+        "INSERT OR REPLACE INTO failed_attempts (username, attempts, locked_until) VALUES (?, ?, ?)",
+        (username, attempts, locked_until)
+    )
+    conn.commit()
+    conn.close()
+
+def _reset_failed(username: str):
+    conn = sqlite3.connect("users.db")
+    conn.execute("DELETE FROM failed_attempts WHERE username=?", (username,))
+    conn.commit()
+    conn.close()
