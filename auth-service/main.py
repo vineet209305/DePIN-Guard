@@ -1,5 +1,6 @@
 # auth-service/main.py — Production Ready with OTP + Signup + Last Login
 from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
@@ -45,6 +46,14 @@ def ensure_users_table_columns(conn: sqlite3.Connection):
             conn.execute(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}")
 
 
+def ensure_failed_attempts_table_columns(conn: sqlite3.Connection):
+    existing_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(failed_attempts)").fetchall()
+    }
+    if "locked_until" not in existing_columns:
+        conn.execute("ALTER TABLE failed_attempts ADD COLUMN locked_until TEXT")
+
+
 def init_db():
     conn = sqlite3.connect("users.db")
     
@@ -80,6 +89,7 @@ def init_db():
             locked_until TEXT
         )
     """)
+    ensure_failed_attempts_table_columns(conn)
     
     # Revoked tokens table
     conn.execute("""
@@ -128,6 +138,14 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ==========================================
 # 🔐 BEARER SCHEME
