@@ -28,6 +28,18 @@ DEFAULT_REPLAY_FILE = os.path.join(os.path.dirname(__file__), "normal_training_d
 REAL_DATA_URL = os.getenv("REAL_DATA_URL", "").strip()
 REAL_DATA_ROOT_KEY = os.getenv("REAL_DATA_ROOT_KEY", "").strip()
 
+
+def _is_placeholder_url(url: str) -> bool:
+    if not url:
+        return True
+    lowered = url.lower()
+    placeholder_markers = (
+        "<your-real-api-endpoint>",
+        "%3cyour-real-api-endpoint%3e",
+        "your-real-api-endpoint",
+    )
+    return any(marker in lowered for marker in placeholder_markers)
+
 CA_CERT     = "ca.crt"
 CLIENT_CERT = "client.crt"
 CLIENT_KEY  = "client.key"
@@ -113,7 +125,7 @@ def _extract_online_rows(payload):
 
 
 def _fetch_online_rows():
-    if not REAL_DATA_URL:
+    if _is_placeholder_url(REAL_DATA_URL):
         return []
 
     try:
@@ -213,9 +225,11 @@ def run_replay_simulator():
 
 
 def run_online_simulator():
-    if not REAL_DATA_URL:
-        print("REAL_DATA_URL is not set; falling back to synthetic mode.")
-        run_simulator()
+    if _is_placeholder_url(REAL_DATA_URL):
+        print("REAL_DATA_URL is not configured with a real endpoint.")
+        print("Set REAL_DATA_URL in iot-simulator/.env or run replay/synthetic mode.")
+        print("Falling back to replay mode.\n")
+        run_replay_simulator()
         return
 
     print("DePIN-Guard IoT Online Data Mode Started")
