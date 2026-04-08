@@ -5,6 +5,9 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import jwt, datetime, bcrypt, os, sqlite3, random, smtplib
 from email.mime.text import MIMEText
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 # ==========================================
 # 🔒 SECRET KEY
@@ -27,6 +30,21 @@ EMAIL_PASS = os.getenv("EMAIL_PASS")
 # ==========================================
 # 🗄️ DATABASE SETUP
 # ==========================================
+def ensure_users_table_columns(conn: sqlite3.Connection):
+    existing_columns = {
+        row[1] for row in conn.execute("PRAGMA table_info(users)").fetchall()
+    }
+    required_columns = {
+        "full_name": "TEXT",
+        "phone": "TEXT",
+        "last_login": "TEXT",
+        "created_at": "TEXT",
+    }
+    for column_name, column_type in required_columns.items():
+        if column_name not in existing_columns:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}")
+
+
 def init_db():
     conn = sqlite3.connect("users.db")
     
@@ -42,6 +60,8 @@ def init_db():
             created_at TEXT
         )
     """)
+
+    ensure_users_table_columns(conn)
     
     # OTP table
     conn.execute("""
