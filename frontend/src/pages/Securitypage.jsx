@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/layout/Layout';
+import { authenticatedFetch } from '../utils/api';
 import './securitypage.css';
 
 
@@ -7,6 +8,9 @@ const ALLOWED_EMAILS = ['vineet', 'priyanshu', 'mohit', 'prateek'];
 
 
 const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD || null;
+const AUTH_URL = (import.meta.env.VITE_AUTH_URL || '').trim().replace(/\/$/, '');
+const BACKEND_URL = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+const API_KEY = import.meta.env.VITE_API_KEY || '';
 
 const SecurityPage = () => {
   const [passwordInput, setPasswordInput] = useState('');
@@ -14,6 +18,11 @@ const SecurityPage = () => {
   const [unlocked, setUnlocked] = useState(
     localStorage.getItem('security_unlocked') === 'true'
   );
+  const [backendStats, setBackendStats] = useState({ scans: null, anomalies: null });
+  const [fraudAlerts, setFraudAlerts] = useState([]);
+  const [attackLog, setAttackLog] = useState([]);
+  const [running, setRunning] = useState(false);
+  const [summary, setSummary] = useState({ blocked: 0, passed: 0, anomalies: 0 });
 
 
   const currentUser = (
@@ -25,6 +34,92 @@ const SecurityPage = () => {
   const isTeamMember = ALLOWED_EMAILS.some(name => currentUser.includes(name));
   const isAdmin = localStorage.getItem('isAdmin') === 'true';
   const hasAccess = isTeamMember || isAdmin;
+
+  useEffect(() => {
+    const loadSecurityState = async () => {
+      try {
+        const [dashboardRes, fraudRes] = await Promise.all([
+          authenticatedFetch('/api/dashboard'),
+          authenticatedFetch('/api/fraud-alerts'),
+        ]);
+
+        if (dashboardRes?.ok) {
+          const dashboard = await dashboardRes.json();
+          setBackendStats({
+            scans: dashboard.stats?.scans ?? null,
+            anomalies: dashboard.stats?.anomalies ?? null,
+          });
+        }
+
+        if (fraudRes?.ok) {
+          const fraud = await fraudRes.json();
+          setFraudAlerts(fraud.alerts || []);
+        }
+      } catch {
+        setBackendStats({ scans: null, anomalies: null });
+      }
+    };
+
+    loadSecurityState();
+  }, []);
+
+  const securityControls = useMemo(() => [
+    { icon: 'JWT', name: 'JWT Authentication', desc: 'Bearer token authentication from auth-service', status: 'active', detail: 'Tokens are validated by the auth service before access is granted.' },
+    { icon: 'BCR', name: 'bcrypt Password Hashing', desc: 'Passwords are hashed before storage', status: 'active', detail: 'No plain-text passwords are kept in the database.' },
+    { icon: 'TLS', name: 'TLS Encryption', desc: 'Encrypted transport for MQTT communication', status: 'active', detail: 'Certificate-based transport protects broker traffic.' },
+    { icon: 'API', name: 'API Key Guard', desc: 'X-API-Key required for IoT ingestion', status: 'active', detail: 'Only trusted sensor clients can submit readings.' },
+    { icon: 'RAT', name: 'Rate Limiting', desc: 'Backend throttles burst traffic', status: 'active', detail: 'High-frequency request floods are blocked automatically.' },
+    { icon: 'VAL', name: 'Input Validation', desc: 'Malformed data is rejected before storage', status: 'active', detail: 'Schema checks stop invalid payloads early.' },
+    { icon: 'LOG', name: 'Audit Logging', desc: 'Every request is written to audit logs', status: 'active', detail: 'Each request can be traced for review and debugging.' },
+    { icon: 'X509', name: 'X.509 Certificates', desc: 'Certificates validate service identity', status: 'active', detail: 'Broker and simulator trust is anchored to certificates.' },
+  ], []);
+
+  const strideTable = useMemo(() => [
+    { threat: 'Spoofing', category: 'Identity', control: 'JWT + API key auth' },
+    { threat: 'Tampering', category: 'Data integrity', control: 'HMAC signing + blockchain hash' },
+    { threat: 'Repudiation', category: 'Non-repudiation', control: 'Audit logging and persistence' },
+    { threat: 'Information disclosure', category: 'Confidentiality', control: 'TLS transport and token expiry' },
+    { threat: 'Denial of service', category: 'Availability', control: 'Rate limiting and request validation' },
+    { threat: 'Privilege escalation', category: 'Authorization', control: 'Service-scoped access rules' },
+  ], []);
+
+  const certInfo = useMemo(() => [
+    { name: 'ca.crt', desc: 'Root certificate authority', issuer: 'DePIN-Guard CA', usage: 'MQTT broker trust' },
+    { name: 'server.crt', desc: 'Broker certificate', issuer: 'DePIN-Guard CA', usage: 'TLS server identity' },
+    { name: 'client.crt', desc: 'Simulator certificate', issuer: 'DePIN-Guard CA', usage: 'Client authentication' },
+  ], []);
+
+  const importHmacKey = async () => {
+    if (!API_KEY || !window.crypto?.subtle) {
+      return null;
+    }
+
+    const keyBytes = new TextEncoder().encode(API_KEY);
+    return window.crypto.subtle.importKey(
+      'raw',
+      keyBytes,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+  };
+
+  const signPayload = async (payload) => {
+    const key = await importHmacKey();
+    if (!key) {
+      return '';
+    }
+
+    const message = `${payload.device_id}|${payload.temperature}|${payload.vibration}|${payload.power_usage}|${payload.timestamp}`;
+    const signature = await window.crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+    return Array.from(new Uint8Array(signature))
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  };
+
+  const pushLog = (entry) => {
+    setAttackLog((prev) => [...prev, { ...entry, time: new Date().toLocaleTimeString() }]);
+  };
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
@@ -117,57 +212,113 @@ const SecurityPage = () => {
   }
 
  
-  const securityControls = [
-    { icon: '🔐', name: 'JWT Authentication',      desc: 'Bearer tokens with 1-hour expiry',          status: 'active', detail: 'HS256 algorithm · Issued by auth-service' },
-    { icon: '🔑', name: 'bcrypt Password Hashing', desc: 'Passwords never stored in plain text',       status: 'active', detail: 'Cost factor 12 · salted hash' },
-    { icon: '🔒', name: 'TLS Encryption',          desc: 'Encrypted transport on MQTT port 8883',      status: 'active', detail: 'TLSv1.2 · ca.crt + server.crt' },
-    { icon: '🛡️', name: 'API Key Guard',           desc: 'X-API-Key header required on all IoT routes',status: 'active', detail: 'Key: Depin_Project_Secret_Key_***' },
-    { icon: '⚡', name: 'Rate Limiting',           desc: '60 requests/min on data ingestion',          status: 'active', detail: 'slowapi · Returns 429 on exceed' },
-    { icon: '✅', name: 'Input Validation',         desc: 'Pydantic models reject malformed data',      status: 'active', detail: 'SQL injection · Missing fields · Bounds check' },
-    { icon: '📋', name: 'Audit Logging',           desc: 'Every API request logged to audit.log',      status: 'active', detail: 'Timestamp · Method · Path · Status · Duration' },
-    { icon: '🧬', name: 'X.509 Certificates',      desc: 'Fabric CAs issue certs to each org',         status: 'active', detail: 'Manufacturer CA · Maintenance CA' },
-  ];
-
-  const strideTable = [
-    { threat: 'Spoofing',               category: 'Identity',        control: 'JWT + API Key auth' },
-    { threat: 'Tampering',              category: 'Data Integrity',  control: 'SHA-256 hash on blockchain' },
-    { threat: 'Repudiation',            category: 'Non-Repudiation', control: 'Audit log middleware' },
-    { threat: 'Info Disclosure',        category: 'Confidentiality', control: 'TLS transport + JWT expiry' },
-    { threat: 'Denial of Service',      category: 'Availability',    control: 'Rate limiting 60/min' },
-    { threat: 'Elevation of Privilege', category: 'Authorization',   control: 'API Key scope limited' },
-  ];
-
-  const certInfo = [
-    { name: 'ca.crt',     desc: 'Root Certificate Authority', issuer: 'DePIN-Guard CA', usage: 'MQTT Broker Trust' },
-    { name: 'server.crt', desc: 'MQTT Broker Certificate',    issuer: 'DePIN-Guard CA', usage: 'Port 8883 TLS' },
-    { name: 'client.crt', desc: 'IoT Simulator Certificate',  issuer: 'DePIN-Guard CA', usage: 'mTLS Client Auth' },
-  ];
-
-  const [attackLog, setAttackLog] = useState([]);
-  const [running, setRunning]     = useState(false);
-  const [rateStats, setRateStats] = useState({ total: 0, blocked: 0 });
-
-  const runAttackSimulation = () => {
+  const runAttackSimulation = async () => {
     setRunning(true);
     setAttackLog([]);
-    setRateStats({ total: 0, blocked: 0 });
+    setSummary({ blocked: 0, passed: 0, anomalies: 0 });
 
-    const attacks = [
-      { delay: 400,  type: 'Brute Force Login',    result: 'BLOCKED', detail: '10/10 attempts rejected with 401',                           icon: '🔴' },
-      { delay: 1000, type: 'No API Key Access',     result: 'BLOCKED', detail: 'POST /api/process_data → 403 Forbidden',                    icon: '🔴' },
-      { delay: 1700, type: 'SQL Injection Payload', result: 'BLOCKED', detail: "device_id: '; DROP TABLE sensors;' → 400 Bad Request",      icon: '🔴' },
-      { delay: 2400, type: 'Rate Limit Flood',      result: 'BLOCKED', detail: '65 rapid requests → 429 Too Many Requests',                 icon: '🔴' },
-      { delay: 3100, type: 'Expired Token Access',  result: 'BLOCKED', detail: 'JWT exp exceeded → 401 Unauthorized',                       icon: '🔴' },
-    ];
+    try {
+      if (!AUTH_URL || !BACKEND_URL || !API_KEY) {
+        pushLog({ type: 'Configuration check', result: 'FAILED', detail: 'Missing AUTH_URL, BACKEND_URL, or API_KEY in .env', icon: '⚠️' });
+        return;
+      }
 
-    attacks.forEach(({ delay, type, result, detail, icon }) => {
-      setTimeout(() => {
-        setAttackLog(prev => [...prev, { type, result, detail, icon, time: new Date().toLocaleTimeString() }]);
-        setRateStats(prev => ({ total: prev.total + 1, blocked: prev.blocked + 1 }));
-        if (delay === 3100) setRunning(false);
-      }, delay);
-    });
+      const blocked = [];
+      const passed = [];
+      let anomalies = 0;
+
+      const loginResponse = await fetch(`${AUTH_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'intruder@example.com', password: 'WrongPass123' }),
+      });
+      if (loginResponse.status === 401) {
+        blocked.push('auth');
+        pushLog({ type: 'Auth check', result: 'BLOCKED', detail: 'Invalid credentials were rejected by auth-service (401)', icon: '🔒' });
+      } else {
+        passed.push('auth');
+        pushLog({ type: 'Auth check', result: 'PASSED', detail: `Auth returned ${loginResponse.status} instead of 401`, icon: '⚠️' });
+      }
+
+      const dashboardResponse = await fetch(`${BACKEND_URL}/api/dashboard`, {
+        headers: { 'X-API-Key': 'wrong-key' },
+      });
+      if (dashboardResponse.status === 403) {
+        blocked.push('api-key');
+        pushLog({ type: 'API key guard', result: 'BLOCKED', detail: 'Backend rejected invalid API key (403)', icon: '🔒' });
+      } else {
+        passed.push('api-key');
+        pushLog({ type: 'API key guard', result: 'PASSED', detail: `Backend returned ${dashboardResponse.status} for invalid API key`, icon: '⚠️' });
+      }
+
+      const attackPayload = {
+        device_id: 'Security-Test-01',
+        temperature: 125.5,
+        vibration: 12.9,
+        power_usage: 149.2,
+        timestamp: new Date().toISOString(),
+      };
+      attackPayload.signature = await signPayload(attackPayload);
+
+      const anomalyResponse = await fetch(`${BACKEND_URL}/api/process_data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY,
+        },
+        body: JSON.stringify(attackPayload),
+      });
+      if (anomalyResponse.ok) {
+        const anomalyData = await anomalyResponse.json();
+        const detected = Boolean(anomalyData.anomaly || anomalyData.is_anomaly);
+        anomalies += detected ? 1 : 0;
+        pushLog({
+          type: 'Anomaly payload',
+          result: detected ? 'DETECTED' : 'CLEARED',
+          detail: `AI response: ${anomalyData.status || 'unknown'} (${detected ? 'anomaly' : 'normal'})`,
+          icon: detected ? '🟥' : '🟩',
+        });
+      } else {
+        pushLog({ type: 'Anomaly payload', result: 'FAILED', detail: `Backend returned ${anomalyResponse.status}`, icon: '⚠️' });
+      }
+
+      const fraudResponse = await fetch(`${BACKEND_URL}/api/report-fraud`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY,
+        },
+        body: JSON.stringify({
+          asset_id: 'Security-Test-01',
+          type: 'anomaly_cluster',
+          confidence: 0.95,
+        }),
+      });
+      if (fraudResponse.ok) {
+        blocked.push('fraud');
+        pushLog({ type: 'Fraud report', result: 'SAVED', detail: 'Fraud alert stored for review page and GNN follow-up', icon: '📄' });
+      } else {
+        pushLog({ type: 'Fraud report', result: 'FAILED', detail: `Fraud endpoint returned ${fraudResponse.status}`, icon: '⚠️' });
+      }
+
+      const fraudRes = await authenticatedFetch('/api/fraud-alerts');
+      if (fraudRes?.ok) {
+        const fraud = await fraudRes.json();
+        setFraudAlerts(fraud.alerts || []);
+      }
+
+      setSummary({ blocked: blocked.length, passed: passed.length, anomalies });
+    } catch (err) {
+      pushLog({ type: 'Security test', result: 'FAILED', detail: err.message || 'Unexpected error', icon: '⚠️' });
+    } finally {
+      setRunning(false);
+    }
   };
+
+  const controlCount = securityControls.length;
+  const threatCount = strideTable.length;
+  const certCount = certInfo.length;
+  const blockedCount = summary.blocked;
 
   return (
     <Layout>
@@ -176,13 +327,13 @@ const SecurityPage = () => {
         {/* Header */}
         <div className="page-header">
           <div>
-            <h1 className="page-title">🛡️ Security Dashboard</h1>
-            <p className="page-subtitle">Defense-in-depth security controls — monitored by Prateek (Security Lead)</p>
+            <h1 className="page-title">Security Dashboard</h1>
+            <p className="page-subtitle">Real checks for authentication, ingestion, anomaly detection, and fraud reporting.</p>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <div className="security-overall-badge">
               <span className="badge-dot" />
-              All Systems Secure
+              Live Validation Ready
             </div>
             <button
               className="lock-btn"
@@ -199,15 +350,15 @@ const SecurityPage = () => {
 
         {/* Stats Row */}
         <div className="security-stats">
-          <div className="sec-stat-card"><div className="sec-stat-num">8</div><div className="sec-stat-lbl">Security Controls Active</div></div>
-          <div className="sec-stat-card"><div className="sec-stat-num" style={{ color: '#22c55e' }}>6/6</div><div className="sec-stat-lbl">STRIDE Threats Mitigated</div></div>
-          <div className="sec-stat-card"><div className="sec-stat-num" style={{ color: '#0ea5e9' }}>3</div><div className="sec-stat-lbl">TLS Certificates Active</div></div>
-          <div className="sec-stat-card"><div className="sec-stat-num" style={{ color: '#f59e0b' }}>60/min</div><div className="sec-stat-lbl">Rate Limit Threshold</div></div>
+          <div className="sec-stat-card"><div className="sec-stat-num">{controlCount}</div><div className="sec-stat-lbl">Configured Controls</div></div>
+          <div className="sec-stat-card"><div className="sec-stat-num" style={{ color: '#22c55e' }}>{threatCount}</div><div className="sec-stat-lbl">Threat Paths Covered</div></div>
+          <div className="sec-stat-card"><div className="sec-stat-num" style={{ color: '#0ea5e9' }}>{certCount}</div><div className="sec-stat-lbl">Certificates Tracked</div></div>
+          <div className="sec-stat-card"><div className="sec-stat-num" style={{ color: '#f59e0b' }}>{blockedCount}</div><div className="sec-stat-lbl">Blocked Tests</div></div>
         </div>
 
         {/* Security Controls Grid */}
         <div className="sec-section">
-          <h2 className="sec-section-title">🔐 Active Security Controls</h2>
+          <h2 className="sec-section-title">Active Security Controls</h2>
           <div className="controls-grid">
             {securityControls.map((ctrl, i) => (
               <div className="control-card" key={i}>
@@ -225,7 +376,7 @@ const SecurityPage = () => {
 
         {/* STRIDE Table */}
         <div className="sec-section">
-          <h2 className="sec-section-title">⚔️ STRIDE Threat Model</h2>
+          <h2 className="sec-section-title">STRIDE Threat Model</h2>
           <div className="stride-table-wrap">
             <table className="stride-table">
               <thead>
@@ -247,7 +398,7 @@ const SecurityPage = () => {
 
         {/* TLS Certificates */}
         <div className="sec-section">
-          <h2 className="sec-section-title">📜 TLS Certificates</h2>
+          <h2 className="sec-section-title">TLS Certificates</h2>
           <div className="certs-grid">
             {certInfo.map((cert, i) => (
               <div className="cert-card" key={i}>
@@ -270,33 +421,33 @@ const SecurityPage = () => {
         <div className="sec-section">
           <div className="attack-header">
             <div>
-              <h2 className="sec-section-title">🧪 Penetration Test Simulator</h2>
-              <p className="attack-subtitle">Simulates real attack vectors — proves all defenses are working</p>
+              <h2 className="sec-section-title">Validation Test Runner</h2>
+              <p className="attack-subtitle">Runs real auth, API, anomaly, and fraud-report checks against live services.</p>
             </div>
             <button
               className={`run-attack-btn ${running ? 'running' : ''}`}
               onClick={runAttackSimulation}
               disabled={running}
             >
-              {running ? <><span className="spinner" /> Running Tests...</> : <>▶ Run Attack Simulation</>}
+              {running ? <><span className="spinner" /> Running Checks...</> : <>Run Validation Tests</>}
             </button>
           </div>
 
           {(attackLog.length > 0 || running) && (
             <div className="attack-progress">
               <div className="attack-progress-bar">
-                <div className="attack-progress-fill" style={{ width: `${(attackLog.length / 5) * 100}%` }} />
+                <div className="attack-progress-fill" style={{ width: `${Math.min((attackLog.length / 4) * 100, 100)}%` }} />
               </div>
-              <span>{attackLog.length}/5 tests complete</span>
+              <span>{attackLog.length}/4 checks complete</span>
             </div>
           )}
 
           <div className="attack-log">
             {attackLog.length === 0 && !running && (
-              <p className="attack-empty">Click "Run Attack Simulation" to test all security defenses live.</p>
+              <p className="attack-empty">Click "Run Validation Tests" to test login protection, API access, anomaly detection, and fraud reporting.</p>
             )}
             {running && attackLog.length === 0 && (
-              <p className="attack-empty">⏳ Initiating attack simulation...</p>
+              <p className="attack-empty">Running live checks against the connected services...</p>
             )}
             {attackLog.map((log, i) => (
               <div className="attack-entry" key={i}>
@@ -309,12 +460,37 @@ const SecurityPage = () => {
                 <span className="attack-time">{log.time}</span>
               </div>
             ))}
-            {attackLog.length === 5 && (
+            {attackLog.length >= 4 && (
               <div className="attack-summary">
-                ✅ All {rateStats.blocked}/{rateStats.total} attacks blocked — System is secure!
+                Summary: {summary.blocked} blocked, {summary.passed} passed, {summary.anomalies} anomaly payloads accepted.
               </div>
             )}
           </div>
+        </div>
+
+        <div className="sec-section">
+          <h2 className="sec-section-title">Fraud Review Snapshot</h2>
+          {fraudAlerts.length === 0 ? (
+            <p className="attack-empty">No fraud alerts are stored yet. Run the validation tests to create a live alert record.</p>
+          ) : (
+            <div className="stride-table-wrap">
+              <table className="stride-table">
+                <thead>
+                  <tr><th>Asset</th><th>Type</th><th>Confidence</th><th>Timestamp</th></tr>
+                </thead>
+                <tbody>
+                  {fraudAlerts.slice(0, 5).map((alert, i) => (
+                    <tr key={i}>
+                      <td className="threat-name">{alert.asset_id}</td>
+                      <td className="threat-cat">{alert.type?.replace(/_/g, ' ') || 'N/A'}</td>
+                      <td className="threat-ctrl">{alert.confidence != null ? `${(alert.confidence * 100).toFixed(1)}%` : 'N/A'}</td>
+                      <td className="threat-ctrl">{alert.timestamp || 'N/A'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
       </div>
