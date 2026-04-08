@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import LiveChart from '../components/LiveChart';
 import Layout from '../components/layout/Layout';
 import { authenticatedFetch } from '../utils/api';
@@ -7,26 +7,11 @@ import './DashboardPage.css';
 const DashboardPage = () => {
   const [streamConnected, setStreamConnected] = useState(false);
   const [loading, setLoading]     = useState(true);
-  const [stats, setStats]         = useState({ activeDevices: 0, totalData: 0, alerts: 0, uptime: 100.0 });
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats]         = useState({ activeDevices: null, totalData: null, alerts: null, uptime: null });
   const [recentData, setRecentData] = useState([]);
   const [timePeriod, setTimePeriod] = useState('24h');
   const [chartData, setChartData]   = useState([]);
-
-  const fallbackChartRef = useRef({});
-
-  const generateFallbackChart = (period) => {
-    if (fallbackChartRef.current[period]) {
-      return fallbackChartRef.current[period];
-    }
-    const numPoints = period === '24h' ? 12 : period === '7d' ? 7 : 15;
-    const chart = Array.from({ length: numPoints }, (_, i) => ({
-      y:     Math.floor(Math.random() * 70 + 20),
-      label: period === '24h' ? `${i * 2}h` : period === '7d' ? `Day ${i + 1}` : `D-${i + 1}`,
-      raw:   null,
-    }));
-    fallbackChartRef.current[period] = chart;
-    return chart;
-  };
 
   const fetchDashboardData = async () => {
     try {
@@ -37,18 +22,20 @@ const DashboardPage = () => {
           activeDevices: json.stats?.active    ?? 0,
           totalData:     json.stats?.scans     ?? 0,
           alerts:        json.stats?.anomalies ?? 0,
-          uptime:        json.stats?.uptime    ?? 100.0,
+          uptime:        json.stats?.uptime    ?? null,
         });
         const history = json.recent_data ?? [];
         if (history.length > 0) {
           setRecentData(history.map((rec, i) => ({
             id:     rec.id ?? i,
             device: rec.device ?? 'Unknown',
-            value:  rec.temp ?? rec.value ?? '—',
+            value:  rec.temp,
             unit:   '°C',
             status: rec.status ?? 'normal',
             time:   rec.timestamp ? new Date(rec.timestamp).toLocaleTimeString() : '—',
           })));
+        } else {
+          setRecentData([]);
         }
       }
     } catch {
@@ -65,7 +52,7 @@ const DashboardPage = () => {
         const history = json.history ?? [];
 
         if (history.length === 0) {
-          setChartData(generateFallbackChart(period));
+          setChartData([]);
           return;
         }
 
@@ -120,7 +107,7 @@ const DashboardPage = () => {
 
       }
     } catch {
-      setChartData(prev => prev.length > 0 ? prev : generateFallbackChart(period));
+      setChartData([]);
     }
   };
 
@@ -135,15 +122,22 @@ const DashboardPage = () => {
       clearInterval(dashInterval);
       clearInterval(chartInterval);
     };
-  }, []);
-
-  useEffect(() => {
-    fetchChartData(timePeriod);
   }, [timePeriod]);
 
-  const handleRefresh = () => {
-    fetchDashboardData();
-    fetchChartData(timePeriod);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchDashboardData(), fetchChartData(timePeriod)]);
+    setRefreshing(false);
+  };
+
+  const renderStatValue = (value, formatter = (v) => v) => {
+    if (loading || refreshing) {
+      return '...';
+    }
+    if (value === null || value === undefined) {
+      return 'N/A';
+    }
+    return formatter(value);
   };
 
   const getStatusColor = (status) => {
@@ -175,7 +169,7 @@ const DashboardPage = () => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Refresh
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
 
@@ -186,7 +180,7 @@ const DashboardPage = () => {
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
             </div>
             <div className="stat-content">
-              <div className="stat-value">{loading ? '...' : stats.activeDevices}</div>
+              <div className="stat-value">{renderStatValue(stats.activeDevices)}</div>
               <div className="stat-label">Active Devices</div>
             </div>
           </div>
@@ -196,7 +190,7 @@ const DashboardPage = () => {
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
             </div>
             <div className="stat-content">
-              <div className="stat-value">{loading ? '...' : stats.totalData.toLocaleString()}</div>
+              <div className="stat-value">{renderStatValue(stats.totalData, (v) => Number(v).toLocaleString())}</div>
               <div className="stat-label">Total Records</div>
             </div>
           </div>
@@ -206,8 +200,8 @@ const DashboardPage = () => {
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
             </div>
             <div className="stat-content">
-              <div className="stat-value">{loading ? '...' : stats.alerts}</div>
-              <div className="stat-label">Alerts</div>
+              <div className="stat-value">{renderStatValue(stats.alerts)}</div>
+              <div className="stat-label">Critical Alerts</div>
             </div>
           </div>
 
@@ -216,7 +210,7 @@ const DashboardPage = () => {
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             <div className="stat-content">
-              <div className="stat-value">{loading ? '...' : `${stats.uptime.toFixed(1)}%`}</div>
+              <div className="stat-value">{renderStatValue(stats.uptime, (v) => `${Number(v).toFixed(1)}%`)}</div>
               <div className="stat-label">Uptime</div>
             </div>
           </div>
@@ -225,14 +219,13 @@ const DashboardPage = () => {
         {/* Live Sensor Feeds */}
         <div className="data-section">
           <div className="section-header">
-            <h2 className="section-title">Live Sensor Feeds</h2>
-            <button className="view-all-button">View All</button>
+            <h2 className="section-title">Recent Sensor Readings</h2>
           </div>
           <div className="data-grid">
             {loading ? (
               <p className="loading-text">Loading sensor data...</p>
             ) : recentData.length === 0 ? (
-              <p className="loading-text">No sensor data yet — start the simulator!</p>
+              <p className="loading-text">No sensor readings yet.</p>
             ) : (
               recentData.map((data) => (
                 <div key={data.id} className="data-card">
@@ -246,7 +239,7 @@ const DashboardPage = () => {
                     </span>
                   </div>
                   <div className="data-body">
-                    <span className="data-value">{data.value}</span>
+                    <span className="data-value">{data.value ?? 'N/A'}</span>
                     <span className="data-unit">{data.unit}</span>
                   </div>
                   <div className="data-footer">{data.time}</div>
@@ -258,7 +251,7 @@ const DashboardPage = () => {
 
         {/* LiveChart */}
         {!streamConnected && (
-          <p className="loading-text">Connecting to live stream...</p>
+          <p className="loading-text">Connecting to live updates...</p>
         )}
         <LiveChart onConnect={() => setStreamConnected(true)} />
 
@@ -277,6 +270,9 @@ const DashboardPage = () => {
             </select>
           </div>
           <div className="chart-wrapper">
+            {chartData.length === 0 && (
+              <p className="loading-text">No activity trend data available yet.</p>
+            )}
             <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="bar-chart-svg">
               <defs>
                 <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
