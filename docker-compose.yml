@@ -1,5 +1,9 @@
+<<<<<<< HEAD
+
+=======
 # docker-compose.yml — Lab mode (full stack)
 # For demo mode: run each service locally with the commands listed in Demo_Runbook.md
+>>>>>>> c728c1024c566485cc4c328dd6f5663eab65bb8e
 
 services:
 
