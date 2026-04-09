@@ -39,6 +39,7 @@ services:
       args:
         - VITE_API_URL=http://backend:8000
         - VITE_API_KEY=${DEPIN_API_KEY}
+        - VITE_AUTH_URL=http://auth-service:8001
     ports:
       - "5173:5173"
     restart: unless-stopped

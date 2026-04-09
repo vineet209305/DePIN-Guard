@@ -7,6 +7,7 @@ WORKDIR /app
 # Accept build arguments for Vite environment variables
 ARG VITE_API_URL=http://localhost:8000
 ARG VITE_API_KEY=''
+ARG VITE_AUTH_URL=http://localhost:8001
 
 # Copy package files
 COPY package*.json ./
@@ -18,7 +19,7 @@ RUN npm ci
 COPY . .
 
 # Build the Vite app (creates dist/) with environment variables
-RUN VITE_API_URL=${VITE_API_URL} VITE_API_KEY=${VITE_API_KEY} npm run build
+RUN VITE_API_URL=${VITE_API_URL} VITE_API_KEY=${VITE_API_KEY} VITE_AUTH_URL=${VITE_AUTH_URL} npm run build
 
 # Stage 2: Serve
 FROM node:20-alpine
