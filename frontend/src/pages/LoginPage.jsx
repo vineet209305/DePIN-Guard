@@ -70,7 +70,12 @@ const LoginPage = () => {
       localStorage.setItem('rememberMe', String(formData.rememberMe));
       localStorage.setItem('savedEmail', formData.email);
       localStorage.setItem('userEmail', formData.email);
-      storeUserProfile(data.profile || { email: formData.email, full_name: formData.email });
+      
+      // Store user profile from auth service response
+      storeUserProfile({ 
+        email: formData.email, 
+        full_name: data.full_name || formData.email 
+      });
 
       navigate('/dashboard');
 
