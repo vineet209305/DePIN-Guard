@@ -45,3 +45,14 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+
+  iot-simulator:
+    build: ./iot-simulator
+    container_name: iot-simulator
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - DEPIN_API_KEY=${DEPIN_API_KEY}
+      - SIMULATOR_MODE=synthetic
+    restart: unless-stopped
+    depends_on:
+      - backend
