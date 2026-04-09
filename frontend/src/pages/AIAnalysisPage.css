@@ -1,25 +1,53 @@
 /* ===============================
-   AI Analysis Page - Core Styles
+   AI Analysis Page - Responsive
 ================================ */
 
 :root {
   --primary-color: #0ea5e9;
   --bg-card: rgba(17, 24, 39, 0.85);
   --bg-dark: #1f2937;
-  --border-color: #2a2a2a;
-  --text-main: white;
-  --text-muted: #a0aec0;
+  --bg-hover: rgba(31, 41, 55, 0.5);
+  --border-color: rgba(255,255,255,0.1);
+  --text-main: #f9fafb;
+  --text-muted: #9ca3af;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
 }
+
+* { box-sizing: border-box; }
 
 .ai-analysis-container {
   width: 100%;
-  max-width: 1400px; /* Prevents stretching on ultra-wide screens */
-  margin: 0 auto;    /* Centers the content */
-  padding: 1.5rem;   /* Default padding */
-  box-sizing: border-box;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem;
 }
 
-/* --- ANALYZE BUTTON --- */
+/* ---- PAGE HEADER ---- */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.page-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0 0;
+}
+
+/* ---- ANALYZE BUTTON ---- */
 .analyze-button {
   display: flex;
   align-items: center;
@@ -28,12 +56,13 @@
   padding: 0.75rem 1.25rem;
   background: linear-gradient(135deg, #f59e0b, #d97706);
   border: none;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   color: white;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
   white-space: nowrap;
+  font-size: 0.95rem;
 }
 
 .analyze-button:hover {
@@ -47,11 +76,10 @@
   flex-shrink: 0;
 }
 
-/* --- STATS GRID --- */
+/* ---- STATS GRID ---- */
 .ai-stats-grid {
   display: grid;
-  /* Smart Responsive: Min 240px width, otherwise stack */
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2.5rem;
 }
@@ -60,7 +88,7 @@
   background: rgba(17,24,39,0.8);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
   padding: 1.25rem;
   display: flex;
   align-items: center;
@@ -70,14 +98,14 @@
 
 .ai-stat-card:hover {
   border-color: var(--primary-color);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(14,165,233,0.15);
 }
 
 .ai-stat-icon {
   width: 48px;
   height: 48px;
-  border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,10 +118,7 @@
   color: white;
 }
 
-.ai-stat-content {
-  flex: 1;
-  min-width: 0; /* Critical for text truncation in flex containers */
-}
+.ai-stat-content { flex: 1; min-width: 0; }
 
 .ai-stat-value {
   font-size: 1.5rem;
@@ -103,7 +128,7 @@
 }
 
 .ai-stat-label {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
   white-space: nowrap;
@@ -111,30 +136,61 @@
   text-overflow: ellipsis;
 }
 
-/* --- ANALYSIS SECTION --- */
+/* ---- ANALYSIS SECTION ---- */
 .analysis-section {
   background: var(--bg-card);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
 }
 
-.analysis-list {
-  display: grid;
-  grid-template-columns: 1fr; /* Mobile Default */
-  gap: 1.5rem;
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.model-filter {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-size: 0.875rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.model-filter:focus { border-color: var(--primary-color); }
+
+/* ---- ANALYSIS LIST GRID ---- */
+.analysis-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+/* ---- ANALYSIS CARD ---- */
 .analysis-card {
   background: var(--bg-dark);
   border: 1px solid var(--border-color);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
   padding: 1.25rem;
   transition: all 0.3s;
   display: flex;
   flex-direction: column;
-  height: 100%; /* Ensures equal height in grid */
 }
 
 .analysis-card:hover {
@@ -145,7 +201,7 @@
 .analysis-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start; /* Better for wrapping text */
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 1rem;
@@ -155,14 +211,15 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  max-width: 100%; /* Prevents breaking layout on small screens */
+  min-width: 0;
+  flex: 1;
 }
 
 .device-icon-ai {
   width: 40px;
   height: 40px;
   background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,37 +234,35 @@
 
 .device-name-ai {
   font-weight: 600;
-  color: white;
-  font-size: 1rem;
-  line-height: 1.2;
-  /* Truncate long device names */
+  color: var(--text-main);
+  font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px; 
+  max-width: 160px;
 }
 
 .analysis-type {
   font-size: 0.75rem;
   color: var(--text-muted);
   display: block;
+  margin-top: 2px;
 }
 
 /* SEVERITY BADGE */
 .severity-badge {
-  padding: 0.25rem 0.6rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 0.25rem;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* CONFIDENCE BAR */
-.confidence-bar-container {
-  margin: 0.5rem 0 1rem 0;
-}
+.confidence-bar-container { margin: 0.5rem 0 1rem; }
 
 .confidence-label {
   display: flex;
@@ -217,10 +272,12 @@
   margin-bottom: 0.4rem;
 }
 
+.confidence-value { font-weight: 600; color: var(--text-main); }
+
 .confidence-bar {
   width: 100%;
   height: 6px;
-  background: #2a2a2a;
+  background: rgba(255,255,255,0.08);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -228,23 +285,23 @@
 .confidence-fill {
   height: 100%;
   border-radius: 3px;
-  background-color: var(--primary-color);
-  transition: width 0.3s ease-out;
+  transition: width 0.4s ease-out;
 }
 
-/* DESCRIPTION & META */
+/* DESCRIPTION */
 .analysis-description {
   padding: 0.85rem;
   background: rgba(14,165,233,0.05);
   border-left: 3px solid var(--primary-color);
-  border-radius: 0.25rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   font-size: 0.875rem;
   line-height: 1.6;
   color: var(--text-main);
   margin-bottom: 1rem;
-  flex-grow: 1; /* Pushes footer down to align buttons */
+  flex-grow: 1;
 }
 
+/* META */
 .analysis-meta {
   display: flex;
   gap: 1rem;
@@ -262,11 +319,7 @@
   gap: 0.35rem;
 }
 
-.meta-item svg {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-}
+.meta-item svg { width: 14px; height: 14px; flex-shrink: 0; }
 
 /* VIEW RECOMMENDATION BUTTON */
 .view-recommendation-button {
@@ -278,12 +331,13 @@
   padding: 0.75rem;
   background: transparent;
   border: 1px solid var(--primary-color);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   color: var(--primary-color);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  margin-top: auto; 
+  margin-top: auto;
+  font-size: 0.9rem;
 }
 
 .view-recommendation-button:hover {
@@ -291,33 +345,30 @@
   color: white;
 }
 
-.view-recommendation-button svg {
-  width: 16px;
-  height: 16px;
-}
+.view-recommendation-button svg { width: 16px; height: 16px; }
 
-/* --- MODAL --- */
+/* ---- MODAL ---- */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0,0,0,0.75);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  z-index: 50;
+  z-index: 1000;
 }
 
 .modal-content-ai {
   background: var(--bg-dark);
   border: 1px solid var(--border-color);
-  border-radius: 0.75rem;
-  max-width: 700px;
+  border-radius: var(--radius-lg);
+  max-width: 680px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
   display: flex;
   flex-direction: column;
 }
@@ -326,7 +377,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem;
+  padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
@@ -335,8 +386,8 @@
 }
 
 .modal-header-ai h2 {
-  font-size: 1.25rem;
-  color: white;
+  font-size: 1.2rem;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -347,11 +398,12 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .modal-close-ai:hover {
@@ -359,13 +411,13 @@
   color: white;
 }
 
-.modal-body-ai {
-  padding: 1.5rem;
-}
+.modal-close-ai svg { width: 18px; height: 18px; }
+
+.modal-body-ai { padding: 1.5rem; }
 
 .detail-section {
   margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
+  padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -376,91 +428,62 @@
 }
 
 .detail-section h3 {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: var(--primary-color);
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 0.75rem;
 }
 
 .detail-section p {
   color: var(--text-muted);
   line-height: 1.6;
   margin-bottom: 0.5rem;
+  font-size: 0.9rem;
 }
+
+.recommendation-section h3 { color: #f59e0b; }
 
 .recommendation-box {
-  background: rgba(245,158,11,0.1);
-  border: 1px solid rgba(245,158,11,0.3);
-  border-radius: 0.5rem;
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: var(--radius-md);
   padding: 1rem;
-  color: #fff;
-  line-height: 1.6;
+  color: var(--text-main);
+  line-height: 1.7;
+  font-size: 0.9rem;
 }
 
-/* ===============================
+/* ============================
    RESPONSIVE BREAKPOINTS
-================================ */
+============================ */
 
-/* --- TABLET (Portrait & Landscape) --- */
+/* Tablet: 2 columns */
 @media (min-width: 768px) {
-  .analysis-list {
-    grid-template-columns: repeat(2, 1fr); /* 2 Columns */
-  }
+  .analysis-list { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* --- DESKTOP (Laptops & Monitors) --- */
+/* Desktop: 3 columns */
 @media (min-width: 1200px) {
-  .analysis-list {
-    grid-template-columns: repeat(3, 1fr); /* 3 Columns */
-  }
+  .analysis-list { grid-template-columns: repeat(3, 1fr); }
 }
 
-/* --- MOBILE (Small screens < 640px) --- */
+/* Mobile < 640px */
 @media (max-width: 640px) {
-  .ai-analysis-container {
-    padding: 1rem;
-  }
+  .ai-analysis-container { padding: 1rem; }
+  .analysis-section { padding: 1rem; }
+  .section-header { flex-direction: column; align-items: stretch; }
+  .model-filter { width: 100%; }
+  .analyze-button { width: 100%; justify-content: center; }
+  .ai-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+  .ai-stat-value { font-size: 1.25rem; }
+  .ai-stat-card { padding: 1rem; gap: 0.75rem; }
+  .device-name-ai { max-width: 120px; }
+  .modal-content-ai { width: 95%; max-height: 88vh; }
+  .modal-header-ai, .modal-body-ai { padding: 1rem; }
+  .page-title { font-size: 1.5rem; }
+}
 
-  .analysis-section {
-    padding: 1rem;
-  }
-  
-  /* Stack Header Elements */
-  .analysis-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  /* Ensure text doesn't overflow on small screens */
-  .device-name-ai {
-    max-width: 200px;
-  }
-
-  /* Full width button on mobile for easier tapping */
-  .analyze-button {
-    width: 100%; 
-  }
-
-  /* Adjust grid for very small screens to ensure 1 column */
-  .ai-stats-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-
-  .ai-stat-card {
-    padding: 1rem;
-  }
-  
-  /* Modal adjustments for small touch screens */
-  .modal-content-ai {
-    width: 95%; /* Prevent touching edges */
-    max-height: 85vh;
-  }
-
-  .modal-header-ai {
-    padding: 1rem;
-  }
-  
-  .modal-body-ai {
-    padding: 1rem;
-  }
+/* Very small < 360px */
+@media (max-width: 360px) {
+  .ai-stats-grid { grid-template-columns: 1fr; }
+  .ai-stat-value { font-size: 1.1rem; }
 }

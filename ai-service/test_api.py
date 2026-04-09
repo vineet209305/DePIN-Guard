@@ -1,43 +1,52 @@
+import os
+import sys
+
 import requests
-import time
-import random
 
-# The URL of your running Flask API
-url = 'http://localhost:5000/predict'
+BASE_URL = os.getenv("AI_SERVICE_URL", "http://127.0.0.1:10000")
 
-print("--- Starting Client Simulation ---")
-print("Goal: Fill the server's buffer (30 points) and check for anomalies.")
 
-# We will send 50 requests. 
-# The first 29 should say "initializing".
-# The rest should say "active".
-for i in range(50):
-    # Simulate "Normal" Data (similar to what we trained on)
-    # Temp around 25, Vibration sin wave-ish
-    payload = {
-        "temperature": 25.0 + random.uniform(-0.5, 0.5),
-        "vibration": 0.5 + random.uniform(-0.1, 0.1)
-    }
-    
+def post_json(path, payload):
+    response = requests.post(f"{BASE_URL}{path}", json=payload, timeout=5)
     try:
-        response = requests.post(url, json=payload)
         data = response.json()
-        
-        status = data.get("status", "unknown")
-        anomaly = data.get("is_anomaly", "N/A")
-        
-        print(f"Req {i+1}: Status={status} | Anomaly={anomaly}")
-        
-        # If we hit an error, stop
-        if response.status_code != 200:
-            print("Error:", response.text)
-            break
-            
-    except Exception as e:
-        print(f"Connection Failed: {e}")
-        break
-        
-    # Sleep a tiny bit to simulate real time (optional)
-    time.sleep(0.1)
+    except ValueError as exc:
+        raise AssertionError(f"Response was not valid JSON: {exc}") from exc
+    return response, data
 
-print("--- Simulation Complete ---")
+
+def assert_predict_response(data):
+    assert isinstance(data.get("is_anomaly"), bool), "is_anomaly must be a boolean"
+    assert isinstance(data.get("anomaly"), bool), "anomaly must be a boolean"
+    assert isinstance(data.get("loss"), (int, float)), "loss must be numeric"
+    assert isinstance(data.get("threshold"), (int, float)), "threshold must be numeric"
+
+
+def test_predict(label, payload):
+    response, data = post_json("/predict", payload)
+    assert response.status_code == 200, f"{label} request failed with {response.status_code}: {data}"
+    assert_predict_response(data)
+    tag = "ANOMALY" if data.get("is_anomaly") else "NORMAL"
+    print(
+        f"[{label}] {tag} | "
+        f"loss={float(data.get('loss')):.6f} | "
+        f"threshold={float(data.get('threshold')):.6f}"
+    )
+
+
+def test_invalid_payload():
+    response, data = post_json("/predict", {"temperature": 35.0})
+    assert response.status_code == 400, f"Invalid payload should return 400, got {response.status_code}: {data}"
+    assert "error" in data, "Invalid payload response must include an error field"
+
+
+if __name__ == "__main__":
+    try:
+        print("=== DePIN-Guard AI Inference Test ===")
+        test_predict("Normal  ", {"temperature": 35.0, "vibration": 0.5, "power_usage": 25.0})
+        test_predict("Extreme ", {"temperature": 120.0, "vibration": 12.0, "power_usage": 145.0})
+        test_invalid_payload()
+        print("AI smoke test passed.")
+    except Exception as exc:
+        print(f"AI smoke test failed: {exc}")
+        sys.exit(1)

@@ -1,25 +1,20 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
+import { authFetch } from '../utils/authApi';
+import { clearAuthStorage, storeUserProfile } from '../utils/sessionAuth';
 import './SettingsPage.css';
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState({
-    // Profile
-    fullName: 'Admin User',
-    email: 'admin@iot.com',
-    phone: '+91 98765 43210',
-    
-    // Notifications
+    fullName: '',
+    email: '',
+    phone: '',
     emailNotifications: true,
     smsNotifications: false,
     alertNotifications: true,
-    
-    // Device Settings
     autoRefresh: true,
     refreshInterval: '30',
     dataRetention: '90',
-    
-    // Theme
     theme: 'dark',
     language: 'en'
   });
@@ -27,61 +22,137 @@ const SettingsPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
-  const [originalSettings, setOriginalSettings] = useState(settings);
+  const [originalSettings, setOriginalSettings] = useState(null);
+  const [passwordData, setPasswordData] = useState({ current: '', newPass: '', confirm: '' });
+  const [passwordMsg, setPasswordMsg] = useState('');
 
-  // Load settings from localStorage on mount
   useEffect(() => {
-    const savedSettings = localStorage.getItem('iot-settings');
-    if (savedSettings) {
-      const parsed = JSON.parse(savedSettings);
-      setSettings(parsed);
-      setOriginalSettings(parsed);
-    }
+    const loadProfile = async () => {
+      const userEmail = localStorage.getItem('userEmail') || '';
+      const userName = localStorage.getItem('userName') || '';
+
+      try {
+        const response = await authFetch('/profile');
+        if (response.ok) {
+          const data = await response.json();
+          const profile = data.profile || {};
+          const initial = {
+            ...settings,
+            fullName: profile.full_name || userName || 'User',
+            email: profile.email || userEmail || '',
+            phone: profile.phone || '',
+          };
+          setSettings(initial);
+          setOriginalSettings(initial);
+          storeUserProfile(profile);
+          return;
+        }
+      } catch {
+      }
+
+      const initial = {
+        ...settings,
+        fullName: userName || 'User',
+        email: userEmail || '',
+        phone: '',
+      };
+      setSettings(initial);
+      setOriginalSettings(initial);
+    };
+
+    loadProfile();
   }, []);
 
-  // Apply theme when settings change
+  // ✅ Theme apply — dark/light/auto
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', settings.theme);
+    const root = document.documentElement;
+    if (settings.theme === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+      root.style.colorScheme = 'dark';
+    } else if (settings.theme === 'light') {
+      root.setAttribute('data-theme', 'light');
+      root.style.colorScheme = 'light';
+    } else {
+      // auto — system preference follow karo
+      root.removeAttribute('data-theme');
+      root.style.colorScheme = 'auto';
+    }
   }, [settings.theme]);
 
-  // Track if settings have changed
+  // ✅ Track changes
   useEffect(() => {
+    if (!originalSettings) return;
     const changed = JSON.stringify(settings) !== JSON.stringify(originalSettings);
     setHasChanges(changed);
   }, [settings, originalSettings]);
 
   const handleChange = (field, value) => {
     setSettings(prev => ({ ...prev, [field]: value }));
-    setSaveMessage(''); // Clear any previous save message
+    setSaveMessage('');
   };
 
+  // ✅ Save — localStorage + userName/userEmail bhi update karo
   const handleSave = async () => {
     setIsSaving(true);
     setSaveMessage('');
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Save to localStorage
-    localStorage.setItem('iot-settings', JSON.stringify(settings));
-    setOriginalSettings(settings);
-    
-    setIsSaving(false);
-    setSaveMessage('Settings saved successfully! ✓');
-    setHasChanges(false);
-    
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setSaveMessage('');
-    }, 3000);
+    try {
+      const response = await authFetch('/profile', {
+        method: 'POST',
+        body: JSON.stringify({
+          full_name: settings.fullName,
+          email: settings.email,
+          phone: settings.phone,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to save settings.');
+      }
+
+      const data = await response.json();
+      storeUserProfile(data.profile || settings);
+      localStorage.setItem('iot-settings', JSON.stringify(settings));
+
+
+      setOriginalSettings(settings);
+      setSaveMessage('✅ Settings saved successfully!');
+      setHasChanges(false);
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (err) {
+      setSaveMessage(err.message || '❌ Unable to save settings.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ✅ Password change (delegated to auth-service in production)
+  const handlePasswordChange = () => {
+    setPasswordMsg('');
+    if (!passwordData.current || !passwordData.newPass || !passwordData.confirm) {
+      setPasswordMsg('❌ Please fill all password fields.');
+      return;
+    }
+    if (passwordData.newPass.length < 8) {
+      setPasswordMsg('❌ New password must be at least 8 characters.');
+      return;
+    }
+    if (passwordData.newPass !== passwordData.confirm) {
+      setPasswordMsg('❌ New passwords do not match.');
+      return;
+    }
+
+    setPasswordMsg('⚠️ Password update endpoint is not yet enabled. Contact admin to rotate credentials.');
   };
 
   const handleReset = () => {
-    if (window.confirm('Are you sure you want to reset to default settings?')) {
-      const defaultSettings = {
-        fullName: 'Admin User',
-        email: 'admin@iot.com',
-        phone: '+91 98765 43210',
+    if (window.confirm('Reset all settings to default?')) {
+      const userEmail = localStorage.getItem('userEmail') || '';
+      const userName = localStorage.getItem('userName') || '';
+      const def = {
+        fullName: userName,
+        email: userEmail,
+        phone: '',
         emailNotifications: true,
         smsNotifications: false,
         alertNotifications: true,
@@ -91,27 +162,23 @@ const SettingsPage = () => {
         theme: 'dark',
         language: 'en'
       };
-      
-      setSettings(defaultSettings);
-      localStorage.setItem('iot-settings', JSON.stringify(defaultSettings));
-      setOriginalSettings(defaultSettings);
-      setSaveMessage('Settings reset to defaults! ✓');
-      
-      setTimeout(() => {
-        setSaveMessage('');
-      }, 3000);
+      setSettings(def);
+      setOriginalSettings(def);
+      localStorage.setItem('iot-settings', JSON.stringify(def));
+      setSaveMessage('✅ Reset to defaults!');
+      setTimeout(() => setSaveMessage(''), 3000);
     }
   };
 
   const handleDeleteAccount = () => {
-    if (window.confirm('⚠️ WARNING: This will permanently delete your account and all data. This action cannot be undone.\n\nType DELETE to confirm.')) {
-      const confirmation = window.prompt('Type DELETE to confirm account deletion:');
+    if (window.confirm('⚠️ This will permanently delete your account. Cannot be undone!')) {
+      const confirmation = window.prompt('Type DELETE to confirm:');
       if (confirmation === 'DELETE') {
-        // Clear all data
-        localStorage.clear();
-        alert('Account deleted successfully. You will be logged out.');
-        // In a real app, this would redirect to login or homepage
-        window.location.reload();
+        localStorage.removeItem('token');
+        clearAuthStorage();
+        localStorage.removeItem('iot-settings');
+        alert('Account deleted. Redirecting to login...');
+        window.location.href = '/login';
       } else {
         alert('Account deletion cancelled.');
       }
@@ -120,17 +187,16 @@ const SettingsPage = () => {
 
   const handleExportSettings = () => {
     const dataStr = JSON.stringify(settings, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `iot-settings-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `depin-settings-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    setSaveMessage('Settings exported! ✓');
+    setSaveMessage('✅ Settings exported!');
     setTimeout(() => setSaveMessage(''), 3000);
   };
 
@@ -144,11 +210,11 @@ const SettingsPage = () => {
         const reader = new FileReader();
         reader.onload = (event) => {
           try {
-            const importedSettings = JSON.parse(event.target.result);
-            setSettings(importedSettings);
-            setSaveMessage('Settings imported! Click Save to apply. ⚠️');
-          } catch (error) {
-            alert('Error importing settings. Invalid file format.');
+            const imported = JSON.parse(event.target.result);
+            setSettings(imported);
+            setSaveMessage('⚠️ Settings imported! Click Save to apply.');
+          } catch {
+            alert('Invalid file format.');
           }
         };
         reader.readAsText(file);
@@ -157,9 +223,12 @@ const SettingsPage = () => {
     input.click();
   };
 
+  if (!originalSettings) return null;
+
   return (
     <Layout>
       <div className="settings-container">
+
         {/* Page Header */}
         <div className="page-header">
           <div>
@@ -179,14 +248,11 @@ const SettingsPage = () => {
                 {saveMessage}
               </div>
             )}
-            <button 
-              className={`save-button ${isSaving ? 'saving' : ''} ${!hasChanges ? 'disabled' : ''}`}
+            <button
+              className={`save-button ${isSaving ? 'saving' : ''}`}
               onClick={handleSave}
               disabled={isSaving || !hasChanges}
-              style={{
-                opacity: hasChanges ? 1 : 0.5,
-                cursor: hasChanges ? 'pointer' : 'not-allowed'
-              }}
+              style={{ opacity: hasChanges ? 1 : 0.5, cursor: hasChanges ? 'pointer' : 'not-allowed' }}
             >
               {isSaving ? (
                 <>
@@ -209,80 +275,30 @@ const SettingsPage = () => {
         </div>
 
         {/* Quick Actions */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '0.75rem', 
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap'
-        }}>
-          <button 
-            onClick={handleExportSettings}
-            style={{
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          {[
+            { label: 'Export Settings', fn: handleExportSettings, color: '#0ea5e9' },
+            { label: 'Import Settings', fn: handleImportSettings, color: '#8b5cf6' },
+            { label: 'Reset to Defaults', fn: handleReset, color: '#f59e0b' },
+          ].map(({ label, fn, color }) => (
+            <button key={label} onClick={fn} style={{
               padding: '0.5rem 1rem',
-              background: '#0ea5e920',
-              color: '#0ea5e9',
-              border: '1px solid #0ea5e940',
+              background: color + '20',
+              color,
+              border: `1px solid ${color}40`,
               borderRadius: '0.5rem',
               cursor: 'pointer',
               fontSize: '0.875rem',
               fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Export Settings
-          </button>
-          <button 
-            onClick={handleImportSettings}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#8b5cf620',
-              color: '#8b5cf6',
-              border: '1px solid #8b5cf640',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            Import Settings
-          </button>
-          <button 
-            onClick={handleReset}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#f59e0b20',
-              color: '#f59e0b',
-              border: '1px solid #f59e0b40',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ width: '1rem', height: '1rem' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Reset to Defaults
-          </button>
+            }}>
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* Settings Sections */}
         <div className="settings-grid">
-          {/* Profile Settings */}
+
+          {/* ── Profile ── */}
           <div className="settings-card">
             <div className="card-header">
               <div className="card-icon">
@@ -295,42 +311,78 @@ const SettingsPage = () => {
                 <p className="card-subtitle">Update your personal details</p>
               </div>
             </div>
-
-            <div className="form-group">
-              <label className="form-label">Full Name</label>
-              <input
-                type="text"
-                value={settings.fullName}
-                onChange={(e) => handleChange('fullName', e.target.value)}
-                className="form-input"
-                placeholder="Enter your full name"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Email Address</label>
-              <input
-                type="email"
-                value={settings.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                className="form-input"
-                placeholder="your.email@example.com"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Phone Number</label>
-              <input
-                type="tel"
-                value={settings.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
-                className="form-input"
-                placeholder="+91 XXXXX XXXXX"
-              />
-            </div>
+            {[
+              { label: 'Full Name', field: 'fullName', type: 'text', placeholder: 'Enter your full name' },
+              { label: 'Email Address', field: 'email', type: 'email', placeholder: 'your@email.com' },
+              { label: 'Phone Number', field: 'phone', type: 'tel', placeholder: '+91 XXXXX XXXXX' },
+            ].map(({ label, field, type, placeholder }) => (
+              <div className="form-group" key={field}>
+                <label className="form-label">{label}</label>
+                <input
+                  type={type}
+                  value={settings[field]}
+                  onChange={(e) => handleChange(field, e.target.value)}
+                  className="form-input"
+                  placeholder={placeholder}
+                />
+              </div>
+            ))}
           </div>
 
-          {/* Notification Settings */}
+          {/* ── Change Password ── */}
+          <div className="settings-card">
+            <div className="card-header">
+              <div className="card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="card-title">Change Password</h2>
+                <p className="card-subtitle">Update your login password</p>
+              </div>
+            </div>
+            {[
+              { label: 'Current Password', key: 'current', placeholder: 'Enter current password' },
+              { label: 'New Password', key: 'newPass', placeholder: 'Min. 8 characters' },
+              { label: 'Confirm New Password', key: 'confirm', placeholder: 'Re-enter new password' },
+            ].map(({ label, key, placeholder }) => (
+              <div className="form-group" key={key}>
+                <label className="form-label">{label}</label>
+                <input
+                  type="password"
+                  value={passwordData[key]}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, [key]: e.target.value }))}
+                  className="form-input"
+                  placeholder={placeholder}
+                />
+              </div>
+            ))}
+            {passwordMsg && (
+              <div style={{
+                padding: '0.5rem 0.75rem',
+                background: passwordMsg.includes('✅') ? '#22c55e20' : '#ff444420',
+                color: passwordMsg.includes('✅') ? '#22c55e' : '#ff8080',
+                borderRadius: '0.5rem',
+                fontSize: '0.85rem',
+                marginBottom: '0.5rem'
+              }}>{passwordMsg}</div>
+            )}
+            <button
+              onClick={handlePasswordChange}
+              style={{
+                width: '100%', padding: '0.75rem',
+                background: 'linear-gradient(135deg, #00d4ff, #0066ff)',
+                border: 'none', borderRadius: '8px',
+                color: '#fff', fontWeight: '700', cursor: 'pointer',
+                fontSize: '0.9rem', marginTop: '0.25rem'
+              }}
+            >
+              Update Password
+            </button>
+          </div>
+
+          {/* ── Notifications ── */}
           <div className="settings-card">
             <div className="card-header">
               <div className="card-icon">
@@ -343,56 +395,31 @@ const SettingsPage = () => {
                 <p className="card-subtitle">Manage how you receive alerts</p>
               </div>
             </div>
-
             <div className="toggle-group">
-              <div className="toggle-item">
-                <div className="toggle-info">
-                  <div className="toggle-label">Email Notifications</div>
-                  <div className="toggle-description">Receive updates via email</div>
+              {[
+                { label: 'Email Notifications', desc: 'Receive updates via email', field: 'emailNotifications' },
+                { label: 'SMS Notifications', desc: 'Get text message alerts', field: 'smsNotifications' },
+                { label: 'Alert Notifications', desc: 'Critical device alerts', field: 'alertNotifications' },
+              ].map(({ label, desc, field }) => (
+                <div className="toggle-item" key={field}>
+                  <div className="toggle-info">
+                    <div className="toggle-label">{label}</div>
+                    <div className="toggle-description">{desc}</div>
+                  </div>
+                  <label className="toggle-switch">
+                    <input
+                      type="checkbox"
+                      checked={settings[field]}
+                      onChange={(e) => handleChange(field, e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </label>
                 </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={settings.emailNotifications}
-                    onChange={(e) => handleChange('emailNotifications', e.target.checked)}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div className="toggle-item">
-                <div className="toggle-info">
-                  <div className="toggle-label">SMS Notifications</div>
-                  <div className="toggle-description">Get text message alerts</div>
-                </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={settings.smsNotifications}
-                    onChange={(e) => handleChange('smsNotifications', e.target.checked)}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
-
-              <div className="toggle-item">
-                <div className="toggle-info">
-                  <div className="toggle-label">Alert Notifications</div>
-                  <div className="toggle-description">Critical device alerts</div>
-                </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={settings.alertNotifications}
-                    onChange={(e) => handleChange('alertNotifications', e.target.checked)}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-              </div>
+              ))}
             </div>
           </div>
 
-          {/* Device Settings */}
+          {/* ── Device Settings ── */}
           <div className="settings-card">
             <div className="card-header">
               <div className="card-icon">
@@ -406,7 +433,6 @@ const SettingsPage = () => {
                 <p className="card-subtitle">Configure device behavior</p>
               </div>
             </div>
-
             <div className="toggle-group">
               <div className="toggle-item">
                 <div className="toggle-info">
@@ -423,7 +449,6 @@ const SettingsPage = () => {
                 </label>
               </div>
             </div>
-
             <div className="form-group">
               <label className="form-label">
                 Refresh Interval (seconds)
@@ -442,7 +467,6 @@ const SettingsPage = () => {
                 <option value="300">5 minutes</option>
               </select>
             </div>
-
             <div className="form-group">
               <label className="form-label">Data Retention (days)</label>
               <select
@@ -459,7 +483,7 @@ const SettingsPage = () => {
             </div>
           </div>
 
-          {/* Appearance Settings */}
+          {/* ── Appearance ── */}
           <div className="settings-card">
             <div className="card-header">
               <div className="card-icon">
@@ -472,27 +496,17 @@ const SettingsPage = () => {
                 <p className="card-subtitle">Customize your interface</p>
               </div>
             </div>
-
             <div className="form-group">
               <label className="form-label">Theme</label>
-              <select
-                value={settings.theme}
-                onChange={(e) => handleChange('theme', e.target.value)}
-                className="form-select"
-              >
+              <select value={settings.theme} onChange={(e) => handleChange('theme', e.target.value)} className="form-select">
                 <option value="dark">🌙 Dark</option>
                 <option value="light">☀️ Light</option>
-                <option value="auto">🔄 Auto</option>
+                <option value="auto">🔄 Auto (System)</option>
               </select>
             </div>
-
             <div className="form-group">
               <label className="form-label">Language</label>
-              <select
-                value={settings.language}
-                onChange={(e) => handleChange('language', e.target.value)}
-                className="form-select"
-              >
+              <select value={settings.language} onChange={(e) => handleChange('language', e.target.value)} className="form-select">
                 <option value="en">🇬🇧 English</option>
                 <option value="hi">🇮🇳 हिन्दी</option>
                 <option value="es">🇪🇸 Español</option>
@@ -500,13 +514,14 @@ const SettingsPage = () => {
               </select>
             </div>
           </div>
+
         </div>
 
         {/* Danger Zone */}
         <div className="danger-zone">
           <div className="danger-header">
             <h2 className="danger-title">⚠️ Danger Zone</h2>
-            <p className="danger-subtitle">Irreversible actions - proceed with caution</p>
+            <p className="danger-subtitle">Irreversible actions — proceed with caution</p>
           </div>
           <div className="danger-actions">
             <button className="danger-button" onClick={handleDeleteAccount}>
@@ -517,6 +532,7 @@ const SettingsPage = () => {
             </button>
           </div>
         </div>
+
       </div>
     </Layout>
   );

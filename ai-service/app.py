@@ -1,91 +1,138 @@
-from flask import Flask, request, jsonify
-import torch
-import numpy as np
+import logging
+import os
+import threading
+import time
+
 import joblib
-from collections import deque
-from model import LSTMAutoencoder  # Importing the class you defined in model.py
+import torch
+from flask import Flask, jsonify, request
+
+from model import LSTMAutoencoder
+from preprocessing import canonicalize_sensor_frame
 
 app = Flask(__name__)
 
-# --- CONFIGURATION ---
-SEQ_LENGTH = 30
-FEATURES = 2
-EMBEDDING_DIM = 64
-DEVICE = 'cpu' # Keep it simple for the API
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+logger = logging.getLogger("depin_guard.ai_service")
 
-# --- GLOBAL MEMORY (THE BUFFER) ---
-# This stores the last 30 readings.
-# maxlen=30 ensures that when we add the 31st item, the 1st one automatically pops off.
-data_buffer = deque(maxlen=SEQ_LENGTH)
+FEATURES = 3
+MODEL_PATH = "lstm_autoencoder.pth"
+SCALER_PATH = "scaler.save"
+THRESHOLD_PATH = "threshold.txt"
+DEFAULT_PORT = int(os.getenv("AI_SERVICE_PORT", os.getenv("PORT", "10000")))
 
-# --- LOAD ARTIFACTS ---
-print("Loading AI Brain...")
+_artifact_lock = threading.Lock()
+_artifacts_loaded = False
+_artifact_error = None
+model = None
+scaler = None
+THRESHOLD = None
 
-# 1. Load Scaler
-scaler = joblib.load('scaler.save')
 
-# 2. Load Threshold
-with open('threshold.txt', 'r') as f:
-    THRESHOLD = float(f.read())
+def ensure_artifacts_loaded():
+    global _artifacts_loaded, _artifact_error, model, scaler, THRESHOLD
 
-# 3. Load Model Architecture & Weights
-model = LSTMAutoencoder(seq_length=SEQ_LENGTH, n_features=FEATURES, embedding_dim=EMBEDDING_DIM)
-model.load_state_dict(torch.load('lstm_autoencoder.pth', map_location=torch.device('cpu')))
-model.eval() # Set to evaluation mode (turns off training layers like Dropout)
+    if _artifacts_loaded:
+        return
 
-print(f"System Ready. Threshold: {THRESHOLD:.6f}")
+    with _artifact_lock:
+        if _artifacts_loaded:
+            return
 
-@app.route('/predict', methods=['POST'])
-def predict():
+        try:
+            logger.info("Loading AI inference artifacts")
+
+            loaded_model = LSTMAutoencoder(input_dim=FEATURES, hidden_dim=64)
+            loaded_model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device("cpu")))
+            loaded_model.eval()
+
+            loaded_scaler = joblib.load(SCALER_PATH)
+
+            with open(THRESHOLD_PATH, "r", encoding="utf-8") as threshold_file:
+                loaded_threshold = float(threshold_file.read().strip())
+
+            model = loaded_model
+            scaler = loaded_scaler
+            THRESHOLD = loaded_threshold
+            _artifact_error = None
+            _artifacts_loaded = True
+
+            logger.info("AI service ready with threshold %.6f", THRESHOLD)
+        except Exception as exc:
+            _artifact_error = f"{type(exc).__name__}: {exc}"
+            logger.exception("Failed to load AI inference artifacts")
+            raise
+
+
+def validate_payload(payload):
+    if not isinstance(payload, dict):
+        return None, (jsonify({"error": "Request body must be a JSON object"}), 400)
+
+    missing = [field for field in ("temperature", "vibration") if field not in payload]
+    if missing:
+        return None, (jsonify({"error": f"Missing required field(s): {', '.join(missing)}"}), 400)
+
+    if payload.get("pressure") is None and payload.get("power_usage") is None:
+        return None, (jsonify({"error": "Missing pressure/power_usage field"}), 400)
+
     try:
-        data = request.get_json()
-        
-        # 1. Extract Data
-        # Ensure these match your Data Contract exactly
-        temp = data['temperature']
-        vib = data['vibration']
-        
-        # 2. Preprocessing (Scaling)
-        # transform expects 2D array [[temp, vib]]
-        input_vector = np.array([[temp, vib]])
-        scaled_vector = scaler.transform(input_vector)
-        
-        # 3. Update Buffer
-        # We append the scaled data to our rolling window
-        data_buffer.append(scaled_vector[0])
-        
-        # 4. Check for "Cold Start"
-        # If we don't have 30 points yet, we can't run the LSTM.
-        if len(data_buffer) < SEQ_LENGTH:
-            return jsonify({
-                "is_anomaly": False,
-                "status": "initializing",
-                "buffer_size": len(data_buffer),
-                "message": f"Need {SEQ_LENGTH} data points to start. Current: {len(data_buffer)}"
-            })
-            
-        # 5. Inference
-        # Convert buffer to a 3D Tensor: (1 sample, 30 time steps, 2 features)
-        input_tensor = torch.tensor(np.array([data_buffer]), dtype=torch.float32)
-        
-        with torch.no_grad():
-            reconstruction = model(input_tensor)
-            
-            # Calculate Loss (MSE) for this specific sequence
-            loss = torch.mean((input_tensor - reconstruction)**2).item()
-            
-        # 6. Decision Logic
-        is_anomaly = loss > THRESHOLD
-        
-        return jsonify({
+        input_frame = canonicalize_sensor_frame([payload])
+    except (KeyError, ValueError, TypeError) as exc:
+        return None, (jsonify({"error": str(exc)}), 400)
+
+    return input_frame, None
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok"})
+
+
+@app.route("/ready", methods=["GET"])
+def ready():
+    try:
+        ensure_artifacts_loaded()
+        return jsonify({"status": "ready"})
+    except Exception:
+        return jsonify({"status": "not_ready", "error": _artifact_error or "unknown error"}), 503
+
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    started_at = time.perf_counter()
+
+    try:
+        ensure_artifacts_loaded()
+    except Exception:
+        return jsonify({"error": "AI inference artifacts are unavailable", "details": _artifact_error or "unknown"}), 503
+
+    payload = request.get_json(silent=True)
+    input_frame, error_response = validate_payload(payload)
+    if error_response is not None:
+        return error_response
+
+    scaled_data = scaler.transform(input_frame)
+    tensor_data = torch.tensor(scaled_data, dtype=torch.float32).unsqueeze(0)
+
+    with torch.no_grad():
+        reconstruction = model(tensor_data)
+        loss = torch.mean((tensor_data - reconstruction) ** 2).item()
+
+    is_anomaly = loss > THRESHOLD
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+
+    logger.info("Inference completed in %.2f ms with loss %.6f", duration_ms, loss)
+
+    return jsonify(
+        {
             "is_anomaly": bool(is_anomaly),
-            "anomaly_score": float(loss),
+            "anomaly": bool(is_anomaly),
+            "status": "anomaly" if is_anomaly else "normal",
+            "loss": float(loss),
             "threshold": float(THRESHOLD),
-            "status": "active"
-        })
+        }
+    )
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=DEFAULT_PORT, debug=False)

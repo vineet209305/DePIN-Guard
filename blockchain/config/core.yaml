@@ -1,0 +1,59 @@
+logging:
+  format: "%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}"
+  level: INFO
+
+peer:
+  id: peer0
+  addressAutoDetect: false
+  address: 0.0.0.0:7051
+  listenAddress: 0.0.0.0:7051
+  chaincodeAddress: 0.0.0.0:7052
+  chaincodeListenAddress: 0.0.0.0:7052
+  gomaxprocs: -1
+  keepalive:
+    client:
+      interval: 60s
+      timeout: 20s
+    deliveryClient:
+      interval: 60s
+      timeout: 20s
+  tls:
+    enabled: true
+    clientAuthRequired: false
+    cert:
+      file: /etc/hyperledger/fabric/tls/server.crt
+    key:
+      file: /etc/hyperledger/fabric/tls/server.key
+    rootcert:
+      file: /etc/hyperledger/fabric/tls/ca.crt
+  bccsp:
+    default: SW
+    sw:
+      hash: SHA2
+      security: 256
+      filekeystore:
+        keystore: /etc/hyperledger/fabric/msp/keystore
+
+vm:
+  endpoint: unix:///host/var/run/docker.sock
+  docker:
+    hostConfig:
+      NetworkMode: depin-prod
+
+ledger:
+  snapshots:
+    rootDir: /var/hyperledger/production/snapshots
+  state:
+    stateDatabase: CouchDB
+    couchDBConfig:
+      couchDBAddress: couchdb-manufacturer:5984
+      username: admin
+      password: adminpw
+      maxRetries: 3
+      maxRetriesOnStartup: 20
+      requestTimeout: 35s
+
+operations:
+  listenAddress: 0.0.0.0:17051
+  metrics:
+    provider: prometheus
