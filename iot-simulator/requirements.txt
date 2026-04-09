@@ -1,0 +1,5 @@
+JWT_SECRET_KEY=DepinGuard_Local_JWT_Secret_2026_Z4p8R1
+requests==2.31.0
+paho-mqtt==1.6.1
+python-dotenv==1.0.1
+aiohttp==3.9.5
