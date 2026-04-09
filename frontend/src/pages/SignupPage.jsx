@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { authFetch } from '../utils/authApi';
 import './AuthPages.css';
 
 const SignupPage = () => {
@@ -44,12 +45,13 @@ const SignupPage = () => {
     setError('');
 
     try {
-      const response = await fetch('/signup', {
+      const response = await authFetch('/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: formData.email.toLowerCase(),
           password: formData.password,
+          full_name: formData.fullName.trim(),
+          phone: '',
         }),
       });
 
