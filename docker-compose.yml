@@ -19,6 +19,8 @@ services:
     restart: unless-stopped
     environment:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    volumes:
+      - auth_db:/app
 
   backend:
     build: ./backend
@@ -56,3 +58,6 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+
+volumes:
+  auth_db:
