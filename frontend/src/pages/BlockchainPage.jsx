@@ -23,7 +23,7 @@ const BlockchainPage = () => {
         // 1. Stats update (Backend key mapping)
         setStats({
           totalBlocks:  data.total_blocks  ?? 0,
-          transactions: data.total_txs     ?? 0, // Backend key 'total_txs' assumed
+          transactions: data.transactions  ?? 0, // Fixed: backend returns 'transactions' not 'total_txs'
           networkStatus: data.net_status   ?? 'Stable',
         });
 
