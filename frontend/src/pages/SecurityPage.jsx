@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/layout/Layout';
-import './securitypage.css';
+import "./SecurityPage.css";
 
 const ALLOWED_EMAILS = ['vineet', 'priyanshu', 'mohit', 'prateek'];
 const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD || null;

@@ -10,35 +10,25 @@ import LandingPage from './pages/LandingPage';
 import FraudReport from './pages/FraudReport';
 import { getStoredToken, clearAuthStorage } from './utils/sessionAuth';
 
-// ✅ Casing fix — file ka naam Securitypage.jsx hai
-import SecurityPage from './pages/Securitypage';
+// ✅ Correct import (file: SecurityPage.jsx)
+import SecurityPage from './pages/SecurityPage';
 
 const isTokenUsable = (token) => {
-  if (!token || token === 'null') {
-    return false;
-  }
+  if (!token || token === 'null') return false;
 
   try {
     const parts = token.split('.');
-    if (parts.length !== 3) {
-      return false;
-    }
+    if (parts.length !== 3) return false;
 
-    const payloadJson = atob(parts[1]);
-    const payload = JSON.parse(payloadJson);
+    const payload = JSON.parse(atob(parts[1]));
+    if (!payload.exp) return true;
 
-    if (!payload.exp) {
-      return true;
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    return payload.exp > now;
+    return payload.exp > Math.floor(Date.now() / 1000);
   } catch {
     return false;
   }
 };
 
-// Protected Route — login nahi hai to /login pe bhejo
 const ProtectedRoute = ({ children }) => {
   const token = getStoredToken();
   if (!isTokenUsable(token)) {
@@ -48,7 +38,6 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Public Route — already logged in hai to /dashboard pe bhejo
 const PublicRoute = ({ children }) => {
   const token = getStoredToken();
   if (isTokenUsable(token)) {
@@ -59,14 +48,11 @@ const PublicRoute = ({ children }) => {
 
 function App() {
   return (
-    // ✅ React Router v7 future flags — warnings band ho jaayenge
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
 
-        {/* Landing Page — Home */}
         <Route path="/" element={<LandingPage />} />
 
-        {/* Public Routes */}
         <Route path="/login" element={
           <PublicRoute><LoginPage /></PublicRoute>
         } />
@@ -74,7 +60,6 @@ function App() {
           <PublicRoute><SignupPage /></PublicRoute>
         } />
 
-        {/* Protected Routes */}
         <Route path="/dashboard" element={
           <ProtectedRoute><DashboardPage /></ProtectedRoute>
         } />
@@ -97,7 +82,6 @@ function App() {
           <ProtectedRoute><SecurityPage /></ProtectedRoute>
         } />
 
-        {/* 404 — Landing pe bhejo */}
         <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>
