@@ -39,9 +39,9 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_API_URL=http://localhost:8000
+        - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
         - VITE_API_KEY=${DEPIN_API_KEY}
-        - VITE_AUTH_URL=http://localhost:8001
+        - VITE_AUTH_URL=${VITE_AUTH_URL:-http://localhost:8001}
     ports:
       - "5173:5173"
     restart: unless-stopped
