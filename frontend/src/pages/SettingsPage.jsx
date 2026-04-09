@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
+import { authFetch } from '../utils/authApi';
+import { clearAuthStorage, storeUserProfile } from '../utils/sessionAuth';
 import './SettingsPage.css';
 
 const SettingsPage = () => {
@@ -24,38 +26,41 @@ const SettingsPage = () => {
   const [passwordData, setPasswordData] = useState({ current: '', newPass: '', confirm: '' });
   const [passwordMsg, setPasswordMsg] = useState('');
 
-  // ✅ Load settings from current authenticated session + saved preferences
   useEffect(() => {
-    const userEmail = localStorage.getItem('userEmail') || '';
-    const userName = localStorage.getItem('userName') || '';
+    const loadProfile = async () => {
+      const userEmail = localStorage.getItem('userEmail') || '';
+      const userName = localStorage.getItem('userName') || '';
 
-    const baseProfile = {
-      fullName: userName || 'User',
-      email: userEmail || '',
-      phone: '',
-    };
+      try {
+        const response = await authFetch('/profile');
+        if (response.ok) {
+          const data = await response.json();
+          const profile = data.profile || {};
+          const initial = {
+            ...settings,
+            fullName: profile.full_name || userName || 'User',
+            email: profile.email || userEmail || '',
+            phone: profile.phone || '',
+          };
+          setSettings(initial);
+          setOriginalSettings(initial);
+          storeUserProfile(profile);
+          return;
+        }
+      } catch {
+      }
 
-    // Pehle saved settings dekho
-    const savedRaw = localStorage.getItem('iot-settings');
-    if (savedRaw) {
-      const saved = JSON.parse(savedRaw);
-      // Profile ko signup se override karo (agar manually change nahi kiya)
-      const merged = {
-        ...saved,
-        fullName: saved.fullName || baseProfile.fullName,
-        email: saved.email || baseProfile.email,
-        phone: saved.phone || baseProfile.phone,
-      };
-      setSettings(merged);
-      setOriginalSettings(merged);
-    } else {
       const initial = {
         ...settings,
-        ...baseProfile,
+        fullName: userName || 'User',
+        email: userEmail || '',
+        phone: '',
       };
       setSettings(initial);
       setOriginalSettings(initial);
-    }
+    };
+
+    loadProfile();
   }, []);
 
   // ✅ Theme apply — dark/light/auto
@@ -90,18 +95,35 @@ const SettingsPage = () => {
   const handleSave = async () => {
     setIsSaving(true);
     setSaveMessage('');
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const response = await authFetch('/profile', {
+        method: 'POST',
+        body: JSON.stringify({
+          full_name: settings.fullName,
+          email: settings.email,
+          phone: settings.phone,
+        }),
+      });
 
-    localStorage.setItem('iot-settings', JSON.stringify(settings));
-    localStorage.setItem('userName', settings.fullName);
-    localStorage.setItem('userEmail', settings.email);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to save settings.');
+      }
+
+      const data = await response.json();
+      storeUserProfile(data.profile || settings);
+      localStorage.setItem('iot-settings', JSON.stringify(settings));
 
 
-    setOriginalSettings(settings);
-    setIsSaving(false);
-    setSaveMessage('✅ Settings saved successfully!');
-    setHasChanges(false);
-    setTimeout(() => setSaveMessage(''), 3000);
+      setOriginalSettings(settings);
+      setSaveMessage('✅ Settings saved successfully!');
+      setHasChanges(false);
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (err) {
+      setSaveMessage(err.message || '❌ Unable to save settings.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // ✅ Password change (delegated to auth-service in production)
@@ -153,9 +175,7 @@ const SettingsPage = () => {
       const confirmation = window.prompt('Type DELETE to confirm:');
       if (confirmation === 'DELETE') {
         localStorage.removeItem('token');
-        localStorage.removeItem('isAuthenticated');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('userName');
+        clearAuthStorage();
         localStorage.removeItem('iot-settings');
         alert('Account deleted. Redirecting to login...');
         window.location.href = '/login';

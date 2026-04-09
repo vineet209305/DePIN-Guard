@@ -1,11 +1,14 @@
+# Install torch first with CPU index
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.0+cpu
+
+# Core dependencies
 joblib
 flask==3.0.0
 numpy==1.26.0
 pandas==2.1.0
 scikit-learn==1.3.0
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.1.0+cpu
 torch-geometric
-torch-scatter
-torch-sparse
+
+# Production server
 gunicorn==21.2.0

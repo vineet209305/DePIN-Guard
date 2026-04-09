@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import './AuthPages.css';
+import { authFetch } from '../utils/authApi';
+import { storeAuthToken, storeUserProfile } from '../utils/sessionAuth';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -9,6 +11,12 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('savedEmail') || localStorage.getItem('userEmail') || '';
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    setFormData(prev => ({ ...prev, email: savedEmail, rememberMe }));
+  }, []);
 
   const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -38,7 +46,7 @@ const LoginPage = () => {
 
     try {
       // Auth request goes through Vite proxy (/login -> auth-service)
-      const response = await fetch('/login', {
+      const response = await authFetch('/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,10 +65,12 @@ const LoginPage = () => {
       const data = await response.json();
       const token = data.access_token;
 
-      localStorage.setItem('token', token);
+      storeAuthToken(token, formData.rememberMe);
       localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('rememberMe', String(formData.rememberMe));
+      localStorage.setItem('savedEmail', formData.email);
       localStorage.setItem('userEmail', formData.email);
-      localStorage.setItem('userName', formData.email);
+      storeUserProfile(data.profile || { email: formData.email, full_name: formData.email });
 
       navigate('/dashboard');
 

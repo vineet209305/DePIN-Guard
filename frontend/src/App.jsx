@@ -8,6 +8,7 @@ import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import LandingPage from './pages/LandingPage';
 import FraudReport from './pages/FraudReport';
+import { getStoredToken, clearAuthStorage } from './utils/sessionAuth';
 
 // ✅ Casing fix — file ka naam Securitypage.jsx hai
 import SecurityPage from './pages/Securitypage';
@@ -39,10 +40,9 @@ const isTokenUsable = (token) => {
 
 // Protected Route — login nahi hai to /login pe bhejo
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
+  const token = getStoredToken();
   if (!isTokenUsable(token)) {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('token');
+    clearAuthStorage();
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -50,7 +50,7 @@ const ProtectedRoute = ({ children }) => {
 
 // Public Route — already logged in hai to /dashboard pe bhejo
 const PublicRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
+  const token = getStoredToken();
   if (isTokenUsable(token)) {
     return <Navigate to="/dashboard" replace />;
   }

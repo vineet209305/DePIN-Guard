@@ -3,7 +3,9 @@ import torch.nn as nn
 import numpy as np
 import pandas as pd
 import os
+import sqlite3
 
+from data_adapter import load_canonical_iot_csv
 from model import LSTMAutoencoder
 from preprocessing import preprocess_data
 
@@ -12,9 +14,15 @@ FEATURES   = 3
 EPOCHS     = 50
 LR         = 0.001
 CSV_PATHS  = [
+    "DATA/smart_manufacturing_data.csv",
     "normal_training_data.csv",
     "../iot-simulator/normal_training_data.csv",
 ]
+SQLITE_PATHS = [
+    "../backend/data/depin_guard.sqlite3",
+    "backend/data/depin_guard.sqlite3",
+]
+TRAINING_SOURCE = os.getenv("TRAINING_SOURCE", "auto").strip().lower()
 
 
 def find_csv_path():
@@ -24,14 +32,45 @@ def find_csv_path():
     raise FileNotFoundError("normal_training_data.csv not found in expected locations")
 
 
+def find_sqlite_path():
+    for candidate in SQLITE_PATHS:
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def load_training_frame() -> pd.DataFrame:
+    sqlite_path = find_sqlite_path()
+    if sqlite_path and TRAINING_SOURCE in ("auto", "sqlite"):
+        try:
+            with sqlite3.connect(sqlite_path) as connection:
+                df = pd.read_sql_query(
+                    """
+                    SELECT temp AS temperature, vib AS vibration, pwr AS pressure
+                    FROM sensor_readings
+                    WHERE temp IS NOT NULL AND vib IS NOT NULL AND pwr IS NOT NULL
+                    ORDER BY id ASC
+                    """,
+                    connection,
+                )
+            if len(df) > SEQ_LENGTH:
+                print(f"Loading training data from SQLite: {sqlite_path} ({len(df)} rows)")
+                return df
+            print(f"SQLite data exists but not enough rows for LSTM sequences: {len(df)}")
+        except Exception as exc:
+            print(f"SQLite training source unavailable ({exc}); falling back to CSV")
+
+    csv_path = find_csv_path()
+    print(f"Loading training data from CSV: {csv_path}")
+    return load_canonical_iot_csv(csv_path)
+
+
 def create_sequences(data, seq_length):
     return np.array([data[i : i + seq_length] for i in range(len(data) - seq_length)])
 
 
 def main():
-    csv_path = find_csv_path()
-    print(f"Loading training data from {csv_path}")
-    df = pd.read_csv(csv_path)
+    df = load_training_frame()
 
     if "pressure" not in df.columns and "power_usage" in df.columns:
         df["pressure"] = df["power_usage"]

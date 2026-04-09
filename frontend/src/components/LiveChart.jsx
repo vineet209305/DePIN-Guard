@@ -71,7 +71,7 @@ export default function LiveChart({ onConnect }) {
   return (
     <div className="live-chart-container">
       <div className="live-chart-header">
-        <h3 className="live-chart-title">📡 Live Sensor Stream</h3>
+        <h3 className="live-chart-title">Live Sensor Updates</h3>
         <span className={`connection-badge ${connected ? 'connected' : 'disconnected'}`}>
           <span className={`status-dot ${connected ? 'connected' : 'disconnected'}`} />
           {connected ? 'Connected' : 'Disconnected'}
@@ -81,8 +81,8 @@ export default function LiveChart({ onConnect }) {
       {data.length === 0 ? (
         <p className="live-chart-empty">
           {connected
-            ? '⏳ Waiting for data from simulator...'
-            : '🔌 Connecting to backend WebSocket...'}
+            ? 'Waiting for sensor data...'
+            : 'Connecting to live data stream...'}
         </p>
       ) : (
         <div className="live-chart-table-wrapper">
@@ -105,7 +105,7 @@ export default function LiveChart({ onConnect }) {
                   <td>{row.power_usage ?? 'N/A'}</td>
                   <td>
                     <span className={`status-cell ${row.is_anomaly ? 'anomaly' : 'normal'}`}>
-                      {row.is_anomaly ? '🔴 ANOMALY' : '🟢 Normal'}
+                      {row.is_anomaly ? 'Anomaly' : 'Normal'}
                     </span>
                   </td>
                 </tr>

@@ -8,17 +8,22 @@ __pycache__/
 venv/
 env/
 .venv/
+DATA/
+data/
 
 # --- AI Service model artifacts (large files - do not commit) ---
 *.pth
 *.save
 *.joblib
 *.h5
+*.txt
 ai-service/models/
 
 # --- Backend ---
 backend/venv/
 backend/__pycache__/
+backend/data/*.sqlite3
+backend/data/fraud_reports.json
 
 # --- Node.js / Frontend ---
 node_modules/
@@ -55,6 +60,7 @@ blockchain/depin_cc_*
 .idea/
 .DS_Store
 Thumbs.db
+fraud_reports.json
 
 # --- Logs ---
 logs
