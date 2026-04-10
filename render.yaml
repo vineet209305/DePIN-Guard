@@ -27,9 +27,10 @@ services:
       - key: PORT
         value: "5000"
       - key: HOST
-        value: 0.0.0.0
+        value: "0.0.0.0"
       - key: AI_SERVICE_URL
-        value: http://localhost:5000
+        value: "http://localhost:5000"
+    healthCheckPath: /health
 
   - type: web
     name: depin-guard-auth
