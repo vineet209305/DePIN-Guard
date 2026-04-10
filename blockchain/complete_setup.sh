@@ -155,9 +155,9 @@ mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.
 mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/msp/cacerts"
 mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts"
 mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls"
-mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/msp/cacerts"
-mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls"
-mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/msp/cacerts"
+mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.depin/msp/cacerts"
+mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls"
+mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.depin/msp/cacerts"
 
 log_info "Directory structure ensured"
 
@@ -212,9 +212,9 @@ echo "Verifying/generating TLS certificates..."
 
 # Create each TLS cert, with explicit error reporting
 for tls_entry in \
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls:orderer.orderer.example.com" \
-  "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls:peer0.manufacturer.example.com" \
-  "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls:peer0.maintenance.example.com"; do
+  "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls:orderer.orderer.depin" \
+  "$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls:peer0.manufacturer.depin" \
+  "$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls:peer0.maintenance.depin"; do
   
   IFS=':' read -r cert_dir cn <<< "$tls_entry"
   echo "Processing: $cn"
@@ -237,10 +237,10 @@ echo "Final TLS certificate verification..."
 CERT_COUNT=0
 CERT_ERROR=0
 for cert_file in \
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" \
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.key" \
-  "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/server.crt" \
-  "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/server.crt"; do
+  "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.crt" \
+  "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.key" \
+  "$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls/server.crt" \
+  "$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls/server.crt"; do
   if [[ ! -f "$cert_file" ]]; then
     echo "  ✗ MISSING: $cert_file"
     CERT_ERROR=$((CERT_ERROR + 1))
@@ -357,7 +357,7 @@ rm -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.block"
 for attempt in {1..10}; do
   peer channel create \
     -o localhost:7050 \
-    --ordererTLSHostnameOverride orderer.orderer.example.com \
+    --ordererTLSHostnameOverride orderer.orderer.depin \
     -c "$CHANNEL_NAME" \
     -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.tx" \
     --tls --cafile "$ORDERER_CA" \
@@ -439,7 +439,7 @@ log_info "Package ID: $PACKAGE_ID"
 
 peer lifecycle chaincode approveformyorg \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
+  --ordererTLSHostnameOverride orderer.orderer.depin \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --version $CC_VERSION \
@@ -457,7 +457,7 @@ export CORE_PEER_ADDRESS="localhost:9051"
 
 peer lifecycle chaincode approveformyorg \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
+  --ordererTLSHostnameOverride orderer.orderer.depin \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --version $CC_VERSION \
@@ -475,7 +475,7 @@ export CORE_PEER_ADDRESS="localhost:7051"
 
 peer lifecycle chaincode commit \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
+  --ordererTLSHostnameOverride orderer.orderer.depin \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --version $CC_VERSION \

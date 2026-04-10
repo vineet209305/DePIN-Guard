@@ -20,11 +20,11 @@ export PATH="$PATH:$BLOCKCHAIN_DIR/fabric-samples/bin"
 export FABRIC_CFG_PATH="$BLOCKCHAIN_DIR/fabric-samples/config"
 export CORE_PEER_TLS_ENABLED=true
 
-ORDERER_CA="$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
-MFR_TLS="$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/ca.crt"
-MFR_MSP="$ORGS_DIR/peerOrganizations/manufacturer.example.com/users/Admin@manufacturer.example.com/msp"
-MNT_TLS="$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/ca.crt"
-MNT_MSP="$ORGS_DIR/peerOrganizations/maintenance.example.com/users/Admin@maintenance.example.com/msp"
+ORDERER_CA="$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts/tlsca.orderer.depin-cert.pem"
+MFR_TLS="$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls/ca.crt"
+MFR_MSP="$ORGS_DIR/peerOrganizations/manufacturer.depin/users/Admin@manufacturer.depin/msp"
+MNT_TLS="$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls/ca.crt"
+MNT_MSP="$ORGS_DIR/peerOrganizations/maintenance.depin/users/Admin@maintenance.depin/msp"
 
 # ─── Verify required files exist ─────────────────────────────────────────────
 echo "[CHECK] Verifying artifacts and certificates..."
@@ -82,7 +82,7 @@ rm -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.block"
 
 peer channel create \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
+  --ordererTLSHostnameOverride orderer.orderer.depin \
   -c "$CHANNEL_NAME" \
   -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.tx" \
   --tls --cafile "$ORDERER_CA" \
@@ -123,7 +123,7 @@ FABRIC_CFG_PATH="$BLOCKCHAIN_DIR" configtxgen \
 if [[ -f "$ANCHOR_TX_MFR" ]]; then
   peer channel update \
     -o localhost:7050 \
-    --ordererTLSHostnameOverride orderer.orderer.example.com \
+    --ordererTLSHostnameOverride orderer.orderer.depin \
     -c "$CHANNEL_NAME" \
     -f "$ANCHOR_TX_MFR" \
     --tls --cafile "$ORDERER_CA" && echo "   Manufacturer anchor peer updated." \

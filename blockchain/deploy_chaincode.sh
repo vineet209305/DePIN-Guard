@@ -1,7 +1,7 @@
 #!/bin/bash
 # blockchain/deploy_chaincode.sh
 # FIX: MaintenanceMSP -> MaintenanceProviderMSP (both install and approve steps)
-# FIX: ordererTLSHostnameOverride uses orderer.orderer.example.com consistently
+# FIX: ordererTLSHostnameOverride uses orderer.orderer.depin consistently
 
 set -euo pipefail
 
