@@ -124,14 +124,18 @@ def _hydrate_system_state():
     system_state["history"] = recent_history[-100:]
 
 # ---------------------------------------------------------------------------
-# Blockchain integration (optional — falls back to simulation)
+# Blockchain integration (MANDATORY — Hyperledger Fabric required)
 # ---------------------------------------------------------------------------
-BLOCKCHAIN_ACTIVE = False
 try:
     from fabric_manager import fabric_client
     BLOCKCHAIN_ACTIVE = True
-except ImportError:
-    pass
+except ImportError as e:
+    raise RuntimeError(
+        "❌ Blockchain (Hyperledger Fabric) is MANDATORY for DePIN-Guard.\n"
+        "Please ensure fabric_manager is properly initialized.\n"
+        "Start blockchain network before starting backend.\n"
+        f"Error: {e}"
+    )
 
 # ---------------------------------------------------------------------------
 # GNN scheduler — writes directly to JSON store
