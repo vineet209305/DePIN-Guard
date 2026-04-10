@@ -4,9 +4,18 @@
 # Run from inside blockchain/ folder:
 #   cd /workspaces/DePIN-Guard/blockchain
 #   chmod +x complete_setup.sh
-#   ./complete_setup.sh
+#   ./complete_setup.sh [--reset]
+#
+# Options:
+#   --reset   Remove all generated artifacts and clear docker containers before setup
 
 set -euo pipefail
+
+# Parse arguments
+RESET_MODE=false
+if [[ "${1:-}" == "--reset" ]]; then
+  RESET_MODE=true
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BLOCKCHAIN_DIR="$SCRIPT_DIR"
@@ -29,6 +38,27 @@ log_info() { echo -e "${GREEN}[✓]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 log_error() { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 log_step() { echo -e "\n${YELLOW}Step: $1${NC}"; }
+
+# Reset function
+reset_blockchain() {
+  log_step "RESET MODE: Cleaning up previous setup"
+  
+  log_info "Removing docker containers and volumes..."
+  docker compose -p "$FABRIC_PROJECT_NAME" -f "$COMPOSE_FILE" down --volumes 2>/dev/null || true
+  sleep 2
+  
+  log_info "Removing generated artifacts..."
+  rm -rf "$ARTIFACTS_DIR"
+  rm -rf "$ORGS_DIR"
+  
+  log_info "Blockchain setup has been reset"
+  echo ""
+}
+
+# If reset mode, clean up first
+if [[ "$RESET_MODE" == "true" ]]; then
+  reset_blockchain
+fi
 
 wait_for_port() {
   local port="$1"
@@ -142,8 +172,8 @@ generate_tls_certs() {
     return 1
   fi
   
-  # If certs already exist, skip
-  if [[ -f "$cert_dir/server.crt" ]] && [[ -f "$cert_dir/server.key" ]]; then
+  # If certs already exist and have content, skip
+  if [[ -f "$cert_dir/server.crt" ]] && [[ -f "$cert_dir/server.key" ]] && [[ -s "$cert_dir/server.crt" ]]; then
     if [[ ! -f "$cert_dir/ca.crt" ]]; then
       cp "$cert_dir/server.crt" "$cert_dir/ca.crt"
     fi
@@ -153,32 +183,28 @@ generate_tls_certs() {
   
   # Try to generate self-signed cert with openssl
   echo "  Generating TLS cert for: $cn"
+  
+  # Remove old empty/corrupt files
+  rm -f "$cert_dir/server.crt" "$cert_dir/server.key" "$cert_dir/ca.crt"
+  
   if command -v openssl &>/dev/null; then
-    if openssl req -new -x509 -days 365 -nodes \
-      -out "$cert_dir/server.crt" \
-      -keyout "$cert_dir/server.key" \
-      -subj "/CN=$cn" 2>/tmp/openssl_err.log; then
-      if [[ -f "$cert_dir/server.crt" ]] && [[ -f "$cert_dir/server.key" ]]; then
-        cp "$cert_dir/server.crt" "$cert_dir/ca.crt"
-        echo "    ✓ OpenSSL generation successful"
-        return 0
+    # Generate private key first
+    if openssl genrsa -out "$cert_dir/server.key" 2048 2>/dev/null; then
+      # Then generate certificate
+      if openssl req -new -x509 -key "$cert_dir/server.key" -out "$cert_dir/server.crt" \
+        -days 365 -subj "/CN=$cn" 2>/dev/null; then
+        
+        # Verify files exist and have content
+        if [[ -s "$cert_dir/server.crt" ]] && [[ -s "$cert_dir/server.key" ]]; then
+          cp "$cert_dir/server.crt" "$cert_dir/ca.crt"
+          echo "    ✓ OpenSSL generation successful"
+          return 0
+        fi
       fi
     fi
-    cat /tmp/openssl_err.log 2>/dev/null || true
-    echo "    ✗ OpenSSL generation failed, trying alternative method..."
   fi
 
-  # Fallback: Try alternative openssl approach
-  echo "  Attempting alternative TLS generation..."
-  if openssl genrsa -out "$cert_dir/server.key" 2048 2>/dev/null && \
-     openssl req -new -x509 -key "$cert_dir/server.key" -out "$cert_dir/server.crt" \
-     -days 365 -subj "/CN=$cn" 2>/dev/null; then
-    cp "$cert_dir/server.crt" "$cert_dir/ca.crt"
-    echo "    ✓ Alternative generation successful"
-    return 0
-  fi
-  
-  echo "    ✗ All TLS generation methods failed"
+  echo "    ✗ OpenSSL generation failed"
   return 1
 }
 
@@ -206,10 +232,10 @@ elif [[ -f "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.
     "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
 fi
 
-# Final verification with detailed output
 echo ""
 echo "Final TLS certificate verification..."
 CERT_COUNT=0
+CERT_ERROR=0
 for cert_file in \
   "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" \
   "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.key" \
@@ -217,14 +243,21 @@ for cert_file in \
   "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/server.crt"; do
   if [[ ! -f "$cert_file" ]]; then
     echo "  ✗ MISSING: $cert_file"
-    log_error "TLS certificate verification failed: $cert_file not found"
+    CERT_ERROR=$((CERT_ERROR + 1))
+  elif [[ ! -s "$cert_file" ]]; then
+    echo "  ✗ EMPTY: $cert_file (file exists but has no content)"
+    CERT_ERROR=$((CERT_ERROR + 1))
   else
     CERT_COUNT=$((CERT_COUNT + 1))
     echo "  ✓ Found: $(basename "$cert_file") in $(basename $(dirname "$cert_file"))"
   fi
 done
 
-echo "Generated $CERT_COUNT certificates successfully"
+if [[ $CERT_ERROR -gt 0 ]]; then
+  log_error "Certificate verification failed: $CERT_ERROR certificates missing or empty"
+fi
+
+echo "Generated $CERT_COUNT valid certificates successfully"
 log_info "All cryptographic material ready"
 
 # ═══════════════════════════════════════════════════════════════════════════════
