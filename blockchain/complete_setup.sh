@@ -224,12 +224,12 @@ for tls_entry in \
 done
 
 # Ensure the orderer CA file exists at the path used later in the script.
-if [[ -f "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/ca.crt" ]]; then
-  cp "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/ca.crt" \
-    "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
-elif [[ -f "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" ]]; then
-  cp "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" \
-    "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
+if [[ -f "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/ca.crt" ]]; then
+  cp "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/ca.crt" \
+    "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts/tlsca.orderer.depin-cert.pem"
+elif [[ -f "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.crt" ]]; then
+  cp "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.crt" \
+    "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts/tlsca.orderer.depin-cert.pem"
 fi
 
 echo ""
@@ -329,11 +329,11 @@ echo "Waiting briefly for orderer Raft initialization..."
 sleep 5
 
 # Paths to certificates
-ORDERER_CA="$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
-MFR_TLS="$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/ca.crt"
-MFR_MSP="$ORGS_DIR/peerOrganizations/manufacturer.example.com/users/Admin@manufacturer.example.com/msp"
-MNT_TLS="$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/ca.crt"
-MNT_MSP="$ORGS_DIR/peerOrganizations/maintenance.example.com/users/Admin@maintenance.example.com/msp"
+ORDERER_CA="$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts/tlsca.orderer.depin-cert.pem"
+MFR_TLS="$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls/ca.crt"
+MFR_MSP="$ORGS_DIR/peerOrganizations/manufacturer.depin/users/Admin@manufacturer.depin/msp"
+MNT_TLS="$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls/ca.crt"
+MNT_MSP="$ORGS_DIR/peerOrganizations/maintenance.depin/users/Admin@maintenance.depin/msp"
 
 # Verify certs exist
 for cert in "$ORDERER_CA" "$MFR_TLS" "$MFR_MSP" "$MNT_TLS" "$MNT_MSP"; do
