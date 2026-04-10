@@ -399,6 +399,18 @@ ensure_fabric_image "hyperledger/fabric-baseos:2.5"
 cd "$BLOCKCHAIN_DIR"
 export FABRIC_CFG_PATH="$BLOCKCHAIN_DIR/fabric-samples/config"
 
+# Pre-build vendor directory to avoid readonly issues during Docker build
+log_info "Pre-building vendor dependencies for chaincode..."
+cd "./chaincode-go"
+go mod tidy 2>/dev/null || true
+go mod vendor 2>/dev/null || true
+cd "$BLOCKCHAIN_DIR"
+log_info "Vendor directory prepared"
+
+# Set Go build flags to allow module operations
+export GO111MODULE=on
+export GOFLAGS="-mod=vendor"
+
 # Package chaincode
 peer lifecycle chaincode package ${CC_NAME}.tar.gz \
   --path ./chaincode-go/ \
