@@ -346,6 +346,16 @@ def health_check():
     }
 
 
+@app.get("/api/health")
+def api_health_check():
+    """Health check endpoint for cloud deployment (Render, Vercel CDN)"""
+    return {
+        "status": "healthy",
+        "service": "depin-guard-backend",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.get("/api/dashboard", dependencies=[Depends(verify_api_key)])
 def get_dashboard():
     metrics = get_dashboard_metrics()
