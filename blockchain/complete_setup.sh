@@ -151,10 +151,10 @@ else
 fi
 
 # Create required directory structure regardless of cryptogen success
-mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls"
-mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/msp/cacerts"
-mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts"
-mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/msp/cacerts"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts"
+mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls"
 mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/msp/cacerts"
 mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls"
 mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/msp/cacerts"
