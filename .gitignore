@@ -79,6 +79,7 @@ audit_log.json
 # --- Test & temp files ---
 coverage
 *.timestamp-*
+combine_datasets.py
 
 # --- TLS keys (NEVER commit private keys) ---
 client.key
