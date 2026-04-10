@@ -22,6 +22,7 @@ import jwt
 from db import fetch_sensor_readings, get_dashboard_metrics, init_db, save_sensor_reading
 from routes.stream import broadcast_data, router as stream_router
 from routes.fraud import router as fraud_router, _read_alerts, _write_alerts
+from routes.blockchain_control import router as blockchain_router
 
 # ---------------------------------------------------------------------------
 # Environment
@@ -205,6 +206,7 @@ app = FastAPI(title="DePIN-Guard API", version="1.0.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(stream_router)
+app.include_router(blockchain_router, prefix="/api", dependencies=[Depends(verify_api_key)])
 
 # ---------------------------------------------------------------------------
 # Security helpers

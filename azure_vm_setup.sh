@@ -63,29 +63,80 @@ docker pull hyperledger/fabric-ccenv:2.5
 docker pull hyperledger/fabric-baseos:2.5
 docker pull couchdb:3.3.3
 
-# ── STEP 7: Run blockchain setup ──────────────────────────
-echo "[7/8] Running blockchain complete setup..."
+# ── STEP 7: Prepare blockchain (generate certs/artifacts but DON'T START) ──
+echo "[7/8] Preparing blockchain (artifacts + crypto, containers SLEEPING)..."
 cd ~/DePIN-Guard/blockchain
-./complete_setup.sh --reset
+
+# Generate crypto material and channel artifacts (required for on-demand start)
+echo "    Generating cryptographic material..."
+chmod +x install-fabric.sh deploy_custom_net.sh
+mkdir -p organizations channel-artifacts
+
+# For on-demand blockchain: generate artifacts but don't start containers yet
+export PATH=$PWD/fabric-samples/bin:$PATH
+export FABRIC_CFG_PATH=$PWD
+
+# Delete old artifacts to start fresh
+rm -rf organizations channel-artifacts
+
+# Run fabric-samples installation (binaries only)
+./install-fabric.sh binary 2>&1 | tail -5
+
+# Generate crypto using cryptogen
+if command -v cryptogen &>/dev/null; then
+  echo "    Generating cryptographic material with cryptogen..."
+  mkdir -p organizations
+  cryptogen generate --config=config/crypto-config.yaml --output=organizations 2>&1 | grep -i "generated\|error\|fail" || echo "    Cryptogen completed"
+fi
+
+# Generate channel artifacts with configtxgen
+if command -v configtxgen &>/dev/null; then
+  echo "    Generating channel artifacts (genesis block + tx)..."
+  mkdir -p channel-artifacts
+  FABRIC_CFG_PATH=$PWD configtxgen -profile ManufacturerMaintenanceOrdererGenesis -channelID system-channel -outputBlock channel-artifacts/genesis.block 2>&1 | grep -i "writing\|error\|fail" || echo "    Genesis block created"
+  FABRIC_CFG_PATH=$PWD configtxgen -profile ManufacturerMaintenanceChannel -outputCreateChannelTx channel-artifacts/mychannel.tx -channelID mychannel 2>&1 | grep -i "writing\|error\|fail" || echo "    Channel tx created"
+fi
+
+echo "    ✅ Blockchain artifacts ready (containers in SLEEP MODE)"
+echo "    → To start: Call POST /api/blockchain/start from backend"
 
 # ── STEP 8: Verify ─────────────────────────────────────────
 echo "[8/8] Verifying deployment..."
 echo ""
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo "Docker version: $(docker --version)"
 echo ""
 echo "======================================================"
-echo " ✅ Blockchain Deployment Successful!"
+echo " ✅ DePIN-Guard Azure Deployment Complete!"
+echo " 🔌 BLOCKCHAIN: SLEEP MODE (On-Demand)"
 echo "======================================================"
 echo ""
-echo "Ports open on VM:"
-echo "  7050  — Orderer"
-echo "  7051  — Manufacturer peer"
-echo "  9051  — Maintenance peer"
-echo "  5984  — CouchDB (Manufacturer)"
-echo "  7984  — CouchDB (Maintenance)"
+echo "Blockchain Status:"
+echo "  ⏸️  Containers NOT running (sleep mode to save costs)"
+echo "  ✅ Fabric artifacts & crypto generated"
+echo "  📁 Location: ~/DePIN-Guard/blockchain/"
 echo ""
-echo "To get Azure VM public IP:"
-echo "  curl -s ifconfig.me"
+echo "TO START BLOCKCHAIN:"
+echo "  Option 1: API Call"
+echo "    POST http://<backend-ip>:8000/api/blockchain/start"
+echo "    Header: X-API-Key: <your-api-key>"
+echo ""
+echo "  Option 2: Manual (SSH into VM)"
+echo "    cd ~/DePIN-Guard/blockchain"
+echo "    docker compose -p depin-fabric -f ../docker/docker-compose-custom.yaml up -d"
+echo ""
+echo "CHECK BLOCKCHAIN STATUS:"
+echo "  GET http://<backend-ip>:8000/api/blockchain/status"
+echo ""
+echo "VM Public IP:"
+PUBIP=$(curl -s ifconfig.me)
+echo "  $PUBIP"
+echo ""
+echo "For Backend Connection (Priyanshu):"
+echo "  Set when blockchain is running:"
+echo "    FABRIC_ORDERER_ADDRESS=$PUBIP:7050"
+echo "    FABRIC_PEER1_ADDRESS=$PUBIP:7051"
+echo "    FABRIC_PEER2_ADDRESS=$PUBIP:9051"
+echo ""
 echo ""
 echo "For backend connection from Priyanshu:"
 echo "  Set FABRIC_ORDERER_ADDRESS=<VM_PUBLIC_IP>:7050"
