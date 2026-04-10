@@ -2,7 +2,7 @@
 # blockchain/complete_setup.sh
 # Complete Fabric network setup with signal verification at each step
 # Run from inside blockchain/ folder:
-#   cd /workspaces/DePIN-Guard/blockchain
+#   cd ~/DePIN-Guard/blockchain
 #   chmod +x complete_setup.sh
 #   ./complete_setup.sh [--reset]
 #
@@ -305,8 +305,8 @@ for port_label in "7050:orderer" "7051:manufacturer peer" "9051:maintenance peer
 done
 
 # Verify containers are running
-for container in "orderer.example.com" "peer0.manufacturer.example.com" "peer0.maintenance.example.com"; do
-  if ! docker ps --format '{{.Names}}' | grep -q "$container"; then
+for container in "orderer.orderer.depin" "peer0.manufacturer.depin" "peer0.maintenance.depin"; do
+  if ! docker ps --format '{{.Names}}' | grep -q "$container"; do
     log_error "Container $container did not start"
   fi
 done
