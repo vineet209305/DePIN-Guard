@@ -306,7 +306,7 @@ done
 
 # Verify containers are running
 for container in "orderer.orderer.depin" "peer0.manufacturer.depin" "peer0.maintenance.depin"; do
-  if ! docker ps --format '{{.Names}}' | grep -q "$container"; do
+  if ! docker ps --format '{{.Names}}' | grep -q "$container"; then
     log_error "Container $container did not start"
   fi
 done
