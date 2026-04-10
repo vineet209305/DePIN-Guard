@@ -206,7 +206,6 @@ app = FastAPI(title="DePIN-Guard API", version="1.0.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(stream_router)
-app.include_router(blockchain_router, prefix="/api", dependencies=[Depends(verify_api_key)])
 
 # ---------------------------------------------------------------------------
 # Security helpers
@@ -231,6 +230,8 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
     return api_key
 
 
+# Include routers with API key protection (must be after verify_api_key is defined)
+app.include_router(blockchain_router, prefix="/api", dependencies=[Depends(verify_api_key)])
 app.include_router(fraud_router, prefix="/api", dependencies=[Depends(verify_api_key)])
 
 # ---------------------------------------------------------------------------
