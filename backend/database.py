@@ -168,3 +168,70 @@ async def get_device_stats(device_id: str):
     except Exception as e:
         logger.error(f"Error getting device stats: {e}")
         return {}
+
+
+async def get_database_size():
+    """Get total MongoDB database size in bytes"""
+    try:
+        stats = await db.command("dbStats")
+        size_bytes = stats.get("dataSize", 0)
+        size_mb = size_bytes / (1024 * 1024)
+        return size_mb
+    except Exception as e:
+        logger.error(f"Error getting database size: {e}")
+        return 0
+
+
+async def get_collection_stats():
+    """Get size of individual collections"""
+    try:
+        sensor_count = await db["sensor_data"].count_documents({})
+        alert_count = await db["fraud_alerts"].count_documents({})
+        
+        # Estimate size: ~500 bytes per sensor doc, ~300 bytes per alert
+        sensor_size_mb = (sensor_count * 500) / (1024 * 1024)
+        alert_size_mb = (alert_count * 300) / (1024 * 1024)
+        
+        return {
+            "sensor_data": {
+                "count": sensor_count,
+                "estimated_mb": round(sensor_size_mb, 2)
+            },
+            "fraud_alerts": {
+                "count": alert_count,
+                "estimated_mb": round(alert_size_mb, 2)
+            },
+            "total_mb": round(sensor_size_mb + alert_size_mb, 2)
+        }
+    except Exception as e:
+        logger.error(f"Error getting collection stats: {e}")
+        return {}
+
+
+async def export_all_data():
+    """Export all sensor data and fraud alerts"""
+    try:
+        # Get all sensor data
+        sensor_data = await db["sensor_data"].find({}).to_list(length=None)
+        # Get all fraud alerts
+        fraud_alerts = await db["fraud_alerts"].find({}).to_list(length=None)
+        
+        # Convert ObjectId to string for JSON serialization
+        for doc in sensor_data:
+            doc['_id'] = str(doc['_id'])
+            doc['timestamp'] = doc['timestamp'].isoformat() if hasattr(doc['timestamp'], 'isoformat') else str(doc['timestamp'])
+        
+        for doc in fraud_alerts:
+            doc['_id'] = str(doc['_id'])
+            doc['timestamp'] = doc['timestamp'].isoformat() if hasattr(doc['timestamp'], 'isoformat') else str(doc['timestamp'])
+        
+        return {
+            "sensor_data": sensor_data,
+            "fraud_alerts": fraud_alerts,
+            "export_timestamp": datetime.utcnow().isoformat(),
+            "total_readings": len(sensor_data),
+            "total_alerts": len(fraud_alerts)
+        }
+    except Exception as e:
+        logger.error(f"Error exporting data: {e}")
+        return {}

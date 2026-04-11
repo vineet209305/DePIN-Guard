@@ -20,7 +20,11 @@ from dotenv import load_dotenv
 import jwt
 
 from db import fetch_sensor_readings, get_dashboard_metrics, init_db, save_sensor_reading
-from database import connect_to_mongo, close_mongo_connection, db, SensorDataModel, FraudAlertModel, save_sensor_data, save_fraud_alert, get_fraud_alerts, get_device_stats
+from database import (
+    connect_to_mongo, close_mongo_connection, db, SensorDataModel, FraudAlertModel, 
+    save_sensor_data, save_fraud_alert, get_fraud_alerts, get_device_stats,
+    get_database_size, get_collection_stats, export_all_data
+)
 from routes.stream import broadcast_data, router as stream_router
 from routes.fraud import router as fraud_router, _read_alerts, _write_alerts
 from routes.blockchain_control import router as blockchain_router
@@ -626,3 +630,127 @@ async def submit_data(request: Request, data: dict, user=Depends(verify_token)):
         "status": "Data accepted",
         "user":   user.get("user") or user.get("sub") or "unknown",
     }
+
+
+# ---------------------------------------------------------------------------
+# Storage & Export Endpoints
+# ---------------------------------------------------------------------------
+@app.get("/api/storage/status", dependencies=[Depends(verify_api_key)])
+async def get_storage_status():
+    """Get MongoDB storage usage and alert if near capacity"""
+    try:
+        db_size_mb = await get_database_size()
+        collection_stats = await get_collection_stats()
+        
+        limit_mb = 500
+        threshold_mb = 450
+        used_percentage = (db_size_mb / limit_mb) * 100
+        
+        # Determine status
+        if db_size_mb >= threshold_mb:
+            status = "CRITICAL"
+            message = f"Storage nearly full! {db_size_mb:.2f}MB of {limit_mb}MB used. Export data immediately!"
+        elif db_size_mb >= (threshold_mb * 0.8):
+            status = "WARNING"
+            message = f"Storage usage high: {db_size_mb:.2f}MB of {limit_mb}MB. Consider exporting soon."
+        else:
+            status = "OK"
+            message = f"Storage usage low: {db_size_mb:.2f}MB of {limit_mb}MB. Proceed with data collection."
+        
+        return {
+            "status": status,
+            "used_mb": round(db_size_mb, 2),
+            "limit_mb": limit_mb,
+            "remaining_mb": round(max(0, limit_mb - db_size_mb), 2),
+            "percentage_used": round(used_percentage, 2),
+            "message": message,
+            "collections": collection_stats,
+            "alert": db_size_mb >= threshold_mb,
+            "export_recommended": db_size_mb >= (threshold_mb * 0.9),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "ERROR",
+            "message": str(e),
+            "error": True
+        }
+
+
+@app.get("/api/data/export", dependencies=[Depends(verify_api_key)])
+async def export_data():
+    """Export all sensor data and fraud alerts as JSON"""
+    try:
+        export_data_dict = await export_all_data()
+        
+        if not export_data_dict:
+            return {
+                "status": "No data to export",
+                "sensor_data": [],
+                "fraud_alerts": []
+            }
+        
+        return {
+            "status": "SUCCESS",
+            "export_timestamp": export_data_dict["export_timestamp"],
+            "total_readings": export_data_dict["total_readings"],
+            "total_alerts": export_data_dict["total_alerts"],
+            "sensor_data": export_data_dict["sensor_data"],
+            "fraud_alerts": export_data_dict["fraud_alerts"],
+            "export_size_mb": round(
+                len(json.dumps(export_data_dict)) / (1024 * 1024), 2
+            )
+        }
+    except Exception as e:
+        return {
+            "status": "ERROR",
+            "message": str(e),
+            "error": True
+        }
+
+
+@app.get("/api/statistics/summary", dependencies=[Depends(verify_api_key)])
+async def get_statistics_summary():
+    """Get data collection summary statistics"""
+    try:
+        collection_stats = await get_collection_stats()
+        db_size_mb = await get_database_size()
+        
+        total_readings = collection_stats.get("sensor_data", {}).get("count", 0)
+        total_alerts = collection_stats.get("fraud_alerts", {}).get("count", 0)
+        
+        # Estimate collection period
+        if total_readings > 0:
+            # At ~1 reading per second, estimate days
+            days_of_data = total_readings / (86400)  # 86400 seconds per day
+        else:
+            days_of_data = 0
+        
+        return {
+            "status": "OK",
+            "summary": {
+                "total_readings_collected": total_readings,
+                "total_anomalies_detected": total_alerts,
+                "total_storage_mb": round(db_size_mb, 2),
+                "estimated_days": round(days_of_data, 2),
+                "reading_rate": "~1 per second",
+                "collection_breakdown": {
+                    "sensor_data": {
+                        "count": collection_stats.get("sensor_data", {}).get("count", 0),
+                        "estimated_mb": collection_stats.get("sensor_data", {}).get("estimated_mb", 0)
+                    },
+                    "fraud_alerts": {
+                        "count": collection_stats.get("fraud_alerts", {}).get("count", 0),
+                        "estimated_mb": collection_stats.get("fraud_alerts", {}).get("estimated_mb", 0)
+                    }
+                }
+            },
+            "last_reading": collection_stats.get("total_mb", 0),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "ERROR",
+            "message": str(e),
+            "error": True
+        }
