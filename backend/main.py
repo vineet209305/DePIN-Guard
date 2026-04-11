@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 import jwt
 
 from db import fetch_sensor_readings, get_dashboard_metrics, init_db, save_sensor_reading
+from database import connect_to_mongo, close_mongo_connection, db, SensorDataModel, FraudAlertModel, save_sensor_data, save_fraud_alert, get_fraud_alerts, get_device_stats
 from routes.stream import broadcast_data, router as stream_router
 from routes.fraud import router as fraud_router, _read_alerts, _write_alerts
 from routes.blockchain_control import router as blockchain_router
@@ -186,14 +187,22 @@ def run_gnn_analysis():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Connect to databases
     init_db()
+    await connect_to_mongo()
     _hydrate_system_state()
+    
+    # Start scheduler
     scheduler = BackgroundScheduler()
     scheduler.add_job(run_gnn_analysis, "interval", minutes=5)
     scheduler.start()
     print(f"[Scheduler] Started — GNN trigger every 5 minutes | threshold={_ANOMALY_THRESHOLD}")
+    
     yield
+    
+    # Cleanup
     scheduler.shutdown()
+    await close_mongo_connection()
     print("[Scheduler] Stopped cleanly")
 
 
@@ -424,6 +433,15 @@ async def process_data(request: Request, data: SensorData):
                     is_anomaly = True
                 print(f"⚠️  AI service unreachable after {AI_RETRY_COUNT + 1} attempts: {exc}")
 
+        # --- Save to MongoDB ---
+        sensor_doc = SensorDataModel(
+            device_id=data.device_id,
+            temperature=data.temperature,
+            vibration=data.vibration,
+            power_usage=data.power_usage,
+        )
+        await save_sensor_data(sensor_doc)
+
         # --- Broadcast to WebSocket clients ---
         await broadcast_data({
             "device_id":   data.device_id,
@@ -456,6 +474,22 @@ async def process_data(request: Request, data: SensorData):
             system_state["ai"]["anomalies_found"]        += 1
             system_state["blockchain"]["total_blocks"]   += 1
             system_state["blockchain"]["transactions"]   += 1
+
+            # --- Save to MongoDB fraud alerts ---
+            fraud_alert = FraudAlertModel(
+                device_id=data.device_id,
+                alert_type="anomaly",
+                severity="high",
+                message=recommendation,
+                anomaly_data={
+                    "temperature": data.temperature,
+                    "vibration": data.vibration,
+                    "power_usage": data.power_usage,
+                    "ai_loss": ai_result.get("loss"),
+                    "ai_threshold": ai_result.get("threshold"),
+                }
+            )
+            await save_fraud_alert(fraud_alert)
 
             # Build data hash for blockchain record
             data_string   = json.dumps(data.dict(), sort_keys=True)
