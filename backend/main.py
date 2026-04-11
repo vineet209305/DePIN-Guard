@@ -305,6 +305,12 @@ class SensorData(BaseModel):
     power_usage: float
     timestamp:   str
     signature:   str = ""
+    
+    # Optional: Human-readable fields for non-technical users
+    machine_name: str = ""  # e.g., "Mixer", "Compressor"
+    alert_level: str = ""   # e.g., "🟢 NORMAL", "🟡 WARNING", "🔴 CRITICAL"
+    status_short: str = ""  # e.g., "Machine running well"
+    recommendations: list = []  # List of actions for non-technical users
 
 
 def _sensor_signature(data: SensorData) -> str:

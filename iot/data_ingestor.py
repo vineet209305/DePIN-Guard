@@ -12,6 +12,7 @@ import re
 import paho.mqtt.client as mqtt
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from human_readable_formatter import HumanReadableDataFormatter
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -22,6 +23,9 @@ SENSOR_SECRET = API_KEY
 
 if not API_KEY:
     raise RuntimeError("DEPIN_API_KEY is required for iot-simulator runtime")
+
+# Initialize human-readable formatter for non-technical users
+FORMATTER = HumanReadableDataFormatter()
 
 DEVICES     = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
 SIMULATOR_MODE = os.getenv("SIMULATOR_MODE", "synthetic").strip().lower()
@@ -140,13 +144,33 @@ def _normalize_payload(row, fallback_device):
     if temperature is None or vibration is None or power_usage is None:
         return None
 
-    return {
+    normalized = {
         "device_id":   device_id,
         "temperature": round(float(temperature), 2),
         "vibration":   round(float(vibration), 2),
         "power_usage": round(float(power_usage), 2),
         "timestamp":   normalized_timestamp,
     }
+    
+    # ENHANCEMENT: Add human-readable fields for non-technical users ✅
+    try:
+        formatted = FORMATTER.format_for_nontechnical_users(
+            device_id=normalized['device_id'],
+            temperature=normalized['temperature'],
+            vibration=normalized['vibration'],
+            power_usage=normalized['power_usage'],
+            timestamp=normalized['timestamp']
+        )
+        # Add non-technical fields to payload
+        normalized['machine_name'] = formatted['machine_name']
+        normalized['alert_level'] = formatted['alert_level']
+        normalized['status_short'] = formatted['status_short']
+        normalized['recommendations'] = formatted['recommendations']
+    except Exception as e:
+        # If formatting fails, skip non-technical fields (still send sensor data)
+        pass
+    
+    return normalized
 
 
 def _resolve_replay_files(file_path):

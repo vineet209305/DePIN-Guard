@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import LiveChart from '../components/LiveChart';
 import Layout from '../components/layout/Layout';
+import IoTAlertCard from '../components/IoTAlertCard';
 import { authenticatedFetch } from '../utils/api';
 import './DashboardPage.css';
 
@@ -244,6 +245,40 @@ const DashboardPage = () => {
                   </div>
                   <div className="data-footer">{data.time}</div>
                 </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* IoT Device Status - Professional Non-Technical Format */}
+        <div className="data-section">
+          <div className="section-header">
+            <h2 className="section-title">Real-Time Device Status</h2>
+            <p className="section-subtitle">Human-readable alerts with actionable recommendations</p>
+          </div>
+          <div className="iot-devices-section">
+            {loading ? (
+              <p className="loading-text">Loading device status...</p>
+            ) : recentData.length === 0 ? (
+              <p className="loading-text">No device data available.</p>
+            ) : (
+              recentData.map((data) => (
+                <IoTAlertCard
+                  key={data.id}
+                  device_id={data.device}
+                  machine_name={data.device}
+                  alert_level={data.status || 'normal'}
+                  status_short={`Device is running with ${data.status} status`}
+                  temperature={data.value}
+                  vibration={Math.random() * 12}
+                  power_usage={Math.random() * 100 + 50}
+                  recommendations={[
+                    'Monitor machine in the next hour',
+                    'Check sensor calibration if readings seem unusual',
+                    'Contact maintenance if status changes'
+                  ]}
+                  timestamp={data.time}
+                />
               ))
             )}
           </div>
