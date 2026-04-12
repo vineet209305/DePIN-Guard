@@ -1,133 +1,233 @@
 /* frontend/src/components/LiveChart.css */
+
 .live-chart-container {
-  padding: 20px;
-  background-color: rgba(20, 20, 25, 0.8);
-  border-radius: 12px;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  background: rgba(6, 12, 24, 0.92);
+  border-radius: 16px;
+  color: #fff;
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(0,212,255,0.04),
+    0 8px 40px rgba(0,0,0,0.4);
+  position: relative;
+  overflow: hidden;
 }
 
+/* Top cyan accent line */
+.live-chart-container::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+  opacity: 0.5;
+}
+
+/* ── HEADER ── */
 .live-chart-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 10px;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(0,212,255,0.08);
 }
 
 .live-chart-title {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.05rem;
   font-weight: 600;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  letter-spacing: -0.1px;
 }
 
+/* Left accent bar on title */
+.live-chart-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 1em;
+  background: linear-gradient(180deg, #00d4ff, #0055ff);
+  border-radius: 2px;
+}
+
+/* ── CONNECTION BADGE ── */
 .connection-badge {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 4px 12px;
+  gap: 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.3rem 0.85rem;
   border-radius: 20px;
-  background-color: rgba(0, 0, 0, 0.2);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
 }
 
 .connection-badge.connected {
-  color: #4ae58c;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.08);
+  border-color: rgba(74, 222, 128, 0.2);
 }
 
 .connection-badge.disconnected {
-  color: #ff5252;
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  border-color: rgba(248, 113, 113, 0.2);
 }
 
+/* ── STATUS DOT ── */
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .status-dot.connected {
-  background-color: #4ae58c;
-  box-shadow: 0 0 8px #4ae58c;
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade80;
+  animation: pulse-green 2s ease-in-out infinite;
 }
 
 .status-dot.disconnected {
-  background-color: #ff5252;
-  box-shadow: 0 0 8px #ff5252;
+  background: #f87171;
+  box-shadow: 0 0 6px #f87171;
 }
 
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px #4ade80; }
+  50%       { opacity: 0.6; box-shadow: 0 0 12px #4ade80; }
+}
+
+/* ── EMPTY STATE ── */
 .live-chart-empty {
   text-align: center;
-  padding: 40px;
-  opacity: 0.6;
+  padding: 3rem 1rem;
+  color: rgba(200,221,232,0.35);
+  font-size: 0.875rem;
   font-style: italic;
 }
 
+/* ── TABLE WRAPPER ── */
 .live-chart-table-wrapper {
   overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(0,212,255,0.08);
 }
 
+.live-chart-table-wrapper::-webkit-scrollbar {
+  height: 5px;
+}
+.live-chart-table-wrapper::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.03);
+}
+.live-chart-table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(0,212,255,0.25);
+  border-radius: 10px;
+}
+
+/* ── TABLE ── */
 .live-chart-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
+}
+
+.live-chart-table thead {
+  background: rgba(0,212,255,0.04);
 }
 
 .live-chart-table th {
   text-align: left;
-  padding: 12px;
-  color: #888;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+  padding: 0.75rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(200,221,232,0.45);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(0,212,255,0.08);
+  white-space: nowrap;
 }
 
 .live-chart-table td {
-  padding: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: rgba(200,221,232,0.85);
+  vertical-align: middle;
 }
 
+.live-chart-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── NORMAL ROW ── */
 .normal-row {
-  transition: background-color 0.2s;
+  transition: background 0.2s;
 }
 
 .normal-row:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+  background: rgba(0,212,255,0.03);
 }
 
+/* ── ANOMALY ROW ── */
 .anomaly-row {
-  background-color: rgba(255, 82, 82, 0.15);
-  animation: pulse-red 2s infinite;
+  background: rgba(255,82,82,0.07);
+  animation: pulse-red 2.5s ease-in-out infinite;
 }
 
-.status-cell {
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.status-cell.normal {
-  background-color: rgba(74, 229, 140, 0.1);
-  color: #4ae58c;
-}
-
-.status-cell.anomaly {
-  background-color: rgba(255, 82, 82, 0.2);
-  color: #ff5252;
+.anomaly-row td {
+  color: #fca5a5;
 }
 
 @keyframes pulse-red {
-  0% {
-    background-color: rgba(255, 82, 82, 0.15);
-  }
+  0%, 100% { background: rgba(255,82,82,0.07); }
+  50%       { background: rgba(255,82,82,0.14); }
+}
 
-  50% {
-    background-color: rgba(255, 82, 82, 0.25);
-  }
+/* ── STATUS CELL ── */
+.status-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.22rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
 
-  100% {
-    background-color: rgba(255, 82, 82, 0.15);
-  }
+.status-cell::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-cell.normal {
+  background: rgba(74,229,140,0.1);
+  color: #4ade80;
+  border: 1px solid rgba(74,229,140,0.2);
+}
+
+.status-cell.normal::before {
+  background: #4ade80;
+}
+
+.status-cell.anomaly {
+  background: rgba(255,82,82,0.12);
+  color: #f87171;
+  border: 1px solid rgba(255,82,82,0.22);
+}
+
+.status-cell.anomaly::before {
+  background: #f87171;
+  box-shadow: 0 0 4px #f87171;
 }

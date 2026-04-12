@@ -184,10 +184,13 @@ section { position: relative; z-index: 1; }
 }
 @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
-.lp-hero-title {
-  font-size: clamp(2.6rem, 6vw, 4.5rem);
-  font-weight: 800; line-height: 1.06;
-  color: var(--white); margin-bottom: 1.75rem;
+
+  .lp-hero-title {
+  font-size: clamp(2rem, 4.5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.06;
+  color: var(--white);
+  margin-bottom: 1.75rem;
   letter-spacing: -1px;
   animation: fadeUp 0.6s 0.1s both;
 }
@@ -207,22 +210,49 @@ section { position: relative; z-index: 1; }
   animation: fadeUp 0.6s 0.3s both;
 }
 
-/* Stats */
+/* ── STATS — single horizontal line ── */
 .lp-stats {
-  display: flex; align-items: center; gap: 3rem; flex-wrap: wrap;
-  padding: 2rem 2.5rem;
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 16px; backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  backdrop-filter: blur(20px);
   box-shadow: 0 4px 40px rgba(0,0,0,0.3);
   animation: fadeUp 0.6s 0.4s both;
+  overflow: hidden;
 }
-.lp-stat { text-align: left; }
+
+.lp-stat {
+  flex: 1;
+  text-align: center;
+  padding: 1.4rem 1rem;
+  border-right: 1px solid var(--border);
+}
+
+.lp-stat:last-child { border-right: none; }
+
 .lp-stat-num {
-  font-family: var(--mono); font-size: 2.2rem; font-weight: 600;
-  color: var(--cyan); line-height: 1; letter-spacing: -0.5px;
+  font-family: var(--mono);
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: var(--cyan);
+  line-height: 1;
+  letter-spacing: -0.5px;
 }
-.lp-stat-lbl { font-size: 0.8rem; color: var(--muted); margin-top: 6px; font-weight: 500; }
-.lp-stat-div { width: 1px; height: 52px; background: var(--border); }
+
+.lp-stat-lbl {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.lp-stat-div { display: none; }
 
 /* ── FEATURES ── */
 .lp-features-grid {
@@ -270,7 +300,6 @@ section { position: relative; z-index: 1; }
 .lp-step-content { flex: 1; }
 .lp-step-title { font-size: 1rem; font-weight: 700; color: var(--white); margin-bottom: 0.4rem; }
 .lp-step-desc { font-size: 0.875rem; color: var(--muted); line-height: 1.7; }
-.lp-step-connector { display: none; }
 
 /* ── INDUSTRIES ── */
 .lp-industries-grid {
@@ -396,9 +425,9 @@ section { position: relative; z-index: 1; }
   .lp-section { padding: 4rem 1.25rem; }
   .lp-hero-btns { flex-direction: column; }
   .lp-btn-cta, .lp-btn-ghost-hero { width: 100%; justify-content: center; }
-  .lp-stats { gap: 1.5rem; padding: 1.5rem; }
-  .lp-stat-num { font-size: 1.7rem; }
-  .lp-stat-div { display: none; }
+  .lp-stats { max-width: 100%; }
+  .lp-stat-num { font-size: 1.5rem; }
+  .lp-stat { padding: 1rem 0.5rem; }
   .lp-cta-inner { padding: 3rem 1.5rem; }
   .lp-cta-btns { flex-direction: column; }
   .lp-contact-card { padding: 1.5rem; }
@@ -410,5 +439,6 @@ section { position: relative; z-index: 1; }
 
 @media (max-width: 400px) {
   .lp-industries-grid { grid-template-columns: repeat(2, 1fr); }
-  .lp-stat-num { font-size: 1.4rem; }
+  .lp-stat-num { font-size: 1.3rem; }
+  .lp-stat-lbl { font-size: 0.65rem; }
 }
