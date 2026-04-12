@@ -477,10 +477,6 @@ def generate_training_data(num_rows=10000):
                 "power_usage": round(random.uniform(10.0, 50.0), 2),
             })
     print(f"✅ Generated {num_rows} rows → {filename}")
-            if (i + 1) % 1000 == 0:
-                print(f"  {i + 1}/{num_rows} rows written...")
-
-    print(f"Done — saved to {filename}")
 
 
 if __name__ == "__main__":
