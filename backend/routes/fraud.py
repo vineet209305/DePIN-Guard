@@ -1,40 +1,43 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
 
-from db import fetch_fraud_alerts, replace_fraud_alerts
+from database import save_fraud_alert, get_fraud_alerts, FraudAlertModel
 
-router  = APIRouter()
+router = APIRouter()
 
 
 class FraudAlert(BaseModel):
-    asset_id:   str
-    type:       str   # anomaly_cluster | high_frequency | injection_attempt
+    device_id: Optional[str] = None
+    asset_id: str
+    type: str  # anomaly_cluster | high_frequency | injection_attempt
     confidence: float
 
 
-def _read_alerts() -> list:
-    return fetch_fraud_alerts()
-
-
-def _write_alerts(data: list) -> None:
-    replace_fraud_alerts(data)
-
-
 @router.post("/report-fraud")
-def report_fraud(alert: FraudAlert):
-    record = {
-        "timestamp":  datetime.now().isoformat(),
-        "asset_id":   alert.asset_id,
-        "type":       alert.type,
-        "confidence": round(alert.confidence, 4),
-    }
-    existing = _read_alerts()
-    existing.append(record)
-    _write_alerts(existing)
-    return {"status": "saved", "record": record}
+async def report_fraud(alert: FraudAlert):
+    """Report a fraud alert - MongoDB only"""
+    try:
+        fraud_record = FraudAlertModel(
+            device_id=alert.device_id or "unknown",
+            asset_id=alert.asset_id,
+            type=alert.type,
+            confidence=round(alert.confidence, 4),
+            timestamp=datetime.now().isoformat(),
+            status="active"
+        )
+        result_id = await save_fraud_alert(fraud_record)
+        return {"status": "saved", "record": fraud_record.dict(), "id": str(result_id)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 @router.get("/fraud-alerts")
-def get_fraud_alerts():
-    return {"alerts": _read_alerts()}
+async def get_all_fraud_alerts(device_id: Optional[str] = None, limit: int = 50):
+    """Get fraud alerts from MongoDB"""
+    try:
+        alerts = await get_fraud_alerts(device_id=device_id, limit=limit)
+        return {"alerts": alerts, "count": len(alerts), "source": "mongodb"}
+    except Exception as e:
+        return {"alerts": [], "count": 0, "error": str(e)}

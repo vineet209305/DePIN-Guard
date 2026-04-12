@@ -25,7 +25,7 @@ from database import (
     get_database_size, get_collection_stats, export_all_data
 )
 from routes.stream import broadcast_data, router as stream_router
-from routes.fraud import router as fraud_router, _read_alerts, _write_alerts
+from routes.fraud import router as fraud_router
 from routes.blockchain_control import router as blockchain_router
 
 # ---------------------------------------------------------------------------
