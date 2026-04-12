@@ -141,18 +141,10 @@ except ImportError as e:
 # For complex async operations, convert to async scheduler in production
 def run_gnn_analysis():
     """GNN analysis - MongoDB only (runs synchronously via scheduler)"""
-    import asyncio
     try:
-        # For scheduler to work, we need to run async code in a new event loop
-        # In production, consider using async scheduler or running this in background task
-        print("[GNN] Scheduler triggered - MongoDB analysis")
+        print("[GNN] Scheduler triggered - MongoDB analysis pending...")
     except Exception as e:
         print(f"[GNN] Error: {e}")
-            except Exception as exc:
-                print(f"[GNN] Blockchain fraud flag write failed: {exc}")
-
-    _write_alerts(alerts)
-    print(f"[GNN] Saved {added} fraud alert(s) from {len(fraud_candidates)} critical records")
 
 
 @asynccontextmanager
