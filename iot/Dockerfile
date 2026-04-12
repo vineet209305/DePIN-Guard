@@ -20,4 +20,4 @@ USER appuser
 # No health check - simulator runs indefinitely
 
 # Start the data ingestion simulator
-CMD ["python", "simulator.py"]
+CMD ["python", "-m", "data_ingestor"]

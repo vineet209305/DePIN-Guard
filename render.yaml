@@ -51,7 +51,7 @@ services:
     runtime: python
     pythonVersion: 3.11
     buildCommand: pip install -r requirements.txt
-    startCommand: python simulator.py
+    startCommand: python -m data_ingestor
     envVars:
       - key: BACKEND_URL
         fromService:
