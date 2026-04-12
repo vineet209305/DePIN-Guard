@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import LiveChart from '../components/LiveChart';
 import Layout from '../components/layout/Layout';
-import IoTAlertCard from '../components/IoTAlertCard';
+import CompactDeviceStatus from '../components/CompactDeviceStatus';
+import SensorDataTable from '../components/SensorDataTable';
+import AnalyticsTable from '../components/AnalyticsTable';
 import { authenticatedFetch } from '../utils/api';
 import './DashboardPage.css';
 
@@ -254,101 +256,10 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* ── Recent Sensor Readings ── */}
-        {/* ✅ ref lagaya — scroll anchor yahan hai */}
+        {/* ── Live Device Readings (Combined View) ── */}
         <div className="data-section" ref={sensorSectionRef}>
           <div className="section-header">
-            <h2 className="section-title">Recent Sensor Readings</h2>
-            {!loading && recentData.length > 0 && (
-              <span className="sensor-count">{recentData.length} readings</span>
-            )}
-          </div>
-
-          {/* ✅ Static grid — overflow hidden, auto-scroll nahi */}
-          <div className="data-grid">
-            {loading ? (
-              <p className="loading-text">Loading sensor data...</p>
-            ) : recentData.length === 0 ? (
-              <p className="loading-text">No sensor readings yet.</p>
-            ) : (
-              visibleSensors.map((data) => (
-                <div key={data.id} className="data-card">
-                  <div className="data-header">
-                    <span className="device-name">{data.device}</span>
-                    <span className="status-badge" style={{
-                      backgroundColor: getStatusColor(data.status) + '20',
-                      color: getStatusColor(data.status),
-                    }}>
-                      {data.status}
-                    </span>
-                  </div>
-                  <div className="data-body">
-                    <span className="data-value">{data.value ?? 'N/A'}</span>
-                    <span className="data-unit">{data.unit}</span>
-                  </div>
-                  <div className="data-footer">{data.time}</div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* ✅ Toggle button — handleToggleSensors use karta hai */}
-          {!loading && recentData.length > SENSOR_PREVIEW && (
-            <button
-              className="show-more-btn"
-              onClick={handleToggleSensors}
-            >
-              {showAllSensors
-                ? '▲ Show Less'
-                : `▼ Show All ${recentData.length} Readings`}
-            </button>
-          )}
-        </div>
-
-        {/* ── IoT Device Status ── */}
-        <div className="data-section">
-          <div className="section-header">
-            <h2 className="section-title">Real-Time Device Status</h2>
-            <p className="section-subtitle">Human-readable alerts with actionable recommendations</p>
-          </div>
-          <div className="iot-devices-section">
-            {loading ? (
-              <p className="loading-text">Loading device status...</p>
-            ) : recentData.length === 0 ? (
-              <p className="loading-text">No device data available.</p>
-            ) : (
-              recentData.map((data) => (
-                <IoTAlertCard
-                  key={data.id}
-                  device_id={data.device}
-                  machine_name={data.device}
-                  alert_level={data.status || 'normal'}
-                  status_short={`Device is running with ${data.status} status`}
-                  temperature={data.value}
-                  vibration={Math.random() * 12}
-                  power_usage={Math.random() * 100 + 50}
-                  recommendations={[
-                    'Monitor machine in the next hour',
-                    'Check sensor calibration if readings seem unusual',
-                    'Contact maintenance if status changes',
-                  ]}
-                  timestamp={data.time}
-                />
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* ── Live Chart ── */}
-        {!streamConnected && (
-          <p className="loading-text">Connecting to live updates...</p>
-        )}
-        <LiveChart onConnect={() => setStreamConnected(true)} />
-
-        {/* ── Bar Chart ── */}
-        <div className="chart-section">
-          <div className="section-header">
-            <h2 className="section-title">Device Activity Analytics</h2>
+            <h2 className="section-title">📊 Live Device Readings</h2>
             <select
               className="time-select"
               value={timePeriod}
@@ -359,78 +270,64 @@ const DashboardPage = () => {
               <option value="30d">Last 30 Days</option>
             </select>
           </div>
-
-          <div className="chart-wrapper">
-            {chartData.length === 0 && (
-              <p className="loading-text">No activity trend data available yet.</p>
-            )}
-            <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="bar-chart-svg">
-              <defs>
-                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#0ea5e9" />
-                </linearGradient>
-              </defs>
-
-              {[0, 25, 50, 75, 100].map((tick) => {
-                const yPos = MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT;
-                return (
-                  <g key={tick}>
-                    <line
-                      x1={MARGIN.left} y1={yPos}
-                      x2={SVG_WIDTH - MARGIN.right} y2={yPos}
-                      stroke="rgba(255,255,255,0.06)"
-                      strokeDasharray="4 4"
-                    />
-                    <text
-                      x={MARGIN.left - 8} y={yPos + 4}
-                      fontSize="10" textAnchor="end" fill="#4b5563"
-                    >
-                      {tick}
-                    </text>
-                  </g>
-                );
-              })}
-
-              <line
-                x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT}
-                x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT}
-                stroke="rgba(255,255,255,0.12)" strokeWidth="1"
-              />
-
-              {chartData.map((data, i) => {
-                const spacing   = CHART_WIDTH / chartData.length;
-                const barWidth  = Math.max(spacing * 0.6, 8);
-                const barHeight = Math.max((data.y / 100) * CHART_HEIGHT, 2);
-                const x = MARGIN.left + i * spacing + (spacing - barWidth) / 2;
-                const y = MARGIN.top + CHART_HEIGHT - barHeight;
-                return (
-                  <g key={i}>
-                    <rect
-                      x={x} y={y}
-                      width={barWidth} height={barHeight}
-                      fill="url(#barGradient)" rx="3" opacity="0.85"
-                    />
-                    {data.raw > 0 && (
-                      <text
-                        x={x + barWidth / 2} y={y - 5}
-                        fontSize="9" textAnchor="middle" fill="#818cf8"
-                      >
-                        {data.raw}
-                      </text>
-                    )}
-                    <text
-                      x={x + barWidth / 2} y={SVG_HEIGHT - 10}
-                      fontSize="9" textAnchor="middle" fill="#4b5563"
-                    >
-                      {data.label}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-          </div>
+          <p className="section-subtitle">Real-time sensor data from all connected devices with professional analytics</p>
+          
+          <SensorDataTable 
+            data={recentData} 
+            title="All Connected Devices"
+            isLoading={loading}
+          />
         </div>
+
+        {/* ── Device Activity Analytics (with Table) ── */}
+        <div className="data-section">
+          <AnalyticsTable 
+            chartData={chartData}
+            timePeriod={timePeriod}
+          />
+        </div>
+
+        {/* ── Device Status Overview (Compact) ── */}
+        <div className="data-section">
+          <div className="section-header">
+            <h2 className="section-title">🔧 Device Status Overview</h2>
+            <p className="section-subtitle">Real-time metrics for all connected devices</p>
+          </div>
+
+          <div className="device-status-grid">
+            {loading ? (
+              <p className="loading-text">Loading device status...</p>
+            ) : recentData.length === 0 ? (
+              <p className="loading-text">No device data available.</p>
+            ) : (
+              recentData.slice(0, 5).map((data) => (
+                <CompactDeviceStatus
+                  key={data.id}
+                  device_id={data.device}
+                  machine_name={data.device}
+                  alert_level={data.status || 'normal'}
+                  status_short={`Device is operating with ${data.status} status`}
+                  temperature={data.value || 0}
+                  vibration={Math.random() * 12}
+                  power_usage={Math.random() * 100 + 50}
+                  timestamp={data.time}
+                />
+              ))
+            )}
+          </div>
+
+          {!loading && recentData.length > 5 && (
+            <p className="info-text">Showing 5 of {recentData.length} devices. View all in the Live Device Readings above.</p>
+          )}
+        </div>
+
+        {/* ── Live Chart ── */}
+        {!streamConnected && (
+          <p className="loading-text">Connecting to live updates...</p>
+        )}
+        <LiveChart onConnect={() => setStreamConnected(true)} />
+
+        {/* ── Bar Chart ── (Removed in favor of professional AnalyticsTable below) */}
 
       </div>
     </Layout>

@@ -446,6 +446,30 @@
 }
 
 /* ================================
+   10. DEVICE STATUS GRID (Compact View)
+================================ */
+.device-status-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-text {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+  font-style: italic;
+}
+
+.section-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+/* ================================
    11. RESPONSIVE
 ================================ */
 @media (max-width: 1024px) {
