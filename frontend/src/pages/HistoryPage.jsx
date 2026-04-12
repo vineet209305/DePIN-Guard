@@ -31,11 +31,7 @@ const HistoryPage = () => {
       }
 
       if (data.history.length > 0) {
-        setHistoryData(prev => {
-          const existingIds = new Set(prev.map(h => h.id));
-          const newEntries = data.history.filter(h => !existingIds.has(h.id));
-          return [...newEntries, ...prev].slice(0, 10000); // Increased from 500 to 10000 to handle full dataset
-        });
+        setHistoryData(data.history.slice(0, 10000)); // Use full dataset from API (already sorted)
       }
     } catch (error) {
       console.error('[History] Fetch failed:', error.message);

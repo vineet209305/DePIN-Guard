@@ -444,11 +444,35 @@ async def get_history():
             return {"history": [], "count": 0, "source": "sqlite_fallback", "note": "MongoDB unavailable"}
         
         # Fetch ALL records from MongoDB with no limit
-        history = await db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        raw_history = await db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        
+        # Transform MongoDB documents to match SQLite schema for frontend compatibility
+        history = []
+        for idx, doc in enumerate(raw_history):
+            transformed = {
+                "id": idx,  # Use index as ID since MongoDB ObjectId isn't JSON serializable
+                "device": doc.get("device_id", "unknown"),
+                "hash": "",
+                "value": "",
+                "timestamp": doc.get("timestamp", ""),
+                "status": doc.get("status", "normal"),
+                "temp": doc.get("temperature", 0),
+                "vib": doc.get("vibration", 0),
+                "pwr": doc.get("power_usage", 0),
+                "anomaly": 1 if doc.get("is_anomaly") or doc.get("anomaly") else 0,
+                "ai_source": doc.get("ai_source", "model"),
+                "ai_error": doc.get("ai_error", ""),
+                "recommendation": doc.get("recommendation", ""),
+                "recorded_at": doc.get("timestamp", ""),
+                "severity": doc.get("severity", "low"),
+                "confidence": doc.get("confidence", 0),
+            }
+            history.append(transformed)
+        
         logger.info(f"[History] Retrieved {len(history)} records from MongoDB")
         return {
-            "history": [dict(h) for h in history] if history else [],
-            "count": len(history) if history else 0,
+            "history": history,
+            "count": len(history),
             "source": "mongodb",
         }
     except Exception as e:
@@ -478,11 +502,35 @@ async def get_all_history():
             }
         
         # Fetch ALL records from MongoDB with no limit
-        history = await db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        raw_history = await db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        
+        # Transform MongoDB documents to match SQLite schema for frontend compatibility
+        history = []
+        for idx, doc in enumerate(raw_history):
+            transformed = {
+                "id": idx,  # Use index as ID since MongoDB ObjectId isn't JSON serializable
+                "device": doc.get("device_id", "unknown"),
+                "hash": "",
+                "value": "",
+                "timestamp": doc.get("timestamp", ""),
+                "status": doc.get("status", "normal"),
+                "temp": doc.get("temperature", 0),
+                "vib": doc.get("vibration", 0),
+                "pwr": doc.get("power_usage", 0),
+                "anomaly": 1 if doc.get("is_anomaly") or doc.get("anomaly") else 0,
+                "ai_source": doc.get("ai_source", "model"),
+                "ai_error": doc.get("ai_error", ""),
+                "recommendation": doc.get("recommendation", ""),
+                "recorded_at": doc.get("timestamp", ""),
+                "severity": doc.get("severity", "low"),
+                "confidence": doc.get("confidence", 0),
+            }
+            history.append(transformed)
+        
         logger.info(f"[HistoryAll] Retrieved {len(history)} records from MongoDB")
         return {
-            "history": [dict(h) for h in history] if history else [],
-            "count": len(history) if history else 0,
+            "history": history,
+            "count": len(history),
             "source": "mongodb",
         }
     except Exception as e:
