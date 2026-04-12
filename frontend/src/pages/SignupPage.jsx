@@ -48,7 +48,7 @@ const SignupPage = () => {
       const response = await authFetch('/signup', {
         method: 'POST',
         body: JSON.stringify({
-          username: formData.email.toLowerCase(),
+          email: formData.email.toLowerCase(),
           password: formData.password,
           full_name: formData.fullName.trim(),
           phone: '',
