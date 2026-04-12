@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorClient as AsyncClient, AsyncIOMotorDatabase as AsyncDatabase
 import logging
+import certifi
 
 logger = logging.getLogger("depin_guard.database")
 
@@ -15,10 +16,25 @@ db: Optional[AsyncDatabase] = None
 
 
 async def connect_to_mongo():
-    """Connect to MongoDB"""
+    """Connect to MongoDB with proper SSL/TLS configuration"""
     global mongodb_client, db
     try:
-        mongodb_client = AsyncClient(MONGODB_URI)
+        # For MongoDB Atlas (cloud), use TLS with certifi
+        if "mongodb+srv://" in MONGODB_URI:
+            mongodb_client = AsyncClient(
+                MONGODB_URI,
+                tls=True,
+                tlsCAFile=certifi.where(),
+                tlsAllowInvalidCertificates=False,
+                retryWrites=True,
+                w="majority",
+                serverSelectionTimeoutMS=5000,
+                connectTimeoutMS=10000,
+            )
+        else:
+            # For local MongoDB
+            mongodb_client = AsyncClient(MONGODB_URI)
+        
         # Verify connection
         await mongodb_client.admin.command('ping')
         db = mongodb_client["depin_guard"]
