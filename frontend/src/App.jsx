@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -12,6 +13,13 @@ import { getStoredToken, clearAuthStorage } from './utils/sessionAuth';
 
 // ✅ Correct import (file: SecurityPage.jsx)
 import SecurityPage from './pages/SecurityPage';
+
+// Log environment configuration
+if (typeof window !== 'undefined') {
+  console.log('🔧 Frontend Configuration:');
+  console.log('  API URL:', import.meta.env.VITE_API_URL || 'http://localhost:8000');
+  console.log('  Auth URL:', import.meta.env.VITE_AUTH_URL || 'http://localhost:8001');
+}
 
 const isTokenUsable = (token) => {
   if (!token || token === 'null') return false;
@@ -28,6 +36,56 @@ const isTokenUsable = (token) => {
     return false;
   }
 };
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('React Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          background: '#060a12',
+          color: '#fff',
+          flexDirection: 'column',
+          gap: '20px',
+          fontFamily: 'monospace',
+          padding: '20px'
+        }}>
+          <h1>⚠️ Application Error</h1>
+          <p>Error: {this.state.error?.message}</p>
+          <button onClick={() => window.location.reload()} style={{
+            padding: '10px 20px',
+            background: '#00c2ff',
+            border: 'none',
+            color: '#000',
+            cursor: 'pointer',
+            borderRadius: '4px'
+          }}>
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const ProtectedRoute = ({ children }) => {
   const token = getStoredToken();
@@ -48,44 +106,46 @@ const PublicRoute = ({ children }) => {
 
 function App() {
   return (
-    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <Routes>
+    <ErrorBoundary>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Routes>
 
-        <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LandingPage />} />
 
-        <Route path="/login" element={
-          <PublicRoute><LoginPage /></PublicRoute>
-        } />
-        <Route path="/signup" element={
-          <PublicRoute><SignupPage /></PublicRoute>
-        } />
+          <Route path="/login" element={
+            <PublicRoute><LoginPage /></PublicRoute>
+          } />
+          <Route path="/signup" element={
+            <PublicRoute><SignupPage /></PublicRoute>
+          } />
 
-        <Route path="/dashboard" element={
-          <ProtectedRoute><DashboardPage /></ProtectedRoute>
-        } />
-        <Route path="/blockchain" element={
-          <ProtectedRoute><BlockchainPage /></ProtectedRoute>
-        } />
-        <Route path="/ai-analysis" element={
-          <ProtectedRoute><AIAnalysisPage /></ProtectedRoute>
-        } />
-        <Route path="/history" element={
-          <ProtectedRoute><HistoryPage /></ProtectedRoute>
-        } />
-        <Route path="/settings" element={
-          <ProtectedRoute><SettingsPage /></ProtectedRoute>
-        } />
-        <Route path="/fraud-alerts" element={
-          <ProtectedRoute><FraudReport /></ProtectedRoute>
-        } />
-        <Route path="/security" element={
-          <ProtectedRoute><SecurityPage /></ProtectedRoute>
-        } />
+          <Route path="/dashboard" element={
+            <ProtectedRoute><DashboardPage /></ProtectedRoute>
+          } />
+          <Route path="/blockchain" element={
+            <ProtectedRoute><BlockchainPage /></ProtectedRoute>
+          } />
+          <Route path="/ai-analysis" element={
+            <ProtectedRoute><AIAnalysisPage /></ProtectedRoute>
+          } />
+          <Route path="/history" element={
+            <ProtectedRoute><HistoryPage /></ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute><SettingsPage /></ProtectedRoute>
+          } />
+          <Route path="/fraud-alerts" element={
+            <ProtectedRoute><FraudReport /></ProtectedRoute>
+          } />
+          <Route path="/security" element={
+            <ProtectedRoute><SecurityPage /></ProtectedRoute>
+          } />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
 
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
