@@ -277,11 +277,12 @@ def _sign_payload(payload):
 
 
 def run_simulator():
-    print(f"DePIN-Guard IoT Synthetic Data Ingestor Started")
-    print(f"Sending data to: {BACKEND_URL}")
-    print(f"Devices: {len(DEVICES)} active")
-    print("Press Ctrl+C to stop.\n")
+    print(f"✅ DePIN-Guard IoT Simulator Started (SILENT MODE)")
+    print(f"📡 Sending data to: {BACKEND_URL}")
+    print(f"🔄 Mode: Synthetic | Devices: {len(DEVICES)}")
+    print("⏱️  Running in background... (This is normal - no spam)\n")
 
+    error_count = 0
     try:
         while True:
             for device in DEVICES:
@@ -293,20 +294,23 @@ def run_simulator():
                         "Content-Type": "application/json",
                     }
                     response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
-                    if response.status_code == 200:
-                        result      = response.json()
-                        status_icon = "🔴" if result.get("anomaly") else "🟢"
-                        print(f"{status_icon} {device}: {data['temperature']}°C → HTTP {response.status_code}")
-                    else:
-                        print(f"❌ Error {response.status_code}: {response.text}")
+                    if response.status_code != 200:
+                        error_count += 1
+                        if error_count == 1:  # Log only first error
+                            print(f"⚠️  Error {response.status_code}: Check backend is running")
                 except requests.exceptions.ConnectionError:
-                    print("❌ Connection failed — backend chal raha hai? (uvicorn main:app --port 8000)")
+                    error_count += 1
+                    if error_count == 1:
+                        print("⚠️  Backend not responding - will retry silently")
                 except Exception as e:
-                    print(f"⚠️ Error: {e}")
+                    error_count += 1
+                    if error_count == 1:
+                        print(f"⚠️  Error: {e}")
+                
                 time.sleep(1)
             time.sleep(2)
     except KeyboardInterrupt:
-        print("\nSimulator stopped.")
+        print("\n✅ Simulator stopped gracefully.")
 
 
 def run_replay_simulator():
@@ -315,20 +319,21 @@ def run_replay_simulator():
 
     if not rows:
         if DATA_SOURCE_FILE:
-            print(f"No replay data found at {replay_file}.")
+            print(f"❌ No replay data found at {replay_file}.")
             print("Provide a valid external CSV/JSON file in SIMULATOR_DATA_FILE and retry.")
             return
 
-        print(f"No replay data found at {replay_file}; falling back to synthetic mode.")
+        print(f"⚠️  No replay data found at {replay_file}; falling back to synthetic mode.")
         run_simulator()
         return
 
-    print("DePIN-Guard IoT CSV Data Ingestor Started")
-    print(f"Replaying data from: {replay_file}")
-    print(f"Sending data to: {BACKEND_URL}")
-    print(f"Rows loaded: {len(rows)}")
-    print("Press Ctrl+C to stop.\n")
+    print(f"✅ DePIN-Guard IoT Replay Simulator Started (SILENT MODE)")
+    print(f"📁 Replaying data from: {replay_file}")
+    print(f"📡 Sending to: {BACKEND_URL}")
+    print(f"📊 Rows loaded: {len(rows)}")
+    print("⏱️  Running in background... (This is normal - no spam)\n")
 
+    error_count = 0
     try:
         while True:
             for data in rows:
@@ -339,40 +344,42 @@ def run_replay_simulator():
                         "Content-Type": "application/json",
                     }
                     response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
-                    if response.status_code == 200:
-                        result = response.json()
-                        status_icon = "🔴" if result.get("anomaly") else "🟢"
-                        print(f"{status_icon} {data['device_id']}: {data['temperature']}°C → HTTP {response.status_code}")
-                    else:
-                        print(f"❌ Error {response.status_code}: {response.text}")
+                    if response.status_code != 200:
+                        error_count += 1
+                        if error_count == 1:  # Log only first error
+                            print(f"⚠️  Error {response.status_code}: Check backend is running")
                 except requests.exceptions.ConnectionError:
-                    print("❌ Connection failed — backend chal raha hai? (uvicorn main:app --port 8000)")
+                    error_count += 1
+                    if error_count == 1:
+                        print("⚠️  Backend not responding - will retry silently")
                 except Exception as e:
-                    print(f"⚠️ Error: {e}")
-                time.sleep(1)
-            time.sleep(2)
+                    error_count += 1
+                    if error_count == 1:
+                        print(f"⚠️  Error: {e}")
+                
+                time.sleep(0.5)  # Throttle replay to 2 events/sec
+            print(f"✅ Completed one full cycle of {len(rows)} rows - looping...")
     except KeyboardInterrupt:
-        print("\nReplay simulator stopped.")
+        print("\n✅ Simulator stopped gracefully.")
 
 
 def run_online_simulator():
     if _is_placeholder_url(REAL_DATA_URL):
-        print("REAL_DATA_URL is not configured with a real endpoint.")
-        print("Set REAL_DATA_URL in iot-simulator/.env or run replay/synthetic mode.")
-        print("Falling back to replay mode.\n")
+        print("❌ REAL_DATA_URL is not configured.")
+        print("Set REAL_DATA_URL in .env or run replay mode.")
         run_replay_simulator()
         return
 
-    print("DePIN-Guard IoT Online Data Ingestor Started")
-    print(f"Source API: {REAL_DATA_URL}")
-    print(f"Sending data to: {BACKEND_URL}")
-    print("Press Ctrl+C to stop.\n")
+    print(f"✅ DePIN-Guard IoT Online Simulator Started (SILENT MODE)")
+    print(f"📡 Source: {REAL_DATA_URL}")
+    print(f"📤 Sending to: {BACKEND_URL}")
+    print("⏱️  Running in background... (This is normal - no spam)\n")
 
+    error_count = 0
     try:
         while True:
             rows = _fetch_online_rows()
             if not rows:
-                print("No online rows available right now; retrying...")
                 time.sleep(5)
                 continue
 
@@ -385,26 +392,28 @@ def run_online_simulator():
                         "Content-Type": "application/json",
                     }
                     response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
-                    if response.status_code == 200:
-                        result = response.json()
-                        status_icon = "🔴" if result.get("anomaly") else "🟢"
-                        print(f"{status_icon} {data['device_id']}: {data['temperature']}°C → HTTP {response.status_code}")
-                    else:
-                        print(f"❌ Error {response.status_code}: {response.text}")
+                    if response.status_code != 200:
+                        error_count += 1
+                        if error_count == 1:
+                            print(f"⚠️  Error {response.status_code}: Check backend")
                 except requests.exceptions.ConnectionError:
-                    print("❌ Connection failed — backend chal raha hai? (uvicorn main:app --port 8000)")
+                    error_count += 1
+                    if error_count == 1:
+                        print("⚠️  Backend not responding - retrying silently")
                 except Exception as exc:
-                    print(f"⚠️ Error: {exc}")
+                    error_count += 1
+                    if error_count == 1:
+                        print(f"⚠️  Error: {exc}")
                 time.sleep(1)
 
             time.sleep(5)
     except KeyboardInterrupt:
-        print("\nOnline-data simulator stopped.")
+        print("\n✅ Simulator stopped gracefully.")
 
 
 def run_secure_simulator():
-    print(f"DePIN-Guard SECURE IoT Simulator Started")
-    print(f"Connecting to MQTT Broker: {MQTT_BROKER}:{MQTT_PORT} (TLS)")
+    print(f"✅ DePIN-Guard Secure IoT Simulator Started (SILENT MODE)")
+    print(f"🔒 MQTT Broker: {MQTT_BROKER}:{MQTT_PORT} (TLS)")
 
     client = mqtt.Client(client_id="DePIN-Simulator-001")
 
@@ -415,48 +424,46 @@ def run_secure_simulator():
             keyfile=CLIENT_KEY,
             tls_version=ssl.PROTOCOL_TLSv1_2,
         )
-        print("TLS certificates loaded successfully")
     except Exception as e:
-        print(f"TLS setup failed: {e}")
-        print("Falling back to HTTP mode...")
+        print(f"❌ TLS setup failed: {e}")
         run_simulator()
         return
 
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
-            print(f"Connected to MQTT Broker (port {MQTT_PORT}, TLS)")
+            print(f"✅ Connected to MQTT Broker")
         else:
-            print(f"Connection failed with code: {rc}")
+            print(f"❌ Connection failed (code {rc})")
 
     client.on_connect = on_connect
 
     try:
         client.connect(MQTT_BROKER, MQTT_PORT, 60)
         client.loop_start()
+        print("⏱️  Running in background... (This is normal - no spam)\n")
 
         while True:
             for device in DEVICES:
                 data    = generate_sensor_data(device)
                 payload = json.dumps(data)
                 client.publish(MQTT_TOPIC, payload, qos=1)
-                icon = "⚠️" if data["temperature"] > 90 else "🟢"
-                print(f"{icon} [TLS] {device}: {data['temperature']}°C | vib={data['vibration']} | pwr={data['power_usage']}W")
+                # Silent mode - no per-device logs
                 time.sleep(1)
             time.sleep(2)
 
     except KeyboardInterrupt:
-        print("\nSecure simulator stopped.")
+        print("\n✅ Simulator stopped gracefully.")
         client.loop_stop()
         client.disconnect()
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"❌ Error: {e}")
 
 
 def generate_training_data(num_rows=10000):
     filename   = "normal_training_data.csv"
     fieldnames = ["timestamp", "device_id", "temperature", "vibration", "power_usage"]
 
-    print(f"Generating {num_rows} rows of normal training data...")
+    print(f"📊 Generating {num_rows} rows of training data...")
     with open(filename, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
@@ -469,6 +476,7 @@ def generate_training_data(num_rows=10000):
                 "vibration":   round(random.uniform(0.1, 2.0), 2),
                 "power_usage": round(random.uniform(10.0, 50.0), 2),
             })
+    print(f"✅ Generated {num_rows} rows → {filename}")
             if (i + 1) % 1000 == 0:
                 print(f"  {i + 1}/{num_rows} rows written...")
 
