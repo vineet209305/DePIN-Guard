@@ -1,0 +1,35 @@
+# Fly.io Configuration - IoT Simulator (FREE TIER ONLY)
+app = "depin-guard-iot"
+primary_region = "sgp"
+
+[build]
+  builder = "nixpacks"
+
+[env]
+  BACKEND_URL = "https://depin-guard-backend.onrender.com/api/process_data"
+  DEPIN_API_KEY = "546cd99c0d9b2ecf14ff85b089a2f37e500874830de918a6f0a1f4f8a5fbe95f"
+  SIMULATOR_MODE = "replay"
+
+[[processes]]
+  name = "app"
+  cmd = "bash start.sh"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+# Monitor usage - FREE TIER LIMIT
+[metrics]
+  port = 9090
+
+# Stop if something goes wrong
+[deploy]
+  strategy = "immediate"
+  release_command = "bash start.sh"
+
+[http_service]
+  internal_port = 8080
+  force_https = false
+  auto_stop_machines = true
+  auto_start_machines = true
