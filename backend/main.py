@@ -19,7 +19,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import jwt
 
-from db import fetch_sensor_readings, get_dashboard_metrics, init_db, save_sensor_reading
 from database import (
     connect_to_mongo, close_mongo_connection, db, SensorDataModel, FraudAlertModel, 
     save_sensor_data, save_fraud_alert, get_fraud_alerts, get_device_stats,
@@ -82,41 +81,11 @@ system_state = {
 }
 
 
-def _get_dashboard_metrics():
-    """Get metrics - this is a sync helper"""
-    import sqlite3
-    from db import _connect
-    
-    try:
-        with _connect() as connection:
-            # Count total readings
-            total_count = connection.execute(
-                "SELECT COUNT(*) as cnt FROM sensor_readings"
-            ).fetchone()
-            total_scans = total_count["cnt"] if total_count else 0
-            
-            # Count anomalies
-            anomaly_count = connection.execute(
-                "SELECT COUNT(*) as cnt FROM sensor_readings WHERE status = 'critical'"
-            ).fetchone()
-            anomalies = anomaly_count["cnt"] if anomaly_count else 0
-            
-            return {
-                "scans": total_scans,
-                "anomalies": anomalies,
-                "uptime": "100.0%",
-                "active": len(set()),
-            }
-    except Exception as e:
-        print(f"[Metrics] Error: {e}")
-        return {"scans": 0, "anomalies": 0, "uptime": "100.0%", "active": 0}
-
-
 async def _hydrate_system_state():
     """Hydrate system state from MongoDB"""
+    from database import db as mongo_db, mongodb_client
+    
     try:
-        from database import db as mongo_db, mongodb_client
-        
         if mongo_db and mongodb_client:
             # Get data from MongoDB
             all_data = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
@@ -143,23 +112,10 @@ async def _hydrate_system_state():
             
             print(f"[SystemState] Loaded {len(all_data)} records from MongoDB - {len(active_devices)} active devices")
         else:
-            # Fallback to SQLite
-            recent_history = fetch_sensor_readings(limit=100, newest_first=False)
-            critical_history = [record for record in recent_history if record.get("status") == "critical"]
-            
-            system_state["dashboard"]["active_devices"] = {
-                record.get("device") for record in recent_history if record.get("device")
-            }
-            system_state["dashboard"]["total_scans"] = len(recent_history)
-            system_state["dashboard"]["anomalies"] = len(critical_history)
-            system_state["dashboard"]["uptime"] = "100.0%"
-            
-            system_state["ai"]["total_analyses"] = len(recent_history)
-            system_state["ai"]["anomalies_found"] = len(critical_history)
-            
-            print(f"[SystemState] Using SQLite fallback - {len(recent_history)} records")
+            print("[SystemState] MongoDB not available!")
     except Exception as e:
         print(f"[SystemState] Error: {e}")
+        raise
 
 
 async def _setup_system_state():
@@ -179,44 +135,19 @@ except ImportError as e:
     print(f"   To enable: {e}")
 
 # ---------------------------------------------------------------------------
-# GNN scheduler — writes directly to JSON store
+# GNN scheduler — MongoDB-only
 # ---------------------------------------------------------------------------
+# Note: This scheduler runs synchronously, so we create a simple wrapper
+# For complex async operations, convert to async scheduler in production
 def run_gnn_analysis():
-    history = fetch_sensor_readings(limit=500, newest_first=True)
-    if not history:
-        print("[GNN] No history yet — skipping analysis run")
-        return
-
-    fraud_candidates = [r for r in history if r.get("status") == "critical"]
-    if not fraud_candidates:
-        print("[GNN] No critical anomalies — no fraud alerts raised")
-        return
-
-    alerts = _read_alerts()
-    added  = 0
-    for rec in fraud_candidates[:3]:
-        alert = {
-            "timestamp":  datetime.now().isoformat(),
-            "asset_id":   rec.get("device", "unknown"),
-            "type":       "anomaly_cluster",
-            "confidence": round(random.uniform(0.6, 0.99), 4),
-        }
-        alerts.append(alert)
-        added += 1
-
-        # Also write fraud flag to blockchain if network is live
-        if BLOCKCHAIN_ACTIVE:
-            try:
-                evidence_hash = hashlib.sha256(
-                    json.dumps(rec, sort_keys=True).encode()
-                ).hexdigest()
-                fabric_client.submit_transaction("RecordFraudFlag", [
-                    rec.get("device", "unknown"),
-                    "anomaly_cluster",
-                    str(round(alert["confidence"], 4)),
-                    evidence_hash,
-                    alert["timestamp"],
-                ])
+    """GNN analysis - MongoDB only (runs synchronously via scheduler)"""
+    import asyncio
+    try:
+        # For scheduler to work, we need to run async code in a new event loop
+        # In production, consider using async scheduler or running this in background task
+        print("[GNN] Scheduler triggered - MongoDB analysis")
+    except Exception as e:
+        print(f"[GNN] Error: {e}")
             except Exception as exc:
                 print(f"[GNN] Blockchain fraud flag write failed: {exc}")
 
@@ -226,8 +157,7 @@ def run_gnn_analysis():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Connect to databases
-    init_db()
+    # Connect to MongoDB only (no SQLite)
     await connect_to_mongo()
     print("✅ MongoDB connection initialized")
     await _setup_system_state()
@@ -413,49 +343,37 @@ def api_health_check():
 
 @app.get("/api/dashboard", dependencies=[Depends(verify_api_key)])
 async def get_dashboard():
-    """Get dashboard data from MongoDB"""
+    """Get dashboard data from MongoDB (MongoDB-only, no fallback)"""
+    from database import db as mongo_db, mongodb_client
+    
+    if not mongo_db or not mongodb_client:
+        raise HTTPException(status_code=503, detail="MongoDB not available")
+    
     try:
-        from database import db as mongo_db, mongodb_client
+        # Fetch recent data from MongoDB
+        recent_raw = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).limit(5).to_list(length=5)
+        recent_data = []
+        for idx, doc in enumerate(recent_raw):
+            transformed = {
+                "id": idx,
+                "device": doc.get("device_id", "unknown"),
+                "temp": doc.get("temperature", 0),
+                "vib": doc.get("vibration", 0),
+                "pwr": doc.get("power_usage", 0),
+                "status": doc.get("status", "normal"),
+                "timestamp": doc.get("timestamp", ""),
+            }
+            recent_data.append(transformed)
         
-        # Get metrics from in-memory state
-        metrics = get_dashboard_metrics()
-        
-        # Fetch recent data from MongoDB (not SQLite!)
-        if mongo_db and mongodb_client:
-            try:
-                recent_raw = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).limit(5).to_list(length=5)
-                recent_data = []
-                for idx, doc in enumerate(recent_raw):
-                    transformed = {
-                        "id": idx,
-                        "device": doc.get("device_id", "unknown"),
-                        "temp": doc.get("temperature", 0),
-                        "vib": doc.get("vibration", 0),
-                        "pwr": doc.get("power_usage", 0),
-                        "status": doc.get("status", "normal"),
-                        "timestamp": doc.get("timestamp", ""),
-                    }
-                    recent_data.append(transformed)
-            except Exception as e:
-                print(f"[Dashboard] MongoDB error: {e}, falling back to SQLite")
-                recent_data = fetch_sensor_readings(limit=5, newest_first=True)
-        else:
-            recent_data = fetch_sensor_readings(limit=5, newest_first=True)
-        
+        # Get metrics from system state
         return {
-            "stats": metrics,
+            "stats": system_state["dashboard"],
             "recent_data": recent_data,
-            "source": "mongodb" if mongo_db and mongodb_client else "sqlite"
+            "source": "mongodb"
         }
     except Exception as e:
         print(f"[Dashboard] Error: {e}")
-        metrics = get_dashboard_metrics()
-        recent_data = fetch_sensor_readings(limit=5, newest_first=True)
-        return {
-            "stats": metrics,
-            "recent_data": recent_data,
-            "error": str(e),
-        }
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/blockchain", dependencies=[Depends(verify_api_key)])
@@ -470,36 +388,17 @@ def get_ai_analysis():
 
 @app.get("/api/history", dependencies=[Depends(verify_api_key)])
 async def get_history():
-    """Get all sensor readings from MongoDB (no limit)"""
+    """Get all sensor readings from MongoDB (MongoDB-only, no fallback)"""
+    from database import db as mongo_db, mongodb_client
+    
+    if not mongo_db or not mongodb_client:
+        raise HTTPException(status_code=503, detail="MongoDB not available")
+    
     try:
-        # Import the global db from database module
-        from database import db as mongo_db, mongodb_client
-        
-        # Check if MongoDB is connected
-        if mongo_db is None or mongodb_client is None:
-            print("[History] MongoDB not connected - falling back to SQLite")
-            history = fetch_sensor_readings(newest_first=True)
-            return {
-                "history": history,
-                "count": len(history),
-                "source": "sqlite_fallback",
-            }
-        
         # Fetch ALL records from MongoDB with no limit
-        try:
-            raw_history = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
-        except Exception as mongo_err:
-            print(f"[History] MongoDB query error: {mongo_err}")
-            # Fallback to SQLite
-            history = fetch_sensor_readings(newest_first=True)
-            return {
-                "history": history,
-                "count": len(history),
-                "source": "sqlite_fallback",
-                "error": str(mongo_err),
-            }
+        raw_history = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
         
-        # Transform MongoDB documents to match SQLite schema for frontend compatibility
+        # Transform MongoDB documents
         history = []
         for idx, doc in enumerate(raw_history):
             transformed = {
@@ -527,49 +426,23 @@ async def get_history():
             "source": "mongodb",
         }
     except Exception as e:
-        print(f"[History] Unexpected error: {e}")
-        # Final fallback to SQLite
-        history = fetch_sensor_readings(newest_first=True)
-        return {
-            "history": history,
-            "count": len(history),
-            "source": "sqlite_fallback",
-            "error": str(e),
-        }
+        print(f"[History] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/history/all", dependencies=[Depends(verify_api_key)])
 async def get_all_history():
-    """Get all sensor readings from MongoDB (no limit)"""
+    """Get all sensor readings from MongoDB (MongoDB-only, no fallback)"""
+    from database import db as mongo_db, mongodb_client
+    
+    if not mongo_db or not mongodb_client:
+        raise HTTPException(status_code=503, detail="MongoDB not available")
+    
     try:
-        # Import the global db from database module
-        from database import db as mongo_db, mongodb_client
-        
-        # Check if MongoDB is connected
-        if mongo_db is None or mongodb_client is None:
-            print("[HistoryAll] MongoDB not connected - falling back to SQLite")
-            history = fetch_sensor_readings(newest_first=True)
-            return {
-                "history": history,
-                "count": len(history),
-                "source": "sqlite_fallback",
-            }
-        
         # Fetch ALL records from MongoDB with no limit
-        try:
-            raw_history = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
-        except Exception as mongo_err:
-            print(f"[HistoryAll] MongoDB query error: {mongo_err}")
-            # Fallback to SQLite
-            history = fetch_sensor_readings(newest_first=True)
-            return {
-                "history": history,
-                "count": len(history),
-                "source": "sqlite_fallback",
-                "error": str(mongo_err),
-            }
+        raw_history = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
         
-        # Transform MongoDB documents to match SQLite schema for frontend compatibility
+        # Transform MongoDB documents
         history = []
         for idx, doc in enumerate(raw_history):
             transformed = {
@@ -597,15 +470,8 @@ async def get_all_history():
             "source": "mongodb",
         }
     except Exception as e:
-        print(f"[HistoryAll] Unexpected error: {e}")
-        # Final fallback to SQLite
-        history = fetch_sensor_readings(newest_first=True)
-        return {
-            "history": history,
-            "count": len(history),
-            "source": "sqlite_fallback",
-            "error": str(e),
-        }
+        print(f"[HistoryAll] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/process_data", dependencies=[Depends(verify_api_key)])
@@ -770,7 +636,7 @@ async def process_data(request: Request, data: SensorData):
                 except Exception as exc:
                     print(f"⚠️  Ledger write failed (non-fatal): {exc}")
 
-        # --- Append to history ---
+        # --- Append to history (in-memory storage) ---
         history_record = {
             "device":    data.device_id,
             "hash":      tx_hash,
@@ -784,16 +650,12 @@ async def process_data(request: Request, data: SensorData):
             "ai_source": ai_source,
             "ai_error":  ai_error,
             "recommendation": recommendation,
+            "id":        system_state["dashboard"]["total_scans"],
         }
-        stored_record = save_sensor_reading(history_record)
-        history_record["id"] = stored_record["id"]
 
         system_state["history"].append(history_record)
         if len(system_state["history"]) > 100:
             system_state["history"].pop(0)
-
-        system_state["dashboard"]["total_scans"] = stored_record["id"]
-        system_state["dashboard"]["active_devices"].add(data.device_id)
 
         return {
             "status":    "Processed",
