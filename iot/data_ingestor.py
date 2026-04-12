@@ -27,7 +27,14 @@ if not API_KEY:
 # Initialize human-readable formatter for non-technical users
 FORMATTER = HumanReadableDataFormatter()
 
-DEVICES     = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005"]
+DEVICES     = ["Device-001", "Device-002", "Device-003", "Device-004", "Device-005",
+               "Device-006", "Device-007", "Device-008", "Device-009", "Device-010",
+               "Device-011", "Device-012", "Device-013", "Device-014", "Device-015",
+               "Device-016", "Device-017", "Device-018", "Device-019", "Device-020",
+               "Device-021", "Device-022", "Device-023", "Device-024", "Device-025",
+               "Device-026", "Device-027", "Device-028", "Device-029", "Device-030",
+               "Device-031", "Device-032", "Device-033"]
+NUM_DEVICES = len(DEVICES)
 SIMULATOR_MODE = os.getenv("SIMULATOR_MODE", "synthetic").strip().lower()
 DATA_SOURCE_FILE = os.getenv("SIMULATOR_DATA_FILE", "").strip()
 DEFAULT_REPLAY_FILE = os.path.join(os.path.dirname(__file__), "normal_training_data.csv")
@@ -345,6 +352,7 @@ def run_replay_simulator():
     print(f"📁 Replaying data from: {replay_file}")
     print(f"📡 Sending to: {BACKEND_URL}")
     print(f"📊 Rows loaded: {len(rows)}")
+    print(f"🔄 Simulating {NUM_DEVICES} devices (33 records/second)")
     print("⏱️  Starting to send data...\n")
 
     error_count = 0
@@ -386,7 +394,7 @@ def run_replay_simulator():
                     if error_count == 1:
                         print(f"⚠️  Error: {e}", flush=True)
                 
-                time.sleep(0.5)  # Throttle replay to 2 events/sec
+                time.sleep(1.0 / NUM_DEVICES)  # Throttle to 33 devices per second
             print(f"\n✅ Completed one full cycle of {len(rows)} rows - looping...", flush=True)
             print(f"📊 Total sent: {sent_count} | Success rate: {(success_count/sent_count*100):.1f}%\n", flush=True)
             sent_count = 0
