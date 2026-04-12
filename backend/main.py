@@ -130,18 +130,16 @@ def _hydrate_system_state():
     system_state["history"] = recent_history[-100:]
 
 # ---------------------------------------------------------------------------
-# Blockchain integration (MANDATORY — Hyperledger Fabric required)
+# Blockchain integration (Optional — can run without Hyperledger Fabric)
 # ---------------------------------------------------------------------------
 try:
     from fabric_manager import fabric_client
     BLOCKCHAIN_ACTIVE = True
+    print("✅ Blockchain active: Hyperledger Fabric connected")
 except ImportError as e:
-    raise RuntimeError(
-        "❌ Blockchain (Hyperledger Fabric) is MANDATORY for DePIN-Guard.\n"
-        "Please ensure fabric_manager is properly initialized.\n"
-        "Start blockchain network before starting backend.\n"
-        f"Error: {e}"
-    )
+    BLOCKCHAIN_ACTIVE = False
+    print("⚠️  Blockchain inactive: Hyperledger Fabric not available (running in demo mode)")
+    print(f"   To enable: {e}")
 
 # ---------------------------------------------------------------------------
 # GNN scheduler — writes directly to JSON store
@@ -231,7 +229,6 @@ if not API_KEY:
 
 print("✅ API Key loaded")
 print(f"✅ Anomaly threshold: {_ANOMALY_THRESHOLD}")
-print(f"✅ Blockchain active: {BLOCKCHAIN_ACTIVE}")
 
 
 async def verify_api_key(api_key: str = Security(api_key_header)):
