@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
-from motor.motor_asyncio import AsyncClient, AsyncDatabase
+from motor.motor_asyncio import AsyncIOMotorClient as AsyncClient, AsyncIOMotorDatabase as AsyncDatabase
 import logging
 
 logger = logging.getLogger("depin_guard.database")
