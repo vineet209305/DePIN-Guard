@@ -82,95 +82,89 @@ system_state = {
 }
 
 
-def _hydrate_system_state():
-    metrics = get_dashboard_metrics()
-    recent_history = fetch_sensor_readings(limit=100, newest_first=False)
-    critical_history = [record for record in recent_history if record.get("status") == "critical"]
-
-    system_state["dashboard"]["active_devices"] = {
-        record.get("device") for record in recent_history if record.get("device")
-    }
-    system_state["dashboard"]["total_scans"] = metrics["scans"]
-    system_state["dashboard"]["anomalies"] = metrics["anomalies"]
-    system_state["dashboard"]["uptime"] = metrics["uptime"]
-
-    system_state["ai"]["total_analyses"] = metrics["scans"]
-    system_state["ai"]["anomalies_found"] = metrics["anomalies"]
-    system_state["ai"]["accuracy"] = 94.5  # Overall model accuracy
-    system_state["ai"]["active_models_count"] = 2  # LSTM + GNN
+def _get_dashboard_metrics():
+    """Get metrics - this is a sync helper"""
+    import sqlite3
+    from db import _connect
     
-    # Enhanced AI results with meaningful descriptions and recommendations
-    ai_results = []
-    for idx, record in enumerate(critical_history[-10:]):
-        temp = record.get("temp", 0)
-        vib = record.get("vib", 0)
-        power = record.get("pwr", 50)
+    try:
+        with _connect() as connection:
+            # Count total readings
+            total_count = connection.execute(
+                "SELECT COUNT(*) as cnt FROM sensor_readings"
+            ).fetchone()
+            total_scans = total_count["cnt"] if total_count else 0
+            
+            # Count anomalies
+            anomaly_count = connection.execute(
+                "SELECT COUNT(*) as cnt FROM sensor_readings WHERE status = 'critical'"
+            ).fetchone()
+            anomalies = anomaly_count["cnt"] if anomaly_count else 0
+            
+            return {
+                "scans": total_scans,
+                "anomalies": anomalies,
+                "uptime": "100.0%",
+                "active": len(set()),
+            }
+    except Exception as e:
+        print(f"[Metrics] Error: {e}")
+        return {"scans": 0, "anomalies": 0, "uptime": "100.0%", "active": 0}
+
+
+async def _hydrate_system_state():
+    """Hydrate system state from MongoDB"""
+    try:
+        from database import db as mongo_db, mongodb_client
         
-        # Determine severity
-        if temp > 85 or vib > 10 or power > 150:
-            severity = "critical"
-            confidence = 0.92
-        elif temp > 75 or vib > 7 or power > 120:
-            severity = "high"
-            confidence = 0.87
+        if mongo_db and mongodb_client:
+            # Get data from MongoDB
+            all_data = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+            critical_data = [d for d in all_data if d.get("status") == "critical"]
+            
+            # Get unique devices
+            active_devices = set()
+            for record in all_data:
+                device_id = record.get("device_id")
+                if device_id:
+                    active_devices.add(device_id)
+            
+            system_state["dashboard"]["active_devices"] = active_devices
+            system_state["dashboard"]["total_scans"] = len(all_data)
+            system_state["dashboard"]["anomalies"] = len(critical_data)
+            system_state["dashboard"]["uptime"] = "100.0%"
+            
+            system_state["ai"]["total_analyses"] = len(all_data)
+            system_state["ai"]["anomalies_found"] = len(critical_data)
+            
+            # Blockchain block count
+            system_state["blockchain"]["total_blocks"] = max(len(critical_data), 1)
+            system_state["blockchain"]["transactions"] = len(critical_data)
+            
+            print(f"[SystemState] Loaded {len(all_data)} records from MongoDB - {len(active_devices)} active devices")
         else:
-            severity = "medium"
-            confidence = 0.78
-        
-        # Generate meaningful recommendations
-        recommendations = []
-        if temp > 85:
-            recommendations.append("🌡️ High temperature - Check cooling system efficiency")
-        if vib > 10:
-            recommendations.append("📳 Excessive vibration - Inspect mechanical components")
-        if power > 150:
-            recommendations.append("⚡ High power draw - Review electrical load distribution")
-        if not recommendations:
-            recommendations.append("✅ Monitor closely - System operating within normal parameters")
-        
-        ai_results.append({
-            "id": record.get("id", idx),
-            "device": record.get("device", f"Device-{idx:03d}"),
-            "analysis_type": "LSTM Anomaly Detection",
-            "confidence": float(confidence),
-            "recommendation": " | ".join(recommendations),
-            "timestamp": record.get("timestamp", datetime.now().isoformat()),
-            "severity": severity,
-            "description": f"Temperature: {temp}°C, Vibration: {vib}mm/s, Power: {power}W",
-            "model_name": "LSTM + GNN",
-        })
-    
-    system_state["ai"]["recent_results"] = ai_results
-    system_state["ai"]["available_models"] = ["LSTM + GNN", "Isolation Forest", "All Models"]
+            # Fallback to SQLite
+            recent_history = fetch_sensor_readings(limit=100, newest_first=False)
+            critical_history = [record for record in recent_history if record.get("status") == "critical"]
+            
+            system_state["dashboard"]["active_devices"] = {
+                record.get("device") for record in recent_history if record.get("device")
+            }
+            system_state["dashboard"]["total_scans"] = len(recent_history)
+            system_state["dashboard"]["anomalies"] = len(critical_history)
+            system_state["dashboard"]["uptime"] = "100.0%"
+            
+            system_state["ai"]["total_analyses"] = len(recent_history)
+            system_state["ai"]["anomalies_found"] = len(critical_history)
+            
+            print(f"[SystemState] Using SQLite fallback - {len(recent_history)} records")
+    except Exception as e:
+        print(f"[SystemState] Error: {e}")
 
-    # Blockchain data: In production, this would query Hyperledger Fabric
-    # For now, deriving from sensor anomalies to simulate real blockchain
-    block_count = len(critical_history)
-    system_state["blockchain"]["total_blocks"] = max(block_count, 1)
-    system_state["blockchain"]["transactions"] = metrics["anomalies"]
-    system_state["blockchain"]["net_status"] = "Stable" if BLOCKCHAIN_ACTIVE else "Offline (Demo Mode)"
-    
-    # Create blockchain block entries from critical sensor records
-    recent_blocks = []
-    for idx, record in enumerate(critical_history[-20:]):
-        # In production: query actual Hyperledger Fabric chaincode
-        # For demo: create realistic-looking block structure from sensor data
-        block = {
-            "id": idx + 1,
-            "hash": record.get("hash") or f"0x{record.get('device', 'DEV').replace('-', '')}{'%020x' % (idx + 1)}",
-            "prev_hash": f"0x{record.get('device', 'DEV').replace('-', '')}{'%020x' % idx}" if idx > 0 else "0x0000000000000000000000",
-            "timestamp": record.get("timestamp"),
-            "status": "Verified",
-            "device_id": record.get("device"),
-            "sensor_value": record.get("temp", 0),
-            "confidence_score": float(record.get("confidence", 0.85)),
-            "validator": "Org1-Peer0" if idx % 2 == 0 else "Org2-Peer0",
-        }
-        recent_blocks.append(block)
-    
-    system_state["blockchain"]["recent_blocks"] = recent_blocks
 
-    system_state["history"] = recent_history[-100:]
+async def _setup_system_state():
+    """Call _hydrate_system_state during startup"""
+    await _hydrate_system_state()
 
 # ---------------------------------------------------------------------------
 # Blockchain integration (Optional — can run without Hyperledger Fabric)
@@ -236,7 +230,7 @@ async def lifespan(app: FastAPI):
     init_db()
     await connect_to_mongo()
     print("✅ MongoDB connection initialized")
-    _hydrate_system_state()
+    await _setup_system_state()
     
     # Start scheduler
     scheduler = BackgroundScheduler()
@@ -418,12 +412,50 @@ def api_health_check():
 
 
 @app.get("/api/dashboard", dependencies=[Depends(verify_api_key)])
-def get_dashboard():
-    metrics = get_dashboard_metrics()
-    return {
-        "stats": metrics,
-        "recent_data": fetch_sensor_readings(limit=5, newest_first=True),
-    }
+async def get_dashboard():
+    """Get dashboard data from MongoDB"""
+    try:
+        from database import db as mongo_db, mongodb_client
+        
+        # Get metrics from in-memory state
+        metrics = get_dashboard_metrics()
+        
+        # Fetch recent data from MongoDB (not SQLite!)
+        if mongo_db and mongodb_client:
+            try:
+                recent_raw = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).limit(5).to_list(length=5)
+                recent_data = []
+                for idx, doc in enumerate(recent_raw):
+                    transformed = {
+                        "id": idx,
+                        "device": doc.get("device_id", "unknown"),
+                        "temp": doc.get("temperature", 0),
+                        "vib": doc.get("vibration", 0),
+                        "pwr": doc.get("power_usage", 0),
+                        "status": doc.get("status", "normal"),
+                        "timestamp": doc.get("timestamp", ""),
+                    }
+                    recent_data.append(transformed)
+            except Exception as e:
+                print(f"[Dashboard] MongoDB error: {e}, falling back to SQLite")
+                recent_data = fetch_sensor_readings(limit=5, newest_first=True)
+        else:
+            recent_data = fetch_sensor_readings(limit=5, newest_first=True)
+        
+        return {
+            "stats": metrics,
+            "recent_data": recent_data,
+            "source": "mongodb" if mongo_db and mongodb_client else "sqlite"
+        }
+    except Exception as e:
+        print(f"[Dashboard] Error: {e}")
+        metrics = get_dashboard_metrics()
+        recent_data = fetch_sensor_readings(limit=5, newest_first=True)
+        return {
+            "stats": metrics,
+            "recent_data": recent_data,
+            "error": str(e),
+        }
 
 
 @app.get("/api/blockchain", dependencies=[Depends(verify_api_key)])
