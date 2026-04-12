@@ -10,9 +10,11 @@ router = APIRouter()
 
 class FraudAlert(BaseModel):
     device_id: Optional[str] = None
-    asset_id: str
-    type: str  # anomaly_cluster | high_frequency | injection_attempt
-    confidence: float
+    alert_type: str  # "anomaly", "suspicious_pattern", "threshold_exceeded"
+    severity: str  # "low", "medium", "high"
+    message: str
+    confidence: Optional[float] = None
+    anomaly_data: Optional[dict] = None
 
 
 @router.post("/report-fraud")
@@ -21,11 +23,11 @@ async def report_fraud(alert: FraudAlert):
     try:
         fraud_record = FraudAlertModel(
             device_id=alert.device_id or "unknown",
-            asset_id=alert.asset_id,
-            type=alert.type,
-            confidence=round(alert.confidence, 4),
-            timestamp=datetime.now().isoformat(),
-            status="active"
+            alert_type=alert.alert_type,
+            severity=alert.severity,
+            message=alert.message,
+            anomaly_data=alert.anomaly_data or {},
+            timestamp=datetime.utcnow()
         )
         result_id = await save_fraud_alert(fraud_record)
         return {"status": "saved", "record": fraud_record.dict(), "id": str(result_id)}

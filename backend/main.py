@@ -62,7 +62,7 @@ if not SECRET_KEY:
 # ---------------------------------------------------------------------------
 system_state = {
     "dashboard": {
-        "active_devices": set(),
+        "active_devices": 0,
         "total_scans":    0,
         "anomalies":      0,
         "uptime":         100.0,
@@ -91,14 +91,14 @@ async def _hydrate_system_state():
             all_data = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
             critical_data = [d for d in all_data if d.get("status") == "critical"]
             
-            # Get unique devices
+            # Get unique device count
             active_devices = set()
             for record in all_data:
                 device_id = record.get("device_id")
                 if device_id:
                     active_devices.add(device_id)
             
-            system_state["dashboard"]["active_devices"] = active_devices
+            system_state["dashboard"]["active_devices"] = len(active_devices)
             system_state["dashboard"]["total_scans"] = len(all_data)
             system_state["dashboard"]["anomalies"] = len(critical_data)
             system_state["dashboard"]["uptime"] = "100.0%"
@@ -521,7 +521,6 @@ async def process_data(request: Request, data: SensorData):
 
         # --- Update in-memory counters ---
         system_state["dashboard"]["total_scans"] += 1
-        system_state["dashboard"]["active_devices"].add(data.device_id)
         system_state["ai"]["total_analyses"] += 1
 
         status_label = "normal"

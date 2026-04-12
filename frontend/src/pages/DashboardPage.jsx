@@ -34,10 +34,10 @@ const DashboardPage = () => {
       if (response.ok) {
         const json = await response.json();
         setStats({
-          activeDevices: json.stats?.active    ?? 0,
-          totalData:     json.stats?.scans     ?? 0,
-          alerts:        json.stats?.anomalies ?? 0,
-          uptime:        json.stats?.uptime    ?? null,
+          activeDevices: json.stats?.active_devices ?? 0,
+          totalData:     json.stats?.total_scans   ?? 0,
+          alerts:        json.stats?.anomalies     ?? 0,
+          uptime:        json.stats?.uptime        ?? null,
         });
         const history = json.recent_data ?? [];
         if (history.length > 0) {
