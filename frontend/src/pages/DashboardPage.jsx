@@ -6,13 +6,15 @@ import { authenticatedFetch } from '../utils/api';
 import './DashboardPage.css';
 
 const DashboardPage = () => {
-  const [streamConnected, setStreamConnected] = useState(false);
-  const [loading, setLoading]     = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats]         = useState({ activeDevices: null, totalData: null, alerts: null, uptime: null });
-  const [recentData, setRecentData] = useState([]);
-  const [timePeriod, setTimePeriod] = useState('24h');
-  const [chartData, setChartData]   = useState([]);
+  const [streamConnected, setStreamConnected]   = useState(false);
+  const [loading, setLoading]                   = useState(true);
+  const [refreshing, setRefreshing]             = useState(false);
+  const [stats, setStats]                       = useState({ activeDevices: null, totalData: null, alerts: null, uptime: null });
+  const [recentData, setRecentData]             = useState([]);
+  const [timePeriod, setTimePeriod]             = useState('24h');
+  const [chartData, setChartData]               = useState([]);
+  const [showAllSensors, setShowAllSensors]     = useState(false);
+  const SENSOR_PREVIEW = 4;
 
   const fetchDashboardData = async () => {
     try {
@@ -51,11 +53,7 @@ const DashboardPage = () => {
       if (response && response.ok) {
         const json    = await response.json();
         const history = json.history ?? [];
-
-        if (history.length === 0) {
-          setChartData([]);
-          return;
-        }
+        if (history.length === 0) { setChartData([]); return; }
 
         const now = new Date();
         let buckets = [];
@@ -98,14 +96,11 @@ const DashboardPage = () => {
         }
 
         const maxCount = Math.max(...buckets.map(b => b.count), 1);
-        const newChart = buckets.map(b => ({
+        setChartData(buckets.map(b => ({
           label: b.label,
           y:     Math.round((b.count / maxCount) * 100),
           raw:   b.count,
-        }));
-
-        setChartData(newChart);
-
+        })));
       }
     } catch {
       setChartData([]);
@@ -115,14 +110,9 @@ const DashboardPage = () => {
   useEffect(() => {
     fetchDashboardData();
     fetchChartData(timePeriod);
-
     const dashInterval  = setInterval(fetchDashboardData, 5000);
     const chartInterval = setInterval(() => fetchChartData(timePeriod), 10000);
-
-    return () => {
-      clearInterval(dashInterval);
-      clearInterval(chartInterval);
-    };
+    return () => { clearInterval(dashInterval); clearInterval(chartInterval); };
   }, [timePeriod]);
 
   const handleRefresh = async () => {
@@ -132,12 +122,8 @@ const DashboardPage = () => {
   };
 
   const renderStatValue = (value, formatter = (v) => v) => {
-    if (loading || refreshing) {
-      return '...';
-    }
-    if (value === null || value === undefined) {
-      return 'N/A';
-    }
+    if (loading || refreshing) return '...';
+    if (value === null || value === undefined) return 'N/A';
     return formatter(value);
   };
 
@@ -150,35 +136,41 @@ const DashboardPage = () => {
     }
   };
 
-  const SVG_WIDTH  = 600;
-  const SVG_HEIGHT = 250;
-  const MARGIN = { top: 20, right: 30, bottom: 40, left: 50 };
+  const SVG_WIDTH    = 600;
+  const SVG_HEIGHT   = 260;
+  const MARGIN       = { top: 24, right: 30, bottom: 44, left: 50 };
   const CHART_WIDTH  = SVG_WIDTH  - MARGIN.left - MARGIN.right;
   const CHART_HEIGHT = SVG_HEIGHT - MARGIN.top  - MARGIN.bottom;
+
+  const visibleSensors = showAllSensors ? recentData : recentData.slice(0, SENSOR_PREVIEW);
 
   return (
     <Layout>
       <div className="dashboard-container">
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="page-header">
           <div>
             <h1 className="page-title">IoT Dashboard</h1>
             <p className="page-subtitle">System Health &amp; Live Monitoring</p>
           </div>
-          <button className="refresh-button" onClick={handleRefresh}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          <button className="refresh-button" onClick={handleRefresh} disabled={refreshing}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18"
+              style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
 
-        {/* Stats Grid */}
+        {/* ── Stats Grid ── */}
         <div className="stats-grid">
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #0ea5e9, #0284c7)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
+            <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#0ea5e9,#0284c7)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20">
+                <path strokeWidth="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+              </svg>
             </div>
             <div className="stat-content">
               <div className="stat-value">{renderStatValue(stats.activeDevices)}</div>
@@ -187,8 +179,10 @@ const DashboardPage = () => {
           </div>
 
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
+            <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20">
+                <path strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+              </svg>
             </div>
             <div className="stat-content">
               <div className="stat-value">{renderStatValue(stats.totalData, (v) => Number(v).toLocaleString())}</div>
@@ -197,8 +191,10 @@ const DashboardPage = () => {
           </div>
 
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20">
+                <path strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
             </div>
             <div className="stat-content">
               <div className="stat-value">{renderStatValue(stats.alerts)}</div>
@@ -207,8 +203,10 @@ const DashboardPage = () => {
           </div>
 
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20"><path strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20">
+                <path strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
             </div>
             <div className="stat-content">
               <div className="stat-value">{renderStatValue(stats.uptime, (v) => `${Number(v).toFixed(1)}%`)}</div>
@@ -217,18 +215,23 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Live Sensor Feeds */}
+        {/* ── Recent Sensor Readings ── */}
         <div className="data-section">
           <div className="section-header">
             <h2 className="section-title">Recent Sensor Readings</h2>
+            {!loading && recentData.length > 0 && (
+              <span className="sensor-count">{recentData.length} readings</span>
+            )}
           </div>
+
+          {/* Fixed grid — NO scroll, NO auto-move */}
           <div className="data-grid">
             {loading ? (
               <p className="loading-text">Loading sensor data...</p>
             ) : recentData.length === 0 ? (
               <p className="loading-text">No sensor readings yet.</p>
             ) : (
-              recentData.map((data) => (
+              visibleSensors.map((data) => (
                 <div key={data.id} className="data-card">
                   <div className="data-header">
                     <span className="device-name">{data.device}</span>
@@ -248,9 +251,21 @@ const DashboardPage = () => {
               ))
             )}
           </div>
+
+          {/* Show More / Show Less button */}
+          {!loading && recentData.length > SENSOR_PREVIEW && (
+            <button
+              className="show-more-btn"
+              onClick={() => setShowAllSensors(prev => !prev)}
+            >
+              {showAllSensors
+                ? '▲ Show Less'
+                : `▼ Show All ${recentData.length} Readings`}
+            </button>
+          )}
         </div>
 
-        {/* IoT Device Status - Professional Non-Technical Format */}
+        {/* ── IoT Device Status ── */}
         <div className="data-section">
           <div className="section-header">
             <h2 className="section-title">Real-Time Device Status</h2>
@@ -275,7 +290,7 @@ const DashboardPage = () => {
                   recommendations={[
                     'Monitor machine in the next hour',
                     'Check sensor calibration if readings seem unusual',
-                    'Contact maintenance if status changes'
+                    'Contact maintenance if status changes',
                   ]}
                   timestamp={data.time}
                 />
@@ -284,13 +299,13 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* LiveChart */}
+        {/* ── Live Chart ── */}
         {!streamConnected && (
           <p className="loading-text">Connecting to live updates...</p>
         )}
         <LiveChart onConnect={() => setStreamConnected(true)} />
 
-        {/* Bar Chart */}
+        {/* ── Bar Chart ── */}
         <div className="chart-section">
           <div className="section-header">
             <h2 className="section-title">Device Activity Analytics</h2>
@@ -304,6 +319,7 @@ const DashboardPage = () => {
               <option value="30d">Last 30 Days</option>
             </select>
           </div>
+
           <div className="chart-wrapper">
             {chartData.length === 0 && (
               <p className="loading-text">No activity trend data available yet.</p>
@@ -315,37 +331,61 @@ const DashboardPage = () => {
                   <stop offset="100%" stopColor="#0ea5e9" />
                 </linearGradient>
               </defs>
-              {[0, 25, 50, 75, 100].map((tick) => (
-                <g key={tick}>
-                  <line
-                    x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT}
-                    x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT}
-                    stroke="#f1f5f9"
-                  />
-                  <text x={MARGIN.left - 10} y={MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT + 4}
-                    fontSize="11" textAnchor="end" fill="#94a3b8">{tick}</text>
-                </g>
-              ))}
+
+              {/* Grid lines */}
+              {[0, 25, 50, 75, 100].map((tick) => {
+                const yPos = MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT;
+                return (
+                  <g key={tick}>
+                    <line
+                      x1={MARGIN.left} y1={yPos}
+                      x2={SVG_WIDTH - MARGIN.right} y2={yPos}
+                      stroke="rgba(255,255,255,0.06)"
+                      strokeDasharray="4 4"
+                    />
+                    <text
+                      x={MARGIN.left - 8} y={yPos + 4}
+                      fontSize="10" textAnchor="end" fill="#4b5563"
+                    >
+                      {tick}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* X axis baseline */}
               <line
                 x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT}
                 x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT}
-                stroke="#cbd5e1" strokeWidth="2"
+                stroke="rgba(255,255,255,0.12)" strokeWidth="1"
               />
+
+              {/* Bars */}
               {chartData.map((data, i) => {
                 const spacing   = CHART_WIDTH / chartData.length;
-                const barWidth  = spacing * 0.7;
-                const barHeight = (data.y / 100) * CHART_HEIGHT;
+                const barWidth  = Math.max(spacing * 0.6, 8);
+                const barHeight = Math.max((data.y / 100) * CHART_HEIGHT, 2);
                 const x = MARGIN.left + i * spacing + (spacing - barWidth) / 2;
                 const y = MARGIN.top + CHART_HEIGHT - barHeight;
                 return (
                   <g key={i}>
-                    <rect x={x} y={y} width={barWidth} height={barHeight} fill="url(#barGradient)" rx="4" />
-                    {data.raw !== null && data.raw > 0 && (
-                      <text x={x + barWidth / 2} y={y - 4} fontSize="9" textAnchor="middle" fill="#6366f1">
+                    <rect
+                      x={x} y={y}
+                      width={barWidth} height={barHeight}
+                      fill="url(#barGradient)" rx="3" opacity="0.85"
+                    />
+                    {data.raw > 0 && (
+                      <text
+                        x={x + barWidth / 2} y={y - 5}
+                        fontSize="9" textAnchor="middle" fill="#818cf8"
+                      >
                         {data.raw}
                       </text>
                     )}
-                    <text x={x + barWidth / 2} y={SVG_HEIGHT - 10} fontSize="10" textAnchor="middle" fill="#64748b">
+                    <text
+                      x={x + barWidth / 2} y={SVG_HEIGHT - 10}
+                      fontSize="9" textAnchor="middle" fill="#4b5563"
+                    >
                       {data.label}
                     </text>
                   </g>

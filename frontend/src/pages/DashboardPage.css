@@ -2,29 +2,22 @@
    1. CORE VARIABLES & RESET
 ================================ */
 :root {
-  /* Colors */
-  --primary: #0ea5e9;
-  --primary-dark: #0284c7;
-  --accent: #8b5cf6;
-  
-  --bg-dark: #111827;
-  --bg-card: rgba(17, 24, 39, 0.85);
+  --primary:       #0ea5e9;
+  --primary-dark:  #0284c7;
+  --accent:        #8b5cf6;
+  --bg-dark:       #111827;
+  --bg-card:       rgba(17, 24, 39, 0.85);
   --bg-card-hover: rgba(31, 41, 55, 0.5);
-  
-  --text-primary: #ffffff;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
-  
-  --border: rgba(255, 255, 255, 0.1);
-  
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
+  --text-primary:  #ffffff;
+  --text-secondary:#9ca3af;
+  --text-muted:    #6b7280;
+  --border:        rgba(255, 255, 255, 0.1);
+  --radius-sm:     0.375rem;
+  --radius-md:     0.5rem;
+  --radius-lg:     0.75rem;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 /* ================================
    DASHBOARD CONTAINER
@@ -70,7 +63,6 @@
   margin-bottom: 0;
 }
 
-/* --- REFRESH BUTTON --- */
 .refresh-button {
   display: flex;
   align-items: center;
@@ -105,11 +97,10 @@
 }
 
 /* ================================
-   3. STATS GRID (Smart Responsive)
+   3. STATS GRID
 ================================ */
 .stats-grid {
   display: grid;
-  /* Automatically fits columns. Min width 240px, max 1fr */
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.5rem;
 }
@@ -124,7 +115,7 @@
   gap: 1rem;
   align-items: center;
   transition: all 0.3s ease;
-  min-width: 0; /* Prevents overflow */
+  min-width: 0;
 }
 
 .stat-card:hover {
@@ -137,57 +128,37 @@
   width: 50px;
   height: 50px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.stat-icon svg { 
-  width: 26px; 
-  height: 26px; 
-  color: #fff; 
-}
+.stat-icon svg { width: 26px; height: 26px; color: #fff; }
+.stat-content  { flex: 1; min-width: 0; }
 
-.stat-content { 
-  flex: 1; 
-  min-width: 0; 
-}
-
-.stat-value { 
-  font-size: 1.75rem; 
-  font-weight: 700; 
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
   color: var(--text-primary);
-  white-space: nowrap; 
+  white-space: nowrap;
   line-height: 1.2;
 }
 
-.stat-label { 
-  font-size: 0.85rem; 
-  color: var(--text-secondary); 
-  white-space: nowrap; 
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
   margin-top: 0.25rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.stat-trend {
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: rgba(255,255,255,0.05);
-  margin-left: auto;
-}
-
-.stat-trend.positive { color: #22c55e; background: rgba(34, 197, 94, 0.1); }
-.stat-trend.negative { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
-
 /* ================================
-   4. DATA & CHART SECTIONS
+   4. SECTION WRAPPER
 ================================ */
-.data-section, .chart-section {
+.data-section,
+.chart-section {
   background: var(--bg-card);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
@@ -204,64 +175,6 @@
   margin-bottom: 0;
 }
 
-/* IoT DEVICES SECTION */
-.iot-devices-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  max-height: 800px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 0.5rem;
-}
-
-.iot-devices-section::-webkit-scrollbar {
-  width: 8px;
-}
-
-.iot-devices-section::-webkit-scrollbar-track {
-  background: rgba(255,255,255,0.05);
-  border-radius: 10px;
-}
-
-.iot-devices-section::-webkit-scrollbar-thumb {
-  background: rgba(14, 165, 233, 0.3);
-  border-radius: 10px;
-}
-
-.iot-devices-section::-webkit-scrollbar-thumb:hover {
-  background: rgba(14, 165, 233, 0.6);
-}
-
-/* SCROLLABLE DATA GRID */
-.data-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1rem;
-  max-height: 400px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 0.5rem;
-}
-
-.data-grid::-webkit-scrollbar {
-  width: 8px;
-}
-
-.data-grid::-webkit-scrollbar-track {
-  background: rgba(255,255,255,0.05);
-  border-radius: 10px;
-}
-
-.data-grid::-webkit-scrollbar-thumb {
-  background: rgba(14, 165, 233, 0.3);
-  border-radius: 10px;
-}
-
-.data-grid::-webkit-scrollbar-thumb:hover {
-  background: rgba(14, 165, 233, 0.6);
-}
-
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -271,11 +184,23 @@
   margin-bottom: 1.5rem;
 }
 
-.section-title { 
-  font-size: 1.25rem; 
-  font-weight: 600; 
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 1em;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 2px;
 }
 
 .section-subtitle {
@@ -294,244 +219,303 @@
   transition: color 0.2s;
 }
 
-.view-all-button:hover {
-  color: var(--primary-dark);
+.view-all-button:hover { color: var(--primary-dark); }
+
+/* ================================
+   5. IOT DEVICES SECTION
+================================ */
+.iot-devices-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 800px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.5rem;
+  scroll-behavior: auto;
+  overscroll-behavior: contain;
 }
 
+.iot-devices-section::-webkit-scrollbar       { width: 5px; }
+.iot-devices-section::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 10px; }
+.iot-devices-section::-webkit-scrollbar-thumb { background: rgba(14,165,233,0.3); border-radius: 10px; }
+.iot-devices-section::-webkit-scrollbar-thumb:hover { background: rgba(14,165,233,0.6); }
+
+/* ================================
+   6. SENSOR DATA GRID — FIXED SCROLL
+================================ */
+.data-grid-scroll {
+  max-height: 340px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.data-grid-scroll:not(:hover)::-webkit-scrollbar-thumb { background: transparent; }
+.data-grid-scroll::-webkit-scrollbar                   { width: 5px; }
+.data-grid-scroll::-webkit-scrollbar-track            { background: rgba(255,255,255,0.03); border-radius: 10px; }
+.data-grid-scroll::-webkit-scrollbar-thumb            { background: rgba(14,165,233,0.35); border-radius: 10px; transition: background 0.2s; }
+.data-grid-scroll::-webkit-scrollbar-thumb:hover      { background: rgba(14,165,233,0.7); }
+
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+/* ================================
+   7. SENSOR DATA CARD
+================================ */
+.data-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.data-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+  border-radius: 2px 0 0 2px;
+  opacity: 0.6;
+  transition: opacity 0.25s;
+}
+
+.data-card:hover {
+  border-color: rgba(14,165,233,0.3);
+  background: rgba(14,165,233,0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.data-card:hover::before { opacity: 1; }
+
+.data-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.device-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 65%;
+}
+
+.status-badge {
+  font-size: 0.68rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
+.data-body {
+  display: flex;
+  align-items: baseline;
+  gap: 0.2rem;
+  line-height: 1;
+}
+
+.data-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.data-unit {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.data-footer {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.data-footer::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+/* ================================
+   8. CHART SECTION
+================================ */
 .time-select {
-  padding: 0.5rem 1rem;
-  background: var(--bg-card-hover);
+  padding: 0.45rem 0.9rem;
+  background: rgba(255,255,255,0.05);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   outline: none;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  transition: border-color 0.2s;
 }
 
-.time-select:hover {
-  border-color: var(--primary);
-}
+.time-select:hover { border-color: var(--primary); }
 
-/* CHART WRAPPER - Better labels */
 .chart-wrapper {
   width: 100%;
   display: flex;
   justify-content: center;
-  padding: 1rem 0;
-  min-height: 350px;
+  padding: 0.5rem 0;
+  min-height: 300px;
 }
 
 .bar-chart-svg {
   width: 100%;
   height: auto;
-  min-height: 300px;
+  min-height: 260px;
 }
 
-/* Improve chart readability */
 .bar-chart-svg text {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-.chart-legend {
-  display: flex;
-  justify-content: center;
-  gap: 2rem;
-  margin-top: 1rem;
-  flex-wrap: wrap;
-}
-
-.chart-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.chart-legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-}
-
 /* ================================
-   5. DATA GRID (Smart Responsive)
+   9. MISC
 ================================ */
-.data-grid {
-  display: grid;
-  /* Auto-fit columns: Min 250px, otherwise stack */
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-}
-
-.data-card {
-  background: var(--bg-card-hover);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  transition: 0.3s ease;
-  display: flex;
-  flex-direction: column;
-}
-
-.data-card:hover { 
-  border-color: var(--primary); 
-  transform: translateY(-2px); 
-}
-
-.data-header { 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: flex-start; 
-  margin-bottom: 1rem; 
-}
-
-.device-info { 
-  display: flex; 
-  align-items: center; 
-  gap: 0.75rem; 
-}
-
-.device-icon {
-  width: 36px; 
-  height: 36px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  display: flex; 
-  align-items: center; 
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.device-icon svg { 
-  width: 18px; 
-  height: 18px; 
-  color: #fff; 
-}
-
-.device-name { 
-  font-weight: 600; 
-  font-size: 0.9rem; 
-  color: var(--text-primary);
-}
-
-.status-badge { 
-  font-size: 0.7rem; 
-  padding: 0.2rem 0.5rem; 
-  border-radius: 1rem; 
-  text-transform: uppercase; 
-  font-weight: 600; 
-  background: rgba(255,255,255,0.1);
-  color: var(--text-secondary);
-}
-
-.data-value { 
-  font-size: 1.5rem; 
-  font-weight: 700; 
-  color: var(--text-primary);
-  margin-top: auto; 
-  padding-top: 0.5rem;
-}
-
-.data-unit { 
-  font-size: 0.85rem; 
-  color: var(--text-secondary); 
-  font-weight: 400;
-  margin-left: 0.25rem;
-}
-
-.data-time { 
-  font-size: 0.75rem; 
-  color: var(--text-muted); 
-  margin-top: 0.25rem; 
-}
-
-.chart-placeholder {
-  width: 100%;
-  min-height: 300px;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ================================
-   6. RESPONSIVE BREAKPOINTS
-================================ */
-
-/* --- TABLET (Portrait) --- */
-@media (max-width: 1024px) {
-  .dashboard-container { 
-    padding: 1rem; 
-  }
-  /* Grids are handled by auto-fit, but we add safety here if needed */
-}
-
-/* --- MOBILE (Phones) --- */
-@media (max-width: 768px) {
-  .dashboard-container { 
-    padding: 1rem 0.75rem; 
-    gap: 1.5rem; 
-    padding-bottom: 0.5rem; 
-  }
-  
-  .page-header { 
-    flex-direction: column; 
-    align-items: flex-start; 
-    gap: 1rem; 
-  }
-  
-  .page-title {
-    font-size: 1.75rem;
-  }
-  
-  /* Refresh Button: Full width for easy tapping */
-  .refresh-button {
-    width: 100% !important;
-    justify-content: center;
-    padding: 0.75rem !important;
-  }
-  
-  /* Force single column on very small screens */
-  .stats-grid, .data-grid { 
-    grid-template-columns: 1fr; 
-    gap: 1rem; 
-  }
-  
-  .stat-card { 
-    padding: 1.25rem; 
-  }
-  
-  .chart-section { 
-    padding: 1rem; 
-  }
-  
-  .section-header { 
-    flex-direction: column; 
-    align-items: flex-start; 
-    gap: 0.75rem; 
-  }
-  
-  .time-select { 
-    width: 100%; 
-  }
-  
-  .view-all-button {
-    align-self: flex-start;
-    margin-top: 0.5rem;
-  }
-}
-/* ---- Loading Text ---- */
 .loading-text {
   text-align: center;
-  padding: 1rem;
+  padding: 2rem 1rem;
   color: #94a3b8;
   font-size: 0.875rem;
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+.sensor-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.05);
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
+}
+
+/* ================================
+   10. RESPONSIVE
+================================ */
+@media (max-width: 1024px) {
+  .dashboard-container { padding: 1rem; }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem 0.75rem;
+    gap: 1.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .page-title { font-size: 1.75rem; }
+
+  .refresh-button {
+    width: 100% !important;
+    justify-content: center;
+    padding: 0.75rem !important;
+  }
+
+  .stats-grid { grid-template-columns: 1fr; gap: 1rem; }
+  .data-grid  { grid-template-columns: 1fr 1fr; }
+
+  .chart-section { padding: 1rem; }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .time-select { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .data-grid { grid-template-columns: 1fr; }
+}
+
+/* ── SHOW MORE BUTTON ── */
+.show-more-btn {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.65rem 1rem;
+  background: rgba(14,165,233,0.06);
+  border: 1px solid rgba(14,165,233,0.2);
+  border-radius: 8px;
+  color: #0ea5e9;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
+}
+
+.show-more-btn:hover {
+  background: rgba(14,165,233,0.12);
+  border-color: rgba(14,165,233,0.4);
+}
+
+/* ── SPIN ── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── SENSOR COUNT ── */
+.sensor-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.05);
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  font-weight: 500;
 }
