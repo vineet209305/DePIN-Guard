@@ -11,7 +11,7 @@ primary_region = "sgp"
   SIMULATOR_MODE = "replay"
 
 [[processes]]
-  name = "app"
+  name = "simulator"
   cmd = "bash start.sh"
 
 [[vm]]
@@ -19,17 +19,6 @@ primary_region = "sgp"
   cpu_kind = "shared"
   cpus = 1
 
-# Monitor usage - FREE TIER LIMIT
-[metrics]
-  port = 9090
-
-# Stop if something goes wrong
 [deploy]
   strategy = "immediate"
-  release_command = "bash start.sh"
 
-[http_service]
-  internal_port = 8080
-  force_https = false
-  auto_stop_machines = true
-  auto_start_machines = true
