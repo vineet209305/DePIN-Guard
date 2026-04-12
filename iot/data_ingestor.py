@@ -353,11 +353,12 @@ def run_replay_simulator():
     print(f"📡 Sending to: {BACKEND_URL}")
     print(f"📊 Rows loaded: {len(rows)}")
     print(f"🔄 Simulating {NUM_DEVICES} devices (33 records/second)")
-    print("⏱️  Starting to send data...\n")
+    print("⏱️  Starting to send data...\n", flush=True)
 
     error_count = 0
     success_count = 0
     sent_count = 0
+    first_record = True
     try:
         while True:
             for data in rows:
@@ -372,14 +373,17 @@ def run_replay_simulator():
                     
                     if response.status_code == 200:
                         success_count += 1
+                        if first_record:
+                            print(f"🚀 First record sent successfully! Data flowing now...", flush=True)
+                            first_record = False
                     else:
                         error_count += 1
                         if error_count == 1:  # Log only first error
                             print(f"⚠️  Error {response.status_code}: Check backend is running", flush=True)
                     
-                    # Show progress every 100 records
-                    if sent_count % 100 == 0:
-                        print(f"✅ Sent {sent_count} records | Success: {success_count} | Errors: {error_count}", flush=True)
+                    # Show progress every 10 records for real-time feedback
+                    if sent_count % 10 == 0:
+                        print(f"✅ Sent {sent_count} | Success: {success_count} | Errors: {error_count}", flush=True)
                         
                 except requests.exceptions.Timeout:
                     error_count += 1
