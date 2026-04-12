@@ -34,7 +34,7 @@ const HistoryPage = () => {
         setHistoryData(prev => {
           const existingIds = new Set(prev.map(h => h.id));
           const newEntries = data.history.filter(h => !existingIds.has(h.id));
-          return [...newEntries, ...prev].slice(0, 500);
+          return [...newEntries, ...prev].slice(0, 10000); // Increased from 500 to 10000 to handle full dataset
         });
       }
     } catch (error) {

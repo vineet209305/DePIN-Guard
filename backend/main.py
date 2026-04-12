@@ -436,17 +436,65 @@ def get_ai_analysis():
 
 
 @app.get("/api/history", dependencies=[Depends(verify_api_key)])
-def get_history():
-    return fetch_sensor_readings(newest_first=True)
+async def get_history():
+    """Get all sensor readings from MongoDB (no limit)"""
+    try:
+        from database import db
+        if db is None:
+            return {"history": [], "count": 0, "source": "sqlite_fallback", "note": "MongoDB unavailable"}
+        
+        # Fetch ALL records from MongoDB with no limit
+        history = await db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        logger.info(f"[History] Retrieved {len(history)} records from MongoDB")
+        return {
+            "history": [dict(h) for h in history] if history else [],
+            "count": len(history) if history else 0,
+            "source": "mongodb",
+        }
+    except Exception as e:
+        logger.error(f"[History] MongoDB error: {e}, falling back to SQLite")
+        # Fallback to SQLite without limit
+        history = fetch_sensor_readings(newest_first=True)
+        return {
+            "history": history,
+            "count": len(history),
+            "source": "sqlite_fallback",
+            "error": str(e),
+        }
 
 
 @app.get("/api/history/all", dependencies=[Depends(verify_api_key)])
-def get_all_history():
-    history = fetch_sensor_readings(newest_first=True)
-    return {
-        "history": history,
-        "count":   len(history),
-    }
+async def get_all_history():
+    """Get all sensor readings from MongoDB (no limit)"""
+    try:
+        from database import db
+        if db is None:
+            history = fetch_sensor_readings(newest_first=True)
+            return {
+                "history": history,
+                "count": len(history),
+                "source": "sqlite_fallback",
+                "note": "MongoDB unavailable",
+            }
+        
+        # Fetch ALL records from MongoDB with no limit
+        history = await db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        logger.info(f"[HistoryAll] Retrieved {len(history)} records from MongoDB")
+        return {
+            "history": [dict(h) for h in history] if history else [],
+            "count": len(history) if history else 0,
+            "source": "mongodb",
+        }
+    except Exception as e:
+        logger.error(f"[HistoryAll] MongoDB error: {e}, falling back to SQLite")
+        # Fallback to SQLite without limit
+        history = fetch_sensor_readings(newest_first=True)
+        return {
+            "history": history,
+            "count": len(history),
+            "source": "sqlite_fallback",
+            "error": str(e),
+        }
 
 
 @app.post("/api/process_data", dependencies=[Depends(verify_api_key)])
