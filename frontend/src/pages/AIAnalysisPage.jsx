@@ -19,48 +19,59 @@ const AIAnalysisPage = () => {
   const fetchAIData = async () => {
     try {
       const res = await authenticatedFetch('/api/ai-analysis');
-      if (!res) return;
+      if (!res) {
+        console.warn('[AIAnalysis] No response from API');
+        return;
+      }
+      
+      if (!res.ok) {
+        console.error(`[AIAnalysis] API error ${res.status}:`, res.statusText);
+        return;
+      }
+
       const data = await res.json();
+      if (!data) {
+        console.warn('[AIAnalysis] Empty response data');
+        return;
+      }
 
-      if (data) {
-        // 1. Stats update (Pura data backend se)
-        setAiStats({
-          totalAnalyses:     data.total_analyses   ?? 0,
-          anomaliesDetected: data.anomalies_found  ?? 0,
-          accuracy:          data.accuracy         ?? 0, // Backend: accuracy
-          modelsActive:      data.active_models_count ?? 0, // Backend: active_models_count
+      // 1. Stats update (Pura data backend se)
+      setAiStats({
+        totalAnalyses:     data.total_analyses   ?? 0,
+        anomaliesDetected: data.anomalies_found  ?? 0,
+        accuracy:          data.accuracy         ?? 0,
+        modelsActive:      data.active_models_count ?? 0,
+      });
+
+      // 2. Models list update (Dropdown ke liye)
+      if (data.available_models && Array.isArray(data.available_models)) {
+        setAiModels(data.available_models);
+      }
+
+      // 3. Results list update
+      if (data.recent_results && Array.isArray(data.recent_results)) {
+        setAnalysisResults(prev => {
+          const existingIds = new Set(prev.map(r => r.id));
+          
+          const newResults = data.recent_results
+            .filter(r => !existingIds.has(r.id))
+            .map((rec) => ({
+              id:             rec.id ?? Math.random(),
+              device:         rec.device         ?? 'Unknown',
+              type:           rec.analysis_type  ?? 'N/A',
+              severity:       rec.severity       ?? 'low',
+              confidence:     Math.min(100, Math.max(0, rec.confidence ?? 0)),
+              detected:       rec.timestamp      ?? new Date().toLocaleTimeString(),
+              description:    rec.description    ?? 'No description',
+              recommendation: rec.recommendation ?? 'No recommendation',
+              aiModel:        rec.model_name     ?? 'N/A',
+            }));
+
+          return [...newResults, ...prev].slice(0, 50);
         });
-
-        // 2. Models list update (Dropdown ke liye)
-        if (data.available_models) {
-          setAiModels(data.available_models);
-        }
-
-        // 3. Results list update
-        if (data.recent_results) {
-          setAnalysisResults(prev => {
-            const existingIds = new Set(prev.map(r => r.id));
-            
-            const newResults = data.recent_results
-              .filter(r => !existingIds.has(r.id)) // Backend se unique ID aani chahiye
-              .map((rec) => ({
-                id:             rec.id, // Backend se ID
-                device:         rec.device         ?? 'Unknown',
-                type:           rec.analysis_type  ?? 'N/A',
-                severity:       rec.severity       ?? 'low',
-                confidence:     rec.confidence     ?? 0,
-                detected:       rec.timestamp      ?? 'N/A',
-                description:    rec.description    ?? 'No description',
-                recommendation: rec.recommendation ?? 'No recommendation',
-                aiModel:        rec.model_name     ?? 'N/A', // Backend: model_name
-              }));
-
-            return [...newResults, ...prev].slice(0, 50);
-          });
-        }
       }
     } catch (error) {
-      console.error("Failed to fetch AI data:", error);
+      console.error('[AIAnalysis] Fetch failed:', error.message);
     } finally {
       setLoading(false);
     }

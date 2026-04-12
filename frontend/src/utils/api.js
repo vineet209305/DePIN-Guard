@@ -3,6 +3,11 @@ import { getStoredToken } from './sessionAuth';
 const BACKEND_URL = import.meta.env.VITE_API_URL || '';
 const API_KEY     = import.meta.env.VITE_API_KEY  || '';
 
+/**
+ * Authenticated fetch wrapper
+ * Automatically includes JWT token and API key headers
+ * Handles 401 auth errors by clearing session and redirecting to login
+ */
 export const authenticatedFetch = async (path, options = {}) => {
   // If path is already absolute use it directly, otherwise prepend BACKEND_URL
   // When BACKEND_URL is empty (local dev), path must be relative e.g. /api/dashboard
@@ -17,6 +22,8 @@ export const authenticatedFetch = async (path, options = {}) => {
 
   if (API_KEY) {
     headers['X-API-Key'] = API_KEY;
+  } else {
+    console.warn('[API] No API key configured in VITE_API_KEY');
   }
 
   if (token && token !== 'null') {
@@ -26,7 +33,9 @@ export const authenticatedFetch = async (path, options = {}) => {
   try {
     const response = await fetch(url, { ...options, headers });
 
+    // Handle authentication errors
     if (response.status === 401) {
+      console.warn('[API] Unauthorized (401) - clearing session');
       localStorage.removeItem('token');
       sessionStorage.removeItem('token');
       localStorage.removeItem('isAuthenticated');

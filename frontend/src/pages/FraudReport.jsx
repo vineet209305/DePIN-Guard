@@ -13,16 +13,35 @@ export default function FraudReport() {
     if (isInitial) setLoading(true);
     try {
       const res = await authenticatedFetch('/api/fraud-alerts');
-      if (!res) throw new Error('No response from server');
+      if (!res) {
+        console.warn('[FraudReport] No response from API');
+        throw new Error('No response from server');
+      }
       
+      if (!res.ok) {
+        console.error(`[FraudReport] API error ${res.status}:`, res.statusText);
+        throw new Error(`API error: ${res.status}`);
+      }
+
       const data = await res.json();
+      if (!data) {
+        console.warn('[FraudReport] Empty response data');
+        setAlerts([]);
+        setError(null);
+        return;
+      }
       
       // FIX: Data format check (kabhi kabhi data direct array hota hai, kabhi object mein)
       const alertsData = Array.isArray(data) ? data : (data.alerts || []);
-      setAlerts(alertsData);
+      if (!Array.isArray(alertsData)) {
+        console.warn('[FraudReport] Invalid alerts data format');
+        setAlerts([]);
+      } else {
+        setAlerts(alertsData);
+      }
       setError(null);
     } catch (err) {
-      console.error("Fraud Fetch Error:", err);
+      console.error('[FraudReport] Fetch failed:', err.message);
       setError('Could not load fraud alerts. Is the backend running?');
     } finally {
       setLoading(false);

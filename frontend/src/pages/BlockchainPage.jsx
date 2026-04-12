@@ -16,31 +16,40 @@ const BlockchainPage = () => {
   const fetchBlockchainData = async () => {
     try {
       const res = await authenticatedFetch('/api/blockchain');
-      if (!res) return;
+      if (!res) {
+        console.warn('[Blockchain] No response from API');
+        return;
+      }
+      
+      if (!res.ok) {
+        console.error(`[Blockchain] API error ${res.status}:`, res.statusText);
+        return;
+      }
+
       const data = await res.json();
+      if (!data) {
+        console.warn('[Blockchain] Empty response data');
+        return;
+      }
 
-      if (data) {
-        // 1. Stats update (Backend key mapping)
-        setStats({
-          totalBlocks:  data.total_blocks  ?? 0,
-          transactions: data.transactions  ?? 0, // Fixed: backend returns 'transactions' not 'total_txs'
-          networkStatus: data.net_status   ?? 'Stable',
+      // 1. Stats update (Backend key mapping)
+      setStats({
+        totalBlocks:  data.total_blocks  ?? 0,
+        transactions: data.transactions  ?? 0,
+        networkStatus: data.net_status   ?? 'Stable',
+      });
+
+      // 2. Blocks list update
+      if (data.recent_blocks && Array.isArray(data.recent_blocks) && data.recent_blocks.length > 0) {
+        setBlocks(prev => {
+          const existingHashes = new Set(prev.map(b => b.hash || b.id));
+          const newBlocks = data.recent_blocks.filter(b => !existingHashes.has(b.hash || b.id));
+          
+          return [...newBlocks, ...prev].slice(0, 50);
         });
-
-        // 2. Blocks list update
-        if (data.recent_blocks && data.recent_blocks.length > 0) {
-          setBlocks(prev => {
-            // Backend se aane wali unique 'hash' ya 'id' use karein
-            const existingHashes = new Set(prev.map(b => b.hash));
-            const newBlocks = data.recent_blocks.filter(b => !existingHashes.has(b.hash));
-            
-            // Naye blocks ko upar dikhane ke liye [...newBlocks, ...prev]
-            return [...newBlocks, ...prev].slice(0, 50);
-          });
-        }
       }
     } catch (error) {
-      console.error("Blockchain fetch error:", error);
+      console.error('[Blockchain] Fetch failed:', error.message);
     } finally {
       setLoading(false);
     }

@@ -22,7 +22,14 @@ const DashboardPage = () => {
   const fetchDashboardData = async () => {
     try {
       const response = await authenticatedFetch('/api/dashboard');
-      if (response && response.ok) {
+      if (!response) {
+        console.warn('[Dashboard] No response from API');
+        setStats({ activeDevices: null, totalData: null, alerts: null, uptime: null });
+        setRecentData([]);
+        return;
+      }
+      
+      if (response.ok) {
         const json = await response.json();
         setStats({
           activeDevices: json.stats?.active    ?? 0,
@@ -43,8 +50,15 @@ const DashboardPage = () => {
         } else {
           setRecentData([]);
         }
+      } else {
+        console.error(`[Dashboard] API error ${response.status}:`, response.statusText);
+        setStats({ activeDevices: null, totalData: null, alerts: null, uptime: null });
+        setRecentData([]);
       }
-    } catch {
+    } catch (error) {
+      console.error('[Dashboard] Fetch failed:', error.message);
+      setStats({ activeDevices: null, totalData: null, alerts: null, uptime: null });
+      setRecentData([]);
     } finally {
       setLoading(false);
     }
@@ -53,7 +67,13 @@ const DashboardPage = () => {
   const fetchChartData = async (period) => {
     try {
       const response = await authenticatedFetch('/api/history/all');
-      if (response && response.ok) {
+      if (!response) {
+        console.warn('[ChartData] No response from API');
+        setChartData([]);
+        return;
+      }
+      
+      if (response.ok) {
         const json    = await response.json();
         const history = json.history ?? [];
         if (history.length === 0) { setChartData([]); return; }
@@ -104,8 +124,12 @@ const DashboardPage = () => {
           y:     Math.round((b.count / maxCount) * 100),
           raw:   b.count,
         })));
+      } else {
+        console.error(`[ChartData] API error ${response.status}:`, response.statusText);
+        setChartData([]);
       }
-    } catch {
+    } catch (error) {
+      console.error('[ChartData] Fetch failed:', error.message);
       setChartData([]);
     }
   };
