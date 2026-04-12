@@ -85,6 +85,23 @@ def validate_payload(payload):
     return input_frame, None
 
 
+@app.route("/", methods=["GET", "POST"])
+def root():
+    """Root API endpoint - provides service information."""
+    return jsonify({
+        "service": "DePIN Guard - AI Inference Service",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "GET /": "This information",
+            "GET /health": "Health check",
+            "GET /ready": "Readiness check with artifact validation",
+            "POST /predict": "Anomaly detection inference"
+        },
+        "model": "LSTM Autoencoder + GNN Ensemble"
+    }), 200
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"})
