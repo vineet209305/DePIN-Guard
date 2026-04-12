@@ -469,14 +469,14 @@ async def get_history():
             }
             history.append(transformed)
         
-        logger.info(f"[History] Retrieved {len(history)} records from MongoDB")
+        print(f"[History] Retrieved {len(history)} records from MongoDB")
         return {
             "history": history,
             "count": len(history),
             "source": "mongodb",
         }
     except Exception as e:
-        logger.error(f"[History] MongoDB error: {e}, falling back to SQLite")
+        print(f"[History] MongoDB error: {e}, falling back to SQLite")
         # Fallback to SQLite without limit
         history = fetch_sensor_readings(newest_first=True)
         return {
@@ -527,14 +527,14 @@ async def get_all_history():
             }
             history.append(transformed)
         
-        logger.info(f"[HistoryAll] Retrieved {len(history)} records from MongoDB")
+        print(f"[HistoryAll] Retrieved {len(history)} records from MongoDB")
         return {
             "history": history,
             "count": len(history),
             "source": "mongodb",
         }
     except Exception as e:
-        logger.error(f"[HistoryAll] MongoDB error: {e}, falling back to SQLite")
+        print(f"[HistoryAll] MongoDB error: {e}, falling back to SQLite")
         # Fallback to SQLite without limit
         history = fetch_sensor_readings(newest_first=True)
         return {
