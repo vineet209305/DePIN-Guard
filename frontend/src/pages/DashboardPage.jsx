@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LiveChart from '../components/LiveChart';
 import Layout from '../components/layout/Layout';
 import IoTAlertCard from '../components/IoTAlertCard';
@@ -15,6 +15,9 @@ const DashboardPage = () => {
   const [chartData, setChartData]               = useState([]);
   const [showAllSensors, setShowAllSensors]     = useState(false);
   const SENSOR_PREVIEW = 4;
+
+  // ✅ Ref for sensor section — scroll sirf click pe
+  const sensorSectionRef = useRef(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -121,6 +124,17 @@ const DashboardPage = () => {
     setRefreshing(false);
   };
 
+  // ✅ Show All toggle — scroll sirf tab jab expand ho
+  const handleToggleSensors = () => {
+    const next = !showAllSensors;
+    setShowAllSensors(next);
+    if (next && sensorSectionRef.current) {
+      setTimeout(() => {
+        sensorSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  };
+
   const renderStatValue = (value, formatter = (v) => v) => {
     if (loading || refreshing) return '...';
     if (value === null || value === undefined) return 'N/A';
@@ -142,6 +156,7 @@ const DashboardPage = () => {
   const CHART_WIDTH  = SVG_WIDTH  - MARGIN.left - MARGIN.right;
   const CHART_HEIGHT = SVG_HEIGHT - MARGIN.top  - MARGIN.bottom;
 
+  // ✅ visibleSensors — sirf state pe depend karta hai, auto change nahi hoga
   const visibleSensors = showAllSensors ? recentData : recentData.slice(0, SENSOR_PREVIEW);
 
   return (
@@ -216,7 +231,8 @@ const DashboardPage = () => {
         </div>
 
         {/* ── Recent Sensor Readings ── */}
-        <div className="data-section">
+        {/* ✅ ref lagaya — scroll anchor yahan hai */}
+        <div className="data-section" ref={sensorSectionRef}>
           <div className="section-header">
             <h2 className="section-title">Recent Sensor Readings</h2>
             {!loading && recentData.length > 0 && (
@@ -224,7 +240,7 @@ const DashboardPage = () => {
             )}
           </div>
 
-          {/* Fixed grid — NO scroll, NO auto-move */}
+          {/* ✅ Static grid — overflow hidden, auto-scroll nahi */}
           <div className="data-grid">
             {loading ? (
               <p className="loading-text">Loading sensor data...</p>
@@ -252,11 +268,11 @@ const DashboardPage = () => {
             )}
           </div>
 
-          {/* Show More / Show Less button */}
+          {/* ✅ Toggle button — handleToggleSensors use karta hai */}
           {!loading && recentData.length > SENSOR_PREVIEW && (
             <button
               className="show-more-btn"
-              onClick={() => setShowAllSensors(prev => !prev)}
+              onClick={handleToggleSensors}
             >
               {showAllSensors
                 ? '▲ Show Less'
@@ -332,7 +348,6 @@ const DashboardPage = () => {
                 </linearGradient>
               </defs>
 
-              {/* Grid lines */}
               {[0, 25, 50, 75, 100].map((tick) => {
                 const yPos = MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT;
                 return (
@@ -353,14 +368,12 @@ const DashboardPage = () => {
                 );
               })}
 
-              {/* X axis baseline */}
               <line
                 x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT}
                 x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT}
                 stroke="rgba(255,255,255,0.12)" strokeWidth="1"
               />
 
-              {/* Bars */}
               {chartData.map((data, i) => {
                 const spacing   = CHART_WIDTH / chartData.length;
                 const barWidth  = Math.max(spacing * 0.6, 8);
