@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: depin-guard-backend
+    root_dir: backend
+    runtime: python
+    pythonVersion: 3.11
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DEPIN_API_KEY
+        value: 546cd99c0d9b2ecf14ff85b089a2f37e500874830de918a6f0a1f4f8a5fbe95f
+      - key: JWT_SECRET_KEY
+        value: 57da3abeee4944a600981571d29406fee7e4409e2e856e509b9713cf6a67e5bf
+      - key: AI_SERVICE_URL
+        value: http://localhost:5000
+      - key: BLOCKCHAIN_ORDERER
+        value: orderer.orderer.depin:7050
+
+  - type: web
+    name: depin-guard-ai
+    root_dir: ai-service
+    runtime: python
+    pythonVersion: 3.11
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PORT
+        value: "5000"
+      - key: HOST
+        value: "0.0.0.0"
+      - key: AI_SERVICE_URL
+        value: "http://localhost:5000"
+    healthCheckPath: /health
+
+  - type: web
+    name: depin-guard-auth
+    root_dir: auth-service
+    runtime: python
+    pythonVersion: 3.11
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: JWT_SECRET_KEY
+        value: 57da3abeee4944a600981571d29406fee7e4409e2e856e509b9713cf6a67e5bf
+      - key: PORT
+        value: "8001"

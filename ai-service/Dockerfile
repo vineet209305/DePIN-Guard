@@ -20,12 +20,12 @@ COPY . .
 # Switch to non-root user
 USER appuser
 
-# Expose port
-EXPOSE 10000
+# Expose port (will be overridden by PORT env var in Render)
+EXPOSE 5000
 
 # Health check - verify Flask app is responding
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:10000/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')" || exit 1
 
-# Start Flask with gunicorn (production WSGI server)
-CMD ["gunicorn", "--workers=2", "--bind=0.0.0.0:10000", "--timeout=60", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+# Start Flask app directly (Render sets PORT env var)
+CMD ["python", "app.py"]

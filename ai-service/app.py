@@ -19,7 +19,9 @@ FEATURES = 3
 MODEL_PATH = "lstm_autoencoder.pth"
 SCALER_PATH = "scaler.save"
 THRESHOLD_PATH = "threshold.txt"
-DEFAULT_PORT = int(os.getenv("AI_SERVICE_PORT", os.getenv("PORT", "10000")))
+# Render sets PORT env var; check it first, then fallback to AI_SERVICE_PORT or 10000
+DEFAULT_PORT = int(os.getenv("PORT", os.getenv("AI_SERVICE_PORT", "10000")))
+DEFAULT_HOST = os.getenv("HOST", "0.0.0.0")
 
 _artifact_lock = threading.Lock()
 _artifacts_loaded = False
@@ -135,4 +137,5 @@ def predict():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=DEFAULT_PORT, debug=False)
+    logger.info(f"Starting AI service on {DEFAULT_HOST}:{DEFAULT_PORT}")
+    app.run(host=DEFAULT_HOST, port=DEFAULT_PORT, debug=False)

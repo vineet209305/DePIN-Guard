@@ -1,7 +1,7 @@
 #!/bin/bash
 # blockchain/deploy_chaincode.sh
 # FIX: MaintenanceMSP -> MaintenanceProviderMSP (both install and approve steps)
-# FIX: ordererTLSHostnameOverride uses orderer.orderer.example.com consistently
+# FIX: ordererTLSHostnameOverride uses orderer.orderer.depin consistently
 
 set -euo pipefail
 
@@ -18,13 +18,13 @@ CC_LANG="golang"
 export PATH="$PATH:$BLOCKCHAIN_DIR/fabric-samples/bin"
 export FABRIC_CFG_PATH="$BLOCKCHAIN_DIR/fabric-samples/config"
 
-ORDERER_CA="$BLOCKCHAIN_DIR/organizations/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
+ORDERER_CA="$BLOCKCHAIN_DIR/organizations/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts/tlsca.orderer.depin-cert.pem"
 
-MFR_TLS="$BLOCKCHAIN_DIR/organizations/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/ca.crt"
-MFR_MSP="$BLOCKCHAIN_DIR/organizations/peerOrganizations/manufacturer.example.com/users/Admin@manufacturer.example.com/msp"
+MFR_TLS="$BLOCKCHAIN_DIR/organizations/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls/ca.crt"
+MFR_MSP="$BLOCKCHAIN_DIR/organizations/peerOrganizations/manufacturer.depin/users/Admin@manufacturer.depin/msp"
 
-MNT_TLS="$BLOCKCHAIN_DIR/organizations/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/ca.crt"
-MNT_MSP="$BLOCKCHAIN_DIR/organizations/peerOrganizations/maintenance.example.com/users/Admin@maintenance.example.com/msp"
+MNT_TLS="$BLOCKCHAIN_DIR/organizations/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls/ca.crt"
+MNT_MSP="$BLOCKCHAIN_DIR/organizations/peerOrganizations/maintenance.depin/users/Admin@maintenance.depin/msp"
 
 for required_path in "$CC_SRC_PATH" "$ORDERER_CA" "$MFR_TLS" "$MFR_MSP" "$MNT_TLS" "$MNT_MSP"; do
   if [[ ! -e "$required_path" ]]; then
@@ -99,7 +99,7 @@ export CORE_PEER_MSPCONFIGPATH=$MFR_MSP
 export CORE_PEER_ADDRESS=localhost:7051
 peer lifecycle chaincode approveformyorg \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
+  --ordererTLSHostnameOverride orderer.orderer.depin \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --version $CC_VERSION \
@@ -116,16 +116,7 @@ export CORE_PEER_MSPCONFIGPATH=$MNT_MSP
 export CORE_PEER_ADDRESS=localhost:9051
 peer lifecycle chaincode approveformyorg \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
-  --channelID $CHANNEL_NAME \
-  --name $CC_NAME \
-  --version $CC_VERSION \
-  --package-id $PACKAGE_ID \
-  --sequence $CC_SEQUENCE \
-  --tls --cafile $ORDERER_CA
-
-echo ""
-echo "🔍 Step 7: Checking commit readiness (both orgs must show true)..."
+  --ordererTLSHostnameOverride orderer.orderer.depin \ Checking commit readiness (both orgs must show true)..."
 export CORE_PEER_LOCALMSPID="ManufacturerMSP"
 export CORE_PEER_TLS_ROOTCERT_FILE=$MFR_TLS
 export CORE_PEER_MSPCONFIGPATH=$MFR_MSP
@@ -142,7 +133,7 @@ echo ""
 echo "🚀 Step 8: Committing chaincode to channel..."
 peer lifecycle chaincode commit \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
+  --ordererTLSHostnameOverride orderer.orderer.depin \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --version $CC_VERSION \

@@ -17,6 +17,8 @@ data/
 *.joblib
 *.h5
 *.txt
+!requirements.txt
+!**/requirements.txt
 ai-service/models/
 
 # --- Backend ---

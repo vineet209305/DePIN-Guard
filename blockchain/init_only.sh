@@ -51,13 +51,13 @@ cryptogen generate --config="$CONFIG_DIR/crypto-config.yaml" --output="$ORGS_DIR
   log_error "cryptogen failed"
 
 # Create required directory structure
-mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls"
-mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/msp/cacerts"
-mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/msp/tlscacerts"
-mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls"
-mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/msp/cacerts"
-mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls"
-mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/msp/cacerts"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/msp/cacerts"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/msp/tlscacerts"
+mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls"
+mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.depin/msp/cacerts"
+mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls"
+mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.depin/msp/cacerts"
 
 log_info "Directory structure created"
 
@@ -71,10 +71,10 @@ log_info "Cryptographic material generated successfully"
 
 # Verify critical certs
 required_certs=(
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt"
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.key"
-  "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/server.crt"
-  "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/server.crt"
+  "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.crt"
+  "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.key"
+  "$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls/server.crt"
+  "$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls/server.crt"
 )
 
 for cert in "${required_certs[@]}"; do

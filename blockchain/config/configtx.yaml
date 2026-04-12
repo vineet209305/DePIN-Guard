@@ -1,6 +1,6 @@
 # blockchain/configtx.yaml
-# FIX: Orderer Addresses changed from orderer.example.com to orderer.orderer.example.com
-# FIX: EtcdRaft consenter host aligned to orderer.orderer.example.com
+# FIX: Orderer Addresses changed from orderer.depin to orderer.orderer.depin
+# FIX: EtcdRaft consenter host aligned to orderer.orderer.depin
 
 Organizations:
   - &OrdererOrg

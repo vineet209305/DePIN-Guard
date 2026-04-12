@@ -2,7 +2,7 @@
 # blockchain/complete_setup.sh
 # Complete Fabric network setup with signal verification at each step
 # Run from inside blockchain/ folder:
-#   cd /workspaces/DePIN-Guard/blockchain
+#   cd ~/DePIN-Guard/blockchain
 #   chmod +x complete_setup.sh
 #   ./complete_setup.sh [--reset]
 #
@@ -151,13 +151,13 @@ else
 fi
 
 # Create required directory structure regardless of cryptogen success
-mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls"
-mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/msp/cacerts"
-mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts"
-mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls"
-mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.example.com/msp/cacerts"
-mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls"
-mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.example.com/msp/cacerts"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/msp/cacerts"
+mkdir -p "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts"
+mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls"
+mkdir -p "$ORGS_DIR/peerOrganizations/manufacturer.depin/msp/cacerts"
+mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls"
+mkdir -p "$ORGS_DIR/peerOrganizations/maintenance.depin/msp/cacerts"
 
 log_info "Directory structure ensured"
 
@@ -212,9 +212,9 @@ echo "Verifying/generating TLS certificates..."
 
 # Create each TLS cert, with explicit error reporting
 for tls_entry in \
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls:orderer.orderer.example.com" \
-  "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls:peer0.manufacturer.example.com" \
-  "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls:peer0.maintenance.example.com"; do
+  "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls:orderer.orderer.depin" \
+  "$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls:peer0.manufacturer.depin" \
+  "$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls:peer0.maintenance.depin"; do
   
   IFS=':' read -r cert_dir cn <<< "$tls_entry"
   echo "Processing: $cn"
@@ -224,12 +224,12 @@ for tls_entry in \
 done
 
 # Ensure the orderer CA file exists at the path used later in the script.
-if [[ -f "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/ca.crt" ]]; then
-  cp "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/ca.crt" \
-    "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
-elif [[ -f "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" ]]; then
-  cp "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" \
-    "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
+if [[ -f "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/ca.crt" ]]; then
+  cp "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/ca.crt" \
+    "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts/tlsca.orderer.depin-cert.pem"
+elif [[ -f "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.crt" ]]; then
+  cp "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.crt" \
+    "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts/tlsca.orderer.depin-cert.pem"
 fi
 
 echo ""
@@ -237,10 +237,10 @@ echo "Final TLS certificate verification..."
 CERT_COUNT=0
 CERT_ERROR=0
 for cert_file in \
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.crt" \
-  "$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/tls/server.key" \
-  "$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/server.crt" \
-  "$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/server.crt"; do
+  "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.crt" \
+  "$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/tls/server.key" \
+  "$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls/server.crt" \
+  "$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls/server.crt"; do
   if [[ ! -f "$cert_file" ]]; then
     echo "  ✗ MISSING: $cert_file"
     CERT_ERROR=$((CERT_ERROR + 1))
@@ -305,7 +305,7 @@ for port_label in "7050:orderer" "7051:manufacturer peer" "9051:maintenance peer
 done
 
 # Verify containers are running
-for container in "orderer.example.com" "peer0.manufacturer.example.com" "peer0.maintenance.example.com"; do
+for container in "orderer.orderer.depin" "peer0.manufacturer.depin" "peer0.maintenance.depin"; do
   if ! docker ps --format '{{.Names}}' | grep -q "$container"; then
     log_error "Container $container did not start"
   fi
@@ -329,11 +329,11 @@ echo "Waiting briefly for orderer Raft initialization..."
 sleep 5
 
 # Paths to certificates
-ORDERER_CA="$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
-MFR_TLS="$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/ca.crt"
-MFR_MSP="$ORGS_DIR/peerOrganizations/manufacturer.example.com/users/Admin@manufacturer.example.com/msp"
-MNT_TLS="$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/ca.crt"
-MNT_MSP="$ORGS_DIR/peerOrganizations/maintenance.example.com/users/Admin@maintenance.example.com/msp"
+ORDERER_CA="$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts/tlsca.orderer.depin-cert.pem"
+MFR_TLS="$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls/ca.crt"
+MFR_MSP="$ORGS_DIR/peerOrganizations/manufacturer.depin/users/Admin@manufacturer.depin/msp"
+MNT_TLS="$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls/ca.crt"
+MNT_MSP="$ORGS_DIR/peerOrganizations/maintenance.depin/users/Admin@maintenance.depin/msp"
 
 # Verify certs exist
 for cert in "$ORDERER_CA" "$MFR_TLS" "$MFR_MSP" "$MNT_TLS" "$MNT_MSP"; do
@@ -357,7 +357,7 @@ rm -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.block"
 for attempt in {1..10}; do
   peer channel create \
     -o localhost:7050 \
-    --ordererTLSHostnameOverride orderer.orderer.example.com \
+    --ordererTLSHostnameOverride orderer.orderer.depin \
     -c "$CHANNEL_NAME" \
     -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.tx" \
     --tls --cafile "$ORDERER_CA" \
@@ -399,6 +399,18 @@ ensure_fabric_image "hyperledger/fabric-baseos:2.5"
 cd "$BLOCKCHAIN_DIR"
 export FABRIC_CFG_PATH="$BLOCKCHAIN_DIR/fabric-samples/config"
 
+# Pre-build vendor directory to avoid readonly issues during Docker build
+log_info "Pre-building vendor dependencies for chaincode..."
+cd "./chaincode-go"
+go mod tidy 2>/dev/null || true
+go mod vendor 2>/dev/null || true
+cd "$BLOCKCHAIN_DIR"
+log_info "Vendor directory prepared"
+
+# Set Go build flags to allow module operations
+export GO111MODULE=on
+export GOFLAGS="-mod=vendor"
+
 # Package chaincode
 peer lifecycle chaincode package ${CC_NAME}.tar.gz \
   --path ./chaincode-go/ \
@@ -439,7 +451,7 @@ log_info "Package ID: $PACKAGE_ID"
 
 peer lifecycle chaincode approveformyorg \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
+  --ordererTLSHostnameOverride orderer.orderer.depin \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --version $CC_VERSION \
@@ -457,7 +469,7 @@ export CORE_PEER_ADDRESS="localhost:9051"
 
 peer lifecycle chaincode approveformyorg \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
+  --ordererTLSHostnameOverride orderer.orderer.depin \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --version $CC_VERSION \
@@ -475,7 +487,7 @@ export CORE_PEER_ADDRESS="localhost:7051"
 
 peer lifecycle chaincode commit \
   -o localhost:7050 \
-  --ordererTLSHostnameOverride orderer.orderer.example.com \
+  --ordererTLSHostnameOverride orderer.orderer.depin \
   --channelID $CHANNEL_NAME \
   --name $CC_NAME \
   --version $CC_VERSION \

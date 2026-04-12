@@ -7,7 +7,7 @@
 #   ./deploy_custom_net.sh --teardown — stop and remove Fabric containers and volumes only
 #
 # FIX: Added create_channel() function — channel creation + both peers joined
-# FIX: Orderer FQDN consistently uses orderer.orderer.example.com throughout
+# FIX: Orderer FQDN consistently uses orderer.orderer.depin throughout
 
 set -euo pipefail
 
@@ -165,19 +165,19 @@ create_channel() {
     return 0
   fi
 
-  local ORDERER_CA="$ORGS_DIR/ordererOrganizations/orderer.example.com/orderers/orderer.orderer.example.com/msp/tlscacerts/tlsca.orderer.example.com-cert.pem"
+  local ORDERER_CA="$ORGS_DIR/ordererOrganizations/orderer.depin/orderers/orderer.orderer.depin/msp/tlscacerts/tlsca.orderer.depin-cert.pem"
 
   # --- Switch to Manufacturer identity ---
   export CORE_PEER_TLS_ENABLED=true
   export CORE_PEER_LOCALMSPID="ManufacturerMSP"
-  export CORE_PEER_TLS_ROOTCERT_FILE="$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/ca.crt"
-  export CORE_PEER_MSPCONFIGPATH="$ORGS_DIR/peerOrganizations/manufacturer.example.com/users/Admin@manufacturer.example.com/msp"
+  export CORE_PEER_TLS_ROOTCERT_FILE="$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls/ca.crt"
+  export CORE_PEER_MSPCONFIGPATH="$ORGS_DIR/peerOrganizations/manufacturer.depin/users/Admin@manufacturer.depin/msp"
   export CORE_PEER_ADDRESS="localhost:7051"
 
   echo "[CHANNEL] Creating channel $CHANNEL_NAME..."
   peer channel create \
     -o localhost:7050 \
-    --ordererTLSHostnameOverride orderer.orderer.example.com \
+    --ordererTLSHostnameOverride orderer.orderer.depin \
     -c "$CHANNEL_NAME" \
     -f "$ARTIFACTS_DIR/${CHANNEL_NAME}.tx" \
     --tls --cafile "$ORDERER_CA" \
@@ -188,8 +188,8 @@ create_channel() {
 
   # --- Switch to Maintenance identity ---
   export CORE_PEER_LOCALMSPID="MaintenanceProviderMSP"
-  export CORE_PEER_TLS_ROOTCERT_FILE="$ORGS_DIR/peerOrganizations/maintenance.example.com/peers/peer0.maintenance.example.com/tls/ca.crt"
-  export CORE_PEER_MSPCONFIGPATH="$ORGS_DIR/peerOrganizations/maintenance.example.com/users/Admin@maintenance.example.com/msp"
+  export CORE_PEER_TLS_ROOTCERT_FILE="$ORGS_DIR/peerOrganizations/maintenance.depin/peers/peer0.maintenance.depin/tls/ca.crt"
+  export CORE_PEER_MSPCONFIGPATH="$ORGS_DIR/peerOrganizations/maintenance.depin/users/Admin@maintenance.depin/msp"
   export CORE_PEER_ADDRESS="localhost:9051"
 
   echo "[CHANNEL] Joining Maintenance peer (localhost:9051)..."
@@ -200,8 +200,8 @@ create_channel() {
   # --- Update anchor peers ---
   echo "[CHANNEL] Updating anchor peers..."
   export CORE_PEER_LOCALMSPID="ManufacturerMSP"
-  export CORE_PEER_TLS_ROOTCERT_FILE="$ORGS_DIR/peerOrganizations/manufacturer.example.com/peers/peer0.manufacturer.example.com/tls/ca.crt"
-  export CORE_PEER_MSPCONFIGPATH="$ORGS_DIR/peerOrganizations/manufacturer.example.com/users/Admin@manufacturer.example.com/msp"
+  export CORE_PEER_TLS_ROOTCERT_FILE="$ORGS_DIR/peerOrganizations/manufacturer.depin/peers/peer0.manufacturer.depin/tls/ca.crt"
+  export CORE_PEER_MSPCONFIGPATH="$ORGS_DIR/peerOrganizations/manufacturer.depin/users/Admin@manufacturer.depin/msp"
   export CORE_PEER_ADDRESS="localhost:7051"
 
   FABRIC_CFG_PATH="$BLOCKCHAIN_DIR" configtxgen \
@@ -213,7 +213,7 @@ create_channel() {
   if [[ -f "$ARTIFACTS_DIR/ManufacturerMSPanchors.tx" ]]; then
     peer channel update \
       -o localhost:7050 \
-      --ordererTLSHostnameOverride orderer.orderer.example.com \
+      --ordererTLSHostnameOverride orderer.orderer.depin \
       -c "$CHANNEL_NAME" \
       -f "$ARTIFACTS_DIR/ManufacturerMSPanchors.tx" \
       --tls --cafile "$ORDERER_CA"
