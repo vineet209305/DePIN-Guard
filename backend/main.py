@@ -86,7 +86,7 @@ async def _hydrate_system_state():
     from database import db as mongo_db, mongodb_client
     
     try:
-        if mongo_db and mongodb_client:
+        if mongo_db is not None and mongodb_client is not None:
             # Get data from MongoDB
             all_data = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
             critical_data = [d for d in all_data if d.get("status") == "critical"]
@@ -338,7 +338,7 @@ async def get_dashboard():
     """Get dashboard data from MongoDB (MongoDB-only, no fallback)"""
     from database import db as mongo_db, mongodb_client
     
-    if not mongo_db or not mongodb_client:
+    if mongo_db is None or mongodb_client is None:
         raise HTTPException(status_code=503, detail="MongoDB not available")
     
     try:
@@ -383,7 +383,7 @@ async def get_history():
     """Get all sensor readings from MongoDB (MongoDB-only, no fallback)"""
     from database import db as mongo_db, mongodb_client
     
-    if not mongo_db or not mongodb_client:
+    if mongo_db is None or mongodb_client is None:
         raise HTTPException(status_code=503, detail="MongoDB not available")
     
     try:
@@ -427,7 +427,7 @@ async def get_all_history():
     """Get all sensor readings from MongoDB (MongoDB-only, no fallback)"""
     from database import db as mongo_db, mongodb_client
     
-    if not mongo_db or not mongodb_client:
+    if mongo_db is None or mongodb_client is None:
         raise HTTPException(status_code=503, detail="MongoDB not available")
     
     try:
