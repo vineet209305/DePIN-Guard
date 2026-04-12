@@ -60,7 +60,7 @@ _VIB_ALIASES = (
     "vibration", "vib", "vibrationmms", "vibrationmms", "vibrationrms", "rmsvibration", "vibrationmm_s"
 )
 _POWER_ALIASES = (
-    "powerusage", "powerconsumptionkw", "powerconsumption", "pwr"
+    "powerusage", "powerconsumptionkw", "powerconsumption", "pwr", "energy_consumption", "energyconsumption", "energy", "consumption"
 )
 _CURRENT_ALIASES = ("current", "currentphaseavg")
 _VOLTAGE_ALIASES = ("voltage",)
@@ -190,6 +190,7 @@ def _resolve_replay_files(file_path):
 
 
 def _load_replay_rows(file_path):
+    import sys
     replay_rows = []
     replay_files = _resolve_replay_files(file_path)
     if not replay_files:
@@ -197,15 +198,22 @@ def _load_replay_rows(file_path):
 
     for replay_file in replay_files:
         if replay_file.lower().endswith(".csv"):
+            print(f"📂 Loading CSV: {replay_file}", flush=True)
             with open(replay_file, "r", encoding="utf-8") as csv_file:
                 reader = csv.DictReader(csv_file)
+                row_count = 0
                 for row in reader:
                     normalized = _normalize_payload(row, random.choice(DEVICES))
                     if normalized:
                         replay_rows.append(normalized)
+                    row_count += 1
+                    if row_count % 50000 == 0:
+                        print(f"  ⏳ Loaded {row_count} rows ({len(replay_rows)} valid)...", flush=True)
+                print(f"✅ CSV loaded: {row_count} rows → {len(replay_rows)} normalized", flush=True)
             continue
 
         if replay_file.lower().endswith(".json"):
+            print(f"📂 Loading JSON: {replay_file}", flush=True)
             with open(replay_file, "r", encoding="utf-8") as json_file:
                 payload = json.load(json_file)
             rows = payload.get("records") if isinstance(payload, dict) else payload
@@ -215,6 +223,7 @@ def _load_replay_rows(file_path):
                 normalized = _normalize_payload(row, random.choice(DEVICES))
                 if normalized:
                     replay_rows.append(normalized)
+            print(f"✅ JSON loaded: {len(rows)} rows → {len(replay_rows)} normalized", flush=True)
 
     return replay_rows
 
@@ -314,7 +323,12 @@ def run_simulator():
 
 
 def run_replay_simulator():
+    import sys
     replay_file = DATA_SOURCE_FILE or DEFAULT_REPLAY_FILE
+    
+    print(f"✅ DePIN-Guard IoT Replay Simulator Starting...", flush=True)
+    print(f"📡 Backend: {BACKEND_URL}", flush=True)
+    
     rows = _load_replay_rows(replay_file)
 
     if not rows:
@@ -327,13 +341,15 @@ def run_replay_simulator():
         run_simulator()
         return
 
-    print(f"✅ DePIN-Guard IoT Replay Simulator Started (SILENT MODE)")
+    print(f"✅ DePIN-Guard IoT Replay Simulator Started (DEBUG MODE)")
     print(f"📁 Replaying data from: {replay_file}")
     print(f"📡 Sending to: {BACKEND_URL}")
     print(f"📊 Rows loaded: {len(rows)}")
-    print("⏱️  Running in background... (This is normal - no spam)\n")
+    print("⏱️  Starting to send data...\n")
 
     error_count = 0
+    success_count = 0
+    sent_count = 0
     try:
         while True:
             for data in rows:
@@ -343,22 +359,39 @@ def run_replay_simulator():
                         "X-API-Key": API_KEY,
                         "Content-Type": "application/json",
                     }
-                    response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=15)
-                    if response.status_code != 200:
+                    response = requests.post(BACKEND_URL, json=data, headers=headers, timeout=30)
+                    sent_count += 1
+                    
+                    if response.status_code == 200:
+                        success_count += 1
+                    else:
                         error_count += 1
                         if error_count == 1:  # Log only first error
-                            print(f"⚠️  Error {response.status_code}: Check backend is running")
+                            print(f"⚠️  Error {response.status_code}: Check backend is running", flush=True)
+                    
+                    # Show progress every 100 records
+                    if sent_count % 100 == 0:
+                        print(f"✅ Sent {sent_count} records | Success: {success_count} | Errors: {error_count}", flush=True)
+                        
+                except requests.exceptions.Timeout:
+                    error_count += 1
+                    if error_count == 1:
+                        print("⚠️  Backend timeout - will retry silently (increase timeout)", flush=True)
                 except requests.exceptions.ConnectionError:
                     error_count += 1
                     if error_count == 1:
-                        print("⚠️  Backend not responding - will retry silently")
+                        print("⚠️  Backend not responding - will retry silently", flush=True)
                 except Exception as e:
                     error_count += 1
                     if error_count == 1:
-                        print(f"⚠️  Error: {e}")
+                        print(f"⚠️  Error: {e}", flush=True)
                 
                 time.sleep(0.5)  # Throttle replay to 2 events/sec
-            print(f"✅ Completed one full cycle of {len(rows)} rows - looping...")
+            print(f"\n✅ Completed one full cycle of {len(rows)} rows - looping...", flush=True)
+            print(f"📊 Total sent: {sent_count} | Success rate: {(success_count/sent_count*100):.1f}%\n", flush=True)
+            sent_count = 0
+            success_count = 0
+            error_count = 0
     except KeyboardInterrupt:
         print("\n✅ Simulator stopped gracefully.")
 
