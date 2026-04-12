@@ -44,3 +44,21 @@ services:
         value: 57da3abeee4944a600981571d29406fee7e4409e2e856e509b9713cf6a67e5bf
       - key: PORT
         value: "8001"
+
+  - type: background
+    name: depin-guard-iot
+    root_dir: iot
+    runtime: python
+    pythonVersion: 3.11
+    buildCommand: pip install -r requirements.txt
+    startCommand: python simulator.py
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          name: depin-guard-backend
+          type: web
+          property: url
+      - key: DEPIN_API_KEY
+        value: 546cd99c0d9b2ecf14ff85b089a2f37e500874830de918a6f0a1f4f8a5fbe95f
+      - key: SIMULATOR_MODE
+        value: replay
