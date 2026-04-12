@@ -235,6 +235,7 @@ async def lifespan(app: FastAPI):
     # Connect to databases
     init_db()
     await connect_to_mongo()
+    print("✅ MongoDB connection initialized")
     _hydrate_system_state()
     
     # Start scheduler
@@ -439,18 +440,38 @@ def get_ai_analysis():
 async def get_history():
     """Get all sensor readings from MongoDB (no limit)"""
     try:
-        from database import db
-        if db is None:
-            return {"history": [], "count": 0, "source": "sqlite_fallback", "note": "MongoDB unavailable"}
+        # Import the global db from database module
+        from database import db as mongo_db, mongodb_client
+        
+        # Check if MongoDB is connected
+        if mongo_db is None or mongodb_client is None:
+            print("[History] MongoDB not connected - falling back to SQLite")
+            history = fetch_sensor_readings(newest_first=True)
+            return {
+                "history": history,
+                "count": len(history),
+                "source": "sqlite_fallback",
+            }
         
         # Fetch ALL records from MongoDB with no limit
-        raw_history = await db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        try:
+            raw_history = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        except Exception as mongo_err:
+            print(f"[History] MongoDB query error: {mongo_err}")
+            # Fallback to SQLite
+            history = fetch_sensor_readings(newest_first=True)
+            return {
+                "history": history,
+                "count": len(history),
+                "source": "sqlite_fallback",
+                "error": str(mongo_err),
+            }
         
         # Transform MongoDB documents to match SQLite schema for frontend compatibility
         history = []
         for idx, doc in enumerate(raw_history):
             transformed = {
-                "id": idx,  # Use index as ID since MongoDB ObjectId isn't JSON serializable
+                "id": idx,
                 "device": doc.get("device_id", "unknown"),
                 "hash": "",
                 "value": "",
@@ -464,8 +485,6 @@ async def get_history():
                 "ai_error": doc.get("ai_error", ""),
                 "recommendation": doc.get("recommendation", ""),
                 "recorded_at": doc.get("timestamp", ""),
-                "severity": doc.get("severity", "low"),
-                "confidence": doc.get("confidence", 0),
             }
             history.append(transformed)
         
@@ -476,8 +495,8 @@ async def get_history():
             "source": "mongodb",
         }
     except Exception as e:
-        print(f"[History] MongoDB error: {e}, falling back to SQLite")
-        # Fallback to SQLite without limit
+        print(f"[History] Unexpected error: {e}")
+        # Final fallback to SQLite
         history = fetch_sensor_readings(newest_first=True)
         return {
             "history": history,
@@ -491,24 +510,38 @@ async def get_history():
 async def get_all_history():
     """Get all sensor readings from MongoDB (no limit)"""
     try:
-        from database import db
-        if db is None:
+        # Import the global db from database module
+        from database import db as mongo_db, mongodb_client
+        
+        # Check if MongoDB is connected
+        if mongo_db is None or mongodb_client is None:
+            print("[HistoryAll] MongoDB not connected - falling back to SQLite")
             history = fetch_sensor_readings(newest_first=True)
             return {
                 "history": history,
                 "count": len(history),
                 "source": "sqlite_fallback",
-                "note": "MongoDB unavailable",
             }
         
         # Fetch ALL records from MongoDB with no limit
-        raw_history = await db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        try:
+            raw_history = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        except Exception as mongo_err:
+            print(f"[HistoryAll] MongoDB query error: {mongo_err}")
+            # Fallback to SQLite
+            history = fetch_sensor_readings(newest_first=True)
+            return {
+                "history": history,
+                "count": len(history),
+                "source": "sqlite_fallback",
+                "error": str(mongo_err),
+            }
         
         # Transform MongoDB documents to match SQLite schema for frontend compatibility
         history = []
         for idx, doc in enumerate(raw_history):
             transformed = {
-                "id": idx,  # Use index as ID since MongoDB ObjectId isn't JSON serializable
+                "id": idx,
                 "device": doc.get("device_id", "unknown"),
                 "hash": "",
                 "value": "",
@@ -522,8 +555,6 @@ async def get_all_history():
                 "ai_error": doc.get("ai_error", ""),
                 "recommendation": doc.get("recommendation", ""),
                 "recorded_at": doc.get("timestamp", ""),
-                "severity": doc.get("severity", "low"),
-                "confidence": doc.get("confidence", 0),
             }
             history.append(transformed)
         
@@ -534,8 +565,8 @@ async def get_all_history():
             "source": "mongodb",
         }
     except Exception as e:
-        print(f"[HistoryAll] MongoDB error: {e}, falling back to SQLite")
-        # Fallback to SQLite without limit
+        print(f"[HistoryAll] Unexpected error: {e}")
+        # Final fallback to SQLite
         history = fetch_sensor_readings(newest_first=True)
         return {
             "history": history,
