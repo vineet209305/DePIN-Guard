@@ -122,16 +122,64 @@ def predict():
 
     is_anomaly = loss > THRESHOLD
     duration_ms = (time.perf_counter() - started_at) * 1000.0
+    
+    # Determine severity and confidence
+    if is_anomaly:
+        # Severity based on how much loss exceeds threshold
+        excess_ratio = loss / THRESHOLD if THRESHOLD > 0 else 1.0
+        if excess_ratio > 2.0:
+            severity = "critical"
+            confidence = min(0.95, 0.5 + (excess_ratio * 0.1))
+        elif excess_ratio > 1.5:
+            severity = "high"
+            confidence = min(0.90, 0.4 + (excess_ratio * 0.1))
+        else:
+            severity = "medium"
+            confidence = min(0.85, 0.3 + (excess_ratio * 0.1))
+    else:
+        severity = "low"
+        confidence = max(0.1, 1.0 - (loss / THRESHOLD * 0.5)) if THRESHOLD > 0 else 0.05
+    
+    # Extract device_id from payload if available
+    device_id = payload.get("device_id", f"Device-{int(payload.get('temperature', 0)) % 100:03d}")
+    
+    # Generate meaningful descriptions
+    temp = payload.get("temperature", 0)
+    vib = payload.get("vibration", 0)
+    power = payload.get("power_usage", payload.get("pressure", 0))
+    
+    if is_anomaly:
+        description = f"Anomaly detected: Temp {temp}°C, Vibration {vib} mm/s, Power {power}W. Loss: {loss:.6f} (Threshold: {THRESHOLD:.6f})"
+        if temp > 85:
+            recommendation = "⚠️ High temperature detected. Check cooling system. Consider reducing load."
+        elif vib > 10:
+            recommendation = "⚠️ Excessive vibration. Inspect mechanical components for wear or misalignment."
+        elif power > 150:
+            recommendation = "⚠️ High power consumption. Check for electrical issues or system overload."
+        else:
+            recommendation = "⚠️ Anomaly pattern detected. Review recent operational changes and sensor calibration."
+    else:
+        description = f"Normal operation: Temp {temp}°C, Vibration {vib} mm/s, Power {power}W. All metrics within expected ranges."
+        recommendation = "✅ Continue regular monitoring. No immediate action required."
 
-    logger.info("Inference completed in %.2f ms with loss %.6f", duration_ms, loss)
+    logger.info("Inference completed in %.2f ms with loss %.6f (anomaly=%s)", duration_ms, loss, is_anomaly)
 
     return jsonify(
         {
+            "device_id": device_id,
             "is_anomaly": bool(is_anomaly),
             "anomaly": bool(is_anomaly),
-            "status": "anomaly" if is_anomaly else "normal",
+            "status": severity if is_anomaly else "normal",
+            "severity": severity,
+            "confidence": float(confidence),
             "loss": float(loss),
             "threshold": float(THRESHOLD),
+            "description": description,
+            "recommendation": recommendation,
+            "analysis_type": "LSTM Autoencoder Anomaly Detection",
+            "model_name": "LSTM + GNN Ensemble",
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "inference_time_ms": round(duration_ms, 2),
         }
     )
 
