@@ -1,0 +1,13 @@
+{
+  "service": "depin-guard-iot",
+  "build": {
+    "path": "iot",
+    "builder": "nixpacks",
+    "buildCommand": "pip install -r requirements.txt"
+  },
+  "deploy": {
+    "startCommand": "python -m data_ingestor",
+    "healthcheckPath": null,
+    "restartPolicyMaxRetries": 10
+  }
+}
