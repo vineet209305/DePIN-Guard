@@ -289,11 +289,92 @@ async def get_profile(credentials: HTTPAuthorizationCredentials = Depends(bearer
         raise HTTPException(status_code=404, detail="User not found")
     
     return {
-        "email": db_user["email"],
-        "full_name": db_user.get("full_name"),
-        "phone": db_user.get("phone"),
-        "created_at": db_user.get("created_at"),
-        "last_login": db_user.get("last_login")
+        "profile": {
+            "email": db_user["email"],
+            "full_name": db_user.get("full_name"),
+            "phone": db_user.get("phone"),
+            "created_at": db_user.get("created_at"),
+            "last_login": db_user.get("last_login"),
+            "settings": db_user.get("settings", {})
+        }
+    }
+
+# ==========================================
+# 📝 UPDATE PROFILE & SETTINGS
+# ==========================================
+class ProfileUpdate(BaseModel):
+    full_name: str = None
+    phone: str = None
+    email_notifications: bool = None
+    sms_notifications: bool = None
+    alert_notifications: bool = None
+    auto_refresh: bool = None
+    refresh_interval: str = None
+    data_retention: str = None
+    theme: str = None
+    language: str = None
+
+@app.post("/profile")
+async def update_profile(update_data: ProfileUpdate, credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    """Update user profile and settings"""
+    email = verify_token(credentials.credentials)
+    users_collection = db["users"]
+    
+    db_user = await users_collection.find_one({"email": email})
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Prepare update data
+    update_fields = {"updated_at": datetime.datetime.utcnow().isoformat()}
+    
+    # Update basic profile fields
+    if update_data.full_name is not None:
+        update_fields["full_name"] = update_data.full_name
+    if update_data.phone is not None:
+        update_fields["phone"] = update_data.phone
+    
+    # Build settings object
+    settings = db_user.get("settings", {})
+    if update_data.email_notifications is not None:
+        settings["email_notifications"] = update_data.email_notifications
+    if update_data.sms_notifications is not None:
+        settings["sms_notifications"] = update_data.sms_notifications
+    if update_data.alert_notifications is not None:
+        settings["alert_notifications"] = update_data.alert_notifications
+    if update_data.auto_refresh is not None:
+        settings["auto_refresh"] = update_data.auto_refresh
+    if update_data.refresh_interval is not None:
+        settings["refresh_interval"] = update_data.refresh_interval
+    if update_data.data_retention is not None:
+        settings["data_retention"] = update_data.data_retention
+    if update_data.theme is not None:
+        settings["theme"] = update_data.theme
+    if update_data.language is not None:
+        settings["language"] = update_data.language
+    
+    update_fields["settings"] = settings
+    
+    # Update in database
+    result = await users_collection.update_one(
+        {"_id": db_user["_id"]},
+        {"$set": update_fields}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Return updated profile
+    updated_user = await users_collection.find_one({"_id": db_user["_id"]})
+    return {
+        "message": "Profile updated successfully",
+        "profile": {
+            "email": updated_user["email"],
+            "full_name": updated_user.get("full_name"),
+            "phone": updated_user.get("phone"),
+            "created_at": updated_user.get("created_at"),
+            "updated_at": updated_user.get("updated_at"),
+            "settings": updated_user.get("settings", {})
+        }
     }
 
 # ==========================================

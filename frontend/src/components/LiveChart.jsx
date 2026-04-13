@@ -51,9 +51,13 @@ export default function LiveChart({ onConnect }) {
       ws.onmessage = (event) => {
         try {
           const parsed = JSON.parse(event.data);
+          if (!parsed || typeof parsed !== 'object') {
+            console.warn('[LiveChart] Invalid message format:', parsed);
+            return;
+          }
           setData((prev) => [...prev.slice(-(MAX_POINTS - 1)), parsed]);
-        } catch {
-          // ignore malformed messages
+        } catch (error) {
+          console.warn('[LiveChart] Failed to parse message:', error.message);
         }
       };
 

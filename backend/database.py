@@ -4,10 +4,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorClient as AsyncClient, AsyncIOMotorDatabase as AsyncDatabase
-import logging
 import certifi
-
-logger = logging.getLogger("depin_guard.database")
 
 # MongoDB connection
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/depin_guard")
@@ -38,21 +35,21 @@ async def connect_to_mongo():
         # Verify connection
         await mongodb_client.admin.command('ping')
         db = mongodb_client["depin_guard"]
-        logger.info("✅ Connected to MongoDB")
+        print("✅ Connected to MongoDB")
         
         # Create indexes
         await create_indexes()
     except Exception as e:
-        logger.error(f"❌ MongoDB connection failed: {e}")
+        print(f"❌ MongoDB connection failed: {e}")
         raise
 
 
 async def close_mongo_connection():
     """Close MongoDB connection"""
     global mongodb_client
-    if mongodb_client:
+    if mongodb_client is not None:
         mongodb_client.close()
-        logger.info("🔌 MongoDB connection closed")
+        print("🔌 MongoDB connection closed")
 
 
 async def create_indexes():
@@ -68,9 +65,9 @@ async def create_indexes():
         await fraud_alerts_col.create_index("timestamp")
         await fraud_alerts_col.create_index([("timestamp", -1)])
         
-        logger.info("✅ Database indexes created")
+        print("✅ Database indexes created")
     except Exception as e:
-        logger.error(f"Index creation error: {e}")
+        print(f"Index creation error: {e}")
 
 
 # Pydantic Models
@@ -116,10 +113,10 @@ async def save_sensor_data(data: SensorDataModel):
     """Save sensor data to MongoDB"""
     try:
         result = await db["sensor_data"].insert_one(data.dict())
-        logger.info(f"✅ Sensor data saved: {result.inserted_id}")
+        print(f"✅ Sensor data saved: {result.inserted_id}")
         return result.inserted_id
     except Exception as e:
-        logger.error(f"Error saving sensor data: {e}")
+        print(f"Error saving sensor data: {e}")
         raise
 
 
@@ -127,10 +124,10 @@ async def save_fraud_alert(alert: FraudAlertModel):
     """Save fraud alert to MongoDB"""
     try:
         result = await db["fraud_alerts"].insert_one(alert.dict())
-        logger.info(f"✅ Fraud alert saved: {result.inserted_id}")
+        print(f"✅ Fraud alert saved: {result.inserted_id}")
         return result.inserted_id
     except Exception as e:
-        logger.error(f"Error saving fraud alert: {e}")
+        print(f"Error saving fraud alert: {e}")
         raise
 
 
@@ -142,7 +139,7 @@ async def get_recent_sensor_data(device_id: str, limit: int = 100):
         ).sort("timestamp", -1).limit(limit).to_list(length=limit)
         return data
     except Exception as e:
-        logger.error(f"Error retrieving sensor data: {e}")
+        print(f"Error retrieving sensor data: {e}")
         return []
 
 
@@ -153,7 +150,7 @@ async def get_fraud_alerts(device_id: Optional[str] = None, limit: int = 50):
         alerts = await db["fraud_alerts"].find(query).sort("timestamp", -1).limit(limit).to_list(length=limit)
         return alerts
     except Exception as e:
-        logger.error(f"Error retrieving fraud alerts: {e}")
+        print(f"Error retrieving fraud alerts: {e}")
         return []
 
 
@@ -182,7 +179,7 @@ async def get_device_stats(device_id: str):
             "last_reading": recent["timestamp"] if recent else None
         }
     except Exception as e:
-        logger.error(f"Error getting device stats: {e}")
+        print(f"Error getting device stats: {e}")
         return {}
 
 
@@ -194,7 +191,7 @@ async def get_database_size():
         size_mb = size_bytes / (1024 * 1024)
         return size_mb
     except Exception as e:
-        logger.error(f"Error getting database size: {e}")
+        print(f"Error getting database size: {e}")
         return 0
 
 
@@ -220,7 +217,7 @@ async def get_collection_stats():
             "total_mb": round(sensor_size_mb + alert_size_mb, 2)
         }
     except Exception as e:
-        logger.error(f"Error getting collection stats: {e}")
+        print(f"Error getting collection stats: {e}")
         return {}
 
 
@@ -249,5 +246,5 @@ async def export_all_data():
             "total_alerts": len(fraud_alerts)
         }
     except Exception as e:
-        logger.error(f"Error exporting data: {e}")
+        print(f"Error exporting data: {e}")
         return {}

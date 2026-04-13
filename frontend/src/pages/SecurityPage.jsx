@@ -1,35 +1,41 @@
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/layout/Layout';
+import { TeamAccessControl } from '../utils/TeamAccessControl';
 import "./SecurityPage.css";
 
-const ALLOWED_EMAILS = ['vineet', 'priyanshu', 'mohit', 'prateek'];
 const SECURITY_PASSWORD = import.meta.env.VITE_SECURITY_PASSWORD || null;
 
 const SecurityPage = () => {
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
-  
-  // FIX: States ko initialize karein taaki React ko changes pata chalein
   const [unlocked, setUnlocked] = useState(localStorage.getItem('security_unlocked') === 'true');
   const [hasAccess, setHasAccess] = useState(false);
-
+  const [currentUser, setCurrentUser] = useState('');
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [loggedInMembers, setLoggedInMembers] = useState([]);
+  
   // Simulation States
   const [attackLog, setAttackLog] = useState([]);
   const [running, setRunning] = useState(false);
   const [rateStats, setRateStats] = useState({ total: 0, blocked: 0 });
 
-  // FIX: User access check karne ka logic useEffect mein dala taaki reload na karna pade
+  // Check team access on mount
   useEffect(() => {
-    const currentUser = (
-      localStorage.getItem('userEmail') ||
-      localStorage.getItem('userName') ||
-      ''
-    ).toLowerCase();
+    const userEmail = localStorage.getItem('userEmail') || localStorage.getItem('userName') || '';
+    setCurrentUser(userEmail);
 
-    const isTeamMember = ALLOWED_EMAILS.some(name => currentUser.includes(name));
+    const isTeamMember = TeamAccessControl.isTeamMember(userEmail);
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
     
     setHasAccess(isTeamMember || isAdmin);
+    setTeamMembers(TeamAccessControl.getTeamStatus().members);
+
+    // Log access attempt
+    TeamAccessControl.logAccessAttempt(userEmail, isTeamMember || isAdmin, 'SecurityPage');
+
+    // Simulate team members logged in (in production, this would come from backend)
+    const activeMembers = JSON.parse(localStorage.getItem('team_logged_in') || '[]');
+    setLoggedInMembers(activeMembers);
   }, []);
 
   const handlePasswordSubmit = (e) => {
@@ -149,6 +155,33 @@ const SecurityPage = () => {
             <div className="security-overall-badge"><span className="badge-dot" /> All Systems Secure</div>
             <button className="lock-btn" style={{ padding: '6px 14px', fontSize: 12 }} onClick={handleLock}>🔒 Lock</button>
           </div>
+        </div>
+
+        {/* Team Member Status */}
+        <div className="team-member-section">
+          <h3 className="team-title">👥 Authorized Team Members</h3>
+          <div className="team-grid">
+            {teamMembers.map((email, idx) => {
+              const isLoggedIn = loggedInMembers.includes(email);
+              const name = email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1);
+              return (
+                <div key={idx} className={`team-card ${isLoggedIn ? 'logged-in' : 'offline'}`}>
+                  <div className="team-avatar">{name.charAt(0)}</div>
+                  <div className="team-info">
+                    <div className="team-name">{name}</div>
+                    <div className="team-email">{email}</div>
+                    <div className={`team-status ${isLoggedIn ? 'active' : 'inactive'}`}>
+                      {isLoggedIn ? '🟢 Online' : '⚫ Offline'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="team-note">
+            ℹ️ Only these 4 team members can access security features. 
+            {currentUser && ` Current user: ${currentUser}`}
+          </p>
         </div>
 
         <div className="security-stats">

@@ -14,17 +14,27 @@ const HistoryPage = () => {
   const fetchHistory = async () => {
     try {
       const res = await authenticatedFetch('/api/history/all');
-      if (!res) return;
-      const data = await res.json();
-
-      if (data && data.history && data.history.length > 0) {
-        setHistoryData(prev => {
-          const existingIds = new Set(prev.map(h => h.id));
-          const newEntries = data.history.filter(h => !existingIds.has(h.id));
-          return [...data.history, ...prev.filter(h => !data.history.find(d => d.id === h.id))];
-        });
+      if (!res) {
+        console.warn('[History] No response from API');
+        return;
       }
-    } catch {
+      
+      if (!res.ok) {
+        console.error(`[History] API error ${res.status}:`, res.statusText);
+        return;
+      }
+
+      const data = await res.json();
+      if (!data || !Array.isArray(data.history)) {
+        console.warn('[History] No history data in response');
+        return;
+      }
+
+      if (data.history.length > 0) {
+        setHistoryData(data.history.slice(0, 10000)); // Use full dataset from API (already sorted)
+      }
+    } catch (error) {
+      console.error('[History] Fetch failed:', error.message);
     } finally {
       setLoading(false);
     }

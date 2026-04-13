@@ -19,12 +19,15 @@ export const BlockchainControl = ({ apiUrl, apiKey }) => {
       const response = await axios.get(`${apiUrl}/api/blockchain/status`, {
         headers: { 'X-API-Key': apiKey }
       });
-      setStatus(response.data.status);
-      setContainers(response.data.containers || []);
-      setMessage(response.data.message);
+      if (response.data) {
+        setStatus(response.data.status || 'unknown');
+        setContainers(response.data.containers || []);
+        setMessage(response.data.message || '');
+      }
     } catch (error) {
+      console.error('[BlockchainControl] Status check failed:', error.message);
       setStatus('error');
-      setMessage(error.response?.data?.detail || error.message);
+      setMessage(error.response?.data?.detail || error.message || 'Connection failed');
     }
   };
 
@@ -35,10 +38,13 @@ export const BlockchainControl = ({ apiUrl, apiKey }) => {
       const response = await axios.post(`${apiUrl}/api/blockchain/start`, {}, {
         headers: { 'X-API-Key': apiKey }
       });
-      setStatus(response.data.status);
-      setContainers(response.data.containers || []);
-      setMessage(response.data.message);
+      if (response.data) {
+        setStatus(response.data.status || 'unknown');
+        setContainers(response.data.containers || []);
+        setMessage(response.data.message || 'Blockchain started');
+      }
     } catch (error) {
+      console.error('[BlockchainControl] Start failed:', error.message);
       setStatus('error');
       setMessage(error.response?.data?.detail || 'Failed to start blockchain');
     } finally {
@@ -53,10 +59,13 @@ export const BlockchainControl = ({ apiUrl, apiKey }) => {
       const response = await axios.post(`${apiUrl}/api/blockchain/stop`, {}, {
         headers: { 'X-API-Key': apiKey }
       });
-      setStatus(response.data.status);
-      setContainers(response.data.containers || []);
-      setMessage(response.data.message);
+      if (response.data) {
+        setStatus(response.data.status || 'unknown');
+        setContainers(response.data.containers || []);
+        setMessage(response.data.message || 'Blockchain stopped');
+      }
     } catch (error) {
+      console.error('[BlockchainControl] Stop failed:', error.message);
       setStatus('error');
       setMessage(error.response?.data?.detail || 'Failed to stop blockchain');
     } finally {

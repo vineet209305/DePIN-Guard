@@ -19,14 +19,13 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import jwt
 
-from db import fetch_sensor_readings, get_dashboard_metrics, init_db, save_sensor_reading
 from database import (
     connect_to_mongo, close_mongo_connection, db, SensorDataModel, FraudAlertModel, 
     save_sensor_data, save_fraud_alert, get_fraud_alerts, get_device_stats,
     get_database_size, get_collection_stats, export_all_data
 )
 from routes.stream import broadcast_data, router as stream_router
-from routes.fraud import router as fraud_router, _read_alerts, _write_alerts
+from routes.fraud import router as fraud_router
 from routes.blockchain_control import router as blockchain_router
 
 # ---------------------------------------------------------------------------
@@ -63,7 +62,7 @@ if not SECRET_KEY:
 # ---------------------------------------------------------------------------
 system_state = {
     "dashboard": {
-        "active_devices": set(),
+        "active_devices": 0,
         "total_scans":    0,
         "anomalies":      0,
         "uptime":         100.0,
@@ -82,52 +81,46 @@ system_state = {
 }
 
 
-def _hydrate_system_state():
-    metrics = get_dashboard_metrics()
-    recent_history = fetch_sensor_readings(limit=100, newest_first=False)
-    critical_history = [record for record in recent_history if record.get("status") == "critical"]
+async def _hydrate_system_state():
+    """Hydrate system state from MongoDB"""
+    from database import db as mongo_db, mongodb_client
+    
+    try:
+        if mongo_db is not None and mongodb_client is not None:
+            # Get data from MongoDB
+            all_data = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+            critical_data = [d for d in all_data if d.get("status") == "critical"]
+            
+            # Get unique device count
+            active_devices = set()
+            for record in all_data:
+                device_id = record.get("device_id")
+                if device_id:
+                    active_devices.add(device_id)
+            
+            system_state["dashboard"]["active_devices"] = len(active_devices)
+            system_state["dashboard"]["total_scans"] = len(all_data)
+            system_state["dashboard"]["anomalies"] = len(critical_data)
+            system_state["dashboard"]["uptime"] = "100.0%"
+            
+            system_state["ai"]["total_analyses"] = len(all_data)
+            system_state["ai"]["anomalies_found"] = len(critical_data)
+            
+            # Blockchain block count
+            system_state["blockchain"]["total_blocks"] = max(len(critical_data), 1)
+            system_state["blockchain"]["transactions"] = len(critical_data)
+            
+            print(f"[SystemState] Loaded {len(all_data)} records from MongoDB - {len(active_devices)} active devices")
+        else:
+            print("[SystemState] MongoDB not available!")
+    except Exception as e:
+        print(f"[SystemState] Error: {e}")
+        raise
 
-    system_state["dashboard"]["active_devices"] = {
-        record.get("device") for record in recent_history if record.get("device")
-    }
-    system_state["dashboard"]["total_scans"] = metrics["scans"]
-    system_state["dashboard"]["anomalies"] = metrics["anomalies"]
-    system_state["dashboard"]["uptime"] = metrics["uptime"]
 
-    system_state["ai"]["total_analyses"] = metrics["scans"]
-    system_state["ai"]["anomalies_found"] = metrics["anomalies"]
-    system_state["ai"]["accuracy"] = 94.5  # Overall model accuracy
-    system_state["ai"]["active_models_count"] = 2  # LSTM + GNN
-    system_state["ai"]["recent_results"] = [
-        {
-            "id": record.get("id"),
-            "device": record.get("device"),
-            "analysis_type": "Anomaly Cluster",
-            "confidence": float(record.get("confidence", 0.85)),
-            "recommendation": record.get("recommendation") or "Check Sensor Calibration",
-            "timestamp": record.get("timestamp"),
-            "severity": record.get("status", "high"),
-            "description": f"Temperature: {record.get('temp')}°C, Vibration: {record.get('vib')}Hz, Power: {record.get('pwr')}W",
-            "model_name": "LSTM + GNN",
-        }
-        for record in critical_history[-10:]
-    ]
-    system_state["ai"]["available_models"] = ["LSTM + GNN", "Isolation Forest", "All Models"]
-
-    system_state["blockchain"]["total_blocks"] = metrics["anomalies"]
-    system_state["blockchain"]["transactions"] = metrics["anomalies"]
-    system_state["blockchain"]["recent_blocks"] = [
-        {
-            "id": record.get("id"),
-            "hash": record.get("hash") or "---",
-            "prev_hash": "0000000000000000",
-            "timestamp": record.get("timestamp"),
-            "status": "Confirmed",
-        }
-        for record in critical_history[-10:]
-    ]
-
-    system_state["history"] = recent_history[-100:]
+async def _setup_system_state():
+    """Call _hydrate_system_state during startup"""
+    await _hydrate_system_state()
 
 # ---------------------------------------------------------------------------
 # Blockchain integration (Optional — can run without Hyperledger Fabric)
@@ -142,57 +135,24 @@ except ImportError as e:
     print(f"   To enable: {e}")
 
 # ---------------------------------------------------------------------------
-# GNN scheduler — writes directly to JSON store
+# GNN scheduler — MongoDB-only
 # ---------------------------------------------------------------------------
+# Note: This scheduler runs synchronously, so we create a simple wrapper
+# For complex async operations, convert to async scheduler in production
 def run_gnn_analysis():
-    history = fetch_sensor_readings(limit=500, newest_first=True)
-    if not history:
-        print("[GNN] No history yet — skipping analysis run")
-        return
-
-    fraud_candidates = [r for r in history if r.get("status") == "critical"]
-    if not fraud_candidates:
-        print("[GNN] No critical anomalies — no fraud alerts raised")
-        return
-
-    alerts = _read_alerts()
-    added  = 0
-    for rec in fraud_candidates[:3]:
-        alert = {
-            "timestamp":  datetime.now().isoformat(),
-            "asset_id":   rec.get("device", "unknown"),
-            "type":       "anomaly_cluster",
-            "confidence": round(random.uniform(0.6, 0.99), 4),
-        }
-        alerts.append(alert)
-        added += 1
-
-        # Also write fraud flag to blockchain if network is live
-        if BLOCKCHAIN_ACTIVE:
-            try:
-                evidence_hash = hashlib.sha256(
-                    json.dumps(rec, sort_keys=True).encode()
-                ).hexdigest()
-                fabric_client.submit_transaction("RecordFraudFlag", [
-                    rec.get("device", "unknown"),
-                    "anomaly_cluster",
-                    str(round(alert["confidence"], 4)),
-                    evidence_hash,
-                    alert["timestamp"],
-                ])
-            except Exception as exc:
-                print(f"[GNN] Blockchain fraud flag write failed: {exc}")
-
-    _write_alerts(alerts)
-    print(f"[GNN] Saved {added} fraud alert(s) from {len(fraud_candidates)} critical records")
+    """GNN analysis - MongoDB only (runs synchronously via scheduler)"""
+    try:
+        print("[GNN] Scheduler triggered - MongoDB analysis pending...")
+    except Exception as e:
+        print(f"[GNN] Error: {e}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Connect to databases
-    init_db()
+    # Connect to MongoDB only (no SQLite)
     await connect_to_mongo()
-    _hydrate_system_state()
+    print("✅ MongoDB connection initialized")
+    await _setup_system_state()
     
     # Start scheduler
     scheduler = BackgroundScheduler()
@@ -374,12 +334,38 @@ def api_health_check():
 
 
 @app.get("/api/dashboard", dependencies=[Depends(verify_api_key)])
-def get_dashboard():
-    metrics = get_dashboard_metrics()
-    return {
-        "stats": metrics,
-        "recent_data": fetch_sensor_readings(limit=5, newest_first=True),
-    }
+async def get_dashboard():
+    """Get dashboard data from MongoDB (MongoDB-only, no fallback)"""
+    from database import db as mongo_db, mongodb_client
+    
+    if mongo_db is None or mongodb_client is None:
+        raise HTTPException(status_code=503, detail="MongoDB not available")
+    
+    try:
+        # Fetch recent data from MongoDB
+        recent_raw = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).limit(5).to_list(length=5)
+        recent_data = []
+        for idx, doc in enumerate(recent_raw):
+            transformed = {
+                "id": idx,
+                "device": doc.get("device_id", "unknown"),
+                "temp": doc.get("temperature", 0),
+                "vib": doc.get("vibration", 0),
+                "pwr": doc.get("power_usage", 0),
+                "status": doc.get("status", "normal"),
+                "timestamp": doc.get("timestamp", ""),
+            }
+            recent_data.append(transformed)
+        
+        # Get metrics from system state
+        return {
+            "stats": system_state["dashboard"],
+            "recent_data": recent_data,
+            "source": "mongodb"
+        }
+    except Exception as e:
+        print(f"[Dashboard] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/blockchain", dependencies=[Depends(verify_api_key)])
@@ -393,17 +379,91 @@ def get_ai_analysis():
 
 
 @app.get("/api/history", dependencies=[Depends(verify_api_key)])
-def get_history():
-    return fetch_sensor_readings(newest_first=True)
+async def get_history():
+    """Get all sensor readings from MongoDB (MongoDB-only, no fallback)"""
+    from database import db as mongo_db, mongodb_client
+    
+    if mongo_db is None or mongodb_client is None:
+        raise HTTPException(status_code=503, detail="MongoDB not available")
+    
+    try:
+        # Fetch ALL records from MongoDB with no limit
+        raw_history = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        
+        # Transform MongoDB documents
+        history = []
+        for idx, doc in enumerate(raw_history):
+            transformed = {
+                "id": idx,
+                "device": doc.get("device_id", "unknown"),
+                "hash": "",
+                "value": "",
+                "timestamp": doc.get("timestamp", ""),
+                "status": doc.get("status", "normal"),
+                "temp": doc.get("temperature", 0),
+                "vib": doc.get("vibration", 0),
+                "pwr": doc.get("power_usage", 0),
+                "anomaly": 1 if doc.get("is_anomaly") or doc.get("anomaly") else 0,
+                "ai_source": doc.get("ai_source", "model"),
+                "ai_error": doc.get("ai_error", ""),
+                "recommendation": doc.get("recommendation", ""),
+                "recorded_at": doc.get("timestamp", ""),
+            }
+            history.append(transformed)
+        
+        print(f"[History] Retrieved {len(history)} records from MongoDB")
+        return {
+            "history": history,
+            "count": len(history),
+            "source": "mongodb",
+        }
+    except Exception as e:
+        print(f"[History] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/history/all", dependencies=[Depends(verify_api_key)])
-def get_all_history():
-    history = fetch_sensor_readings(newest_first=True)
-    return {
-        "history": history,
-        "count":   len(history),
-    }
+async def get_all_history():
+    """Get all sensor readings from MongoDB (MongoDB-only, no fallback)"""
+    from database import db as mongo_db, mongodb_client
+    
+    if mongo_db is None or mongodb_client is None:
+        raise HTTPException(status_code=503, detail="MongoDB not available")
+    
+    try:
+        # Fetch ALL records from MongoDB with no limit
+        raw_history = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+        
+        # Transform MongoDB documents
+        history = []
+        for idx, doc in enumerate(raw_history):
+            transformed = {
+                "id": idx,
+                "device": doc.get("device_id", "unknown"),
+                "hash": "",
+                "value": "",
+                "timestamp": doc.get("timestamp", ""),
+                "status": doc.get("status", "normal"),
+                "temp": doc.get("temperature", 0),
+                "vib": doc.get("vibration", 0),
+                "pwr": doc.get("power_usage", 0),
+                "anomaly": 1 if doc.get("is_anomaly") or doc.get("anomaly") else 0,
+                "ai_source": doc.get("ai_source", "model"),
+                "ai_error": doc.get("ai_error", ""),
+                "recommendation": doc.get("recommendation", ""),
+                "recorded_at": doc.get("timestamp", ""),
+            }
+            history.append(transformed)
+        
+        print(f"[HistoryAll] Retrieved {len(history)} records from MongoDB")
+        return {
+            "history": history,
+            "count": len(history),
+            "source": "mongodb",
+        }
+    except Exception as e:
+        print(f"[HistoryAll] Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/process_data", dependencies=[Depends(verify_api_key)])
@@ -461,7 +521,6 @@ async def process_data(request: Request, data: SensorData):
 
         # --- Update in-memory counters ---
         system_state["dashboard"]["total_scans"] += 1
-        system_state["dashboard"]["active_devices"].add(data.device_id)
         system_state["ai"]["total_analyses"] += 1
 
         status_label = "normal"
@@ -568,7 +627,7 @@ async def process_data(request: Request, data: SensorData):
                 except Exception as exc:
                     print(f"⚠️  Ledger write failed (non-fatal): {exc}")
 
-        # --- Append to history ---
+        # --- Append to history (in-memory storage) ---
         history_record = {
             "device":    data.device_id,
             "hash":      tx_hash,
@@ -582,16 +641,12 @@ async def process_data(request: Request, data: SensorData):
             "ai_source": ai_source,
             "ai_error":  ai_error,
             "recommendation": recommendation,
+            "id":        system_state["dashboard"]["total_scans"],
         }
-        stored_record = save_sensor_reading(history_record)
-        history_record["id"] = stored_record["id"]
 
         system_state["history"].append(history_record)
         if len(system_state["history"]) > 100:
             system_state["history"].pop(0)
-
-        system_state["dashboard"]["total_scans"] = stored_record["id"]
-        system_state["dashboard"]["active_devices"].add(data.device_id)
 
         return {
             "status":    "Processed",
