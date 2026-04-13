@@ -6,18 +6,16 @@ import { authenticatedFetch } from '../utils/api';
 import './DashboardPage.css';
 
 const DashboardPage = () => {
-  const [streamConnected, setStreamConnected]   = useState(false);
-  const [loading, setLoading]                   = useState(true);
-  const [refreshing, setRefreshing]             = useState(false);
-  const [stats, setStats]                       = useState({ activeDevices: null, totalData: null, alerts: null, uptime: null });
-  const [recentData, setRecentData]             = useState([]);
-  const [timePeriod, setTimePeriod]             = useState('24h');
-  const [chartData, setChartData]               = useState([]);
-  const [showAllSensors, setShowAllSensors]     = useState(false);
-  const SENSOR_PREVIEW = 4;
-
-  // ✅ Ref for sensor section — scroll sirf click pe
-  const sensorSectionRef = useRef(null);
+  const [streamConnected, setStreamConnected] = useState(false);
+  const [loading, setLoading]                 = useState(true);
+  const [refreshing, setRefreshing]           = useState(false);
+  const [stats, setStats]                     = useState({ activeDevices: null, totalData: null, alerts: null, uptime: null });
+  const [recentData, setRecentData]           = useState([]);
+  const [timePeriod, setTimePeriod]           = useState('24h');
+  const [chartData, setChartData]             = useState([]);
+  const [showAllSensors, setShowAllSensors]   = useState(false);
+  const SENSOR_PREVIEW = 5;
+  const sensorRef = useRef(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -31,18 +29,17 @@ const DashboardPage = () => {
           uptime:        json.stats?.uptime    ?? null,
         });
         const history = json.recent_data ?? [];
-        if (history.length > 0) {
-          setRecentData(history.map((rec, i) => ({
-            id:     rec.id ?? i,
-            device: rec.device ?? 'Unknown',
-            value:  rec.temp,
-            unit:   '°C',
-            status: rec.status ?? 'normal',
-            time:   rec.timestamp ? new Date(rec.timestamp).toLocaleTimeString() : '—',
-          })));
-        } else {
-          setRecentData([]);
-        }
+        setRecentData(history.length > 0
+          ? history.map((rec, i) => ({
+              id:     rec.id ?? i,
+              device: rec.device ?? 'Unknown',
+              value:  rec.temp,
+              unit:   '°C',
+              status: rec.status ?? 'normal',
+              time:   rec.timestamp ? new Date(rec.timestamp).toLocaleTimeString() : '—',
+            }))
+          : []
+        );
       }
     } catch {
     } finally {
@@ -86,9 +83,9 @@ const DashboardPage = () => {
           });
         } else {
           buckets = Array.from({ length: 15 }, (_, i) => ({
-            label:  `D-${i + 1}`,
+            label:  `D-${14 - i}`,
             count:  0,
-            cutoff: new Date(now - (14 - i) * 2 * 24 * 60 * 60 * 1000),
+            cutoff: new Date(now - (14 - i) * 24 * 60 * 60 * 1000),
           }));
           history.forEach((rec) => {
             const t = new Date(rec.timestamp);
@@ -103,6 +100,7 @@ const DashboardPage = () => {
           label: b.label,
           y:     Math.round((b.count / maxCount) * 100),
           raw:   b.count,
+          pct:   Math.round((b.count / maxCount) * 100),
         })));
       }
     } catch {
@@ -124,17 +122,6 @@ const DashboardPage = () => {
     setRefreshing(false);
   };
 
-  // ✅ Show All toggle — scroll sirf tab jab expand ho
-  const handleToggleSensors = () => {
-    const next = !showAllSensors;
-    setShowAllSensors(next);
-    if (next && sensorSectionRef.current) {
-      setTimeout(() => {
-        sensorSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 50);
-    }
-  };
-
   const renderStatValue = (value, formatter = (v) => v) => {
     if (loading || refreshing) return '...';
     if (value === null || value === undefined) return 'N/A';
@@ -150,14 +137,26 @@ const DashboardPage = () => {
     }
   };
 
+  const getActivityLabel = (period) => {
+    if (period === '24h') return 'Sensor scans per 2-hour block';
+    if (period === '7d')  return 'Total scans per day';
+    return 'Scans per day (last 30 days)';
+  };
+
+  const totalScans = chartData.reduce((s, d) => s + d.raw, 0);
+  const peakLabel  = chartData.length
+    ? chartData.reduce((a, b) => (b.raw > a.raw ? b : a), chartData[0]).label
+    : '—';
+
   const SVG_WIDTH    = 600;
   const SVG_HEIGHT   = 260;
-  const MARGIN       = { top: 24, right: 30, bottom: 44, left: 50 };
+  const MARGIN       = { top: 28, right: 30, bottom: 48, left: 50 };
   const CHART_WIDTH  = SVG_WIDTH  - MARGIN.left - MARGIN.right;
   const CHART_HEIGHT = SVG_HEIGHT - MARGIN.top  - MARGIN.bottom;
 
-  // ✅ visibleSensors — sirf state pe depend karta hai, auto change nahi hoga
-  const visibleSensors = showAllSensors ? recentData : recentData.slice(0, SENSOR_PREVIEW);
+  const visibleSensors = showAllSensors
+    ? recentData
+    : recentData.slice(0, SENSOR_PREVIEW);
 
   return (
     <Layout>
@@ -192,7 +191,6 @@ const DashboardPage = () => {
               <div className="stat-label">Active Devices</div>
             </div>
           </div>
-
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)' }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20">
@@ -204,7 +202,6 @@ const DashboardPage = () => {
               <div className="stat-label">Total Records</div>
             </div>
           </div>
-
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)' }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20">
@@ -216,7 +213,6 @@ const DashboardPage = () => {
               <div className="stat-label">Critical Alerts</div>
             </div>
           </div>
-
           <div className="stat-card">
             <div className="stat-icon" style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="white" width="20">
@@ -230,17 +226,20 @@ const DashboardPage = () => {
           </div>
         </div>
 
+        {/* ── Live Sensor Updates (LiveChart) ── */}
+        {!streamConnected && (
+          <p className="loading-text">Connecting to live updates...</p>
+        )}
+        <LiveChart onConnect={() => setStreamConnected(true)} />
+
         {/* ── Recent Sensor Readings ── */}
-        {/* ✅ ref lagaya — scroll anchor yahan hai */}
-        <div className="data-section" ref={sensorSectionRef}>
+        <div className="data-section" ref={sensorRef}>
           <div className="section-header">
             <h2 className="section-title">Recent Sensor Readings</h2>
             {!loading && recentData.length > 0 && (
               <span className="sensor-count">{recentData.length} readings</span>
             )}
           </div>
-
-          {/* ✅ Static grid — overflow hidden, auto-scroll nahi */}
           <div className="data-grid">
             {loading ? (
               <p className="loading-text">Loading sensor data...</p>
@@ -267,16 +266,14 @@ const DashboardPage = () => {
               ))
             )}
           </div>
-
-          {/* ✅ Toggle button — handleToggleSensors use karta hai */}
           {!loading && recentData.length > SENSOR_PREVIEW && (
             <button
               className="show-more-btn"
-              onClick={handleToggleSensors}
+              onClick={() => setShowAllSensors(p => !p)}
             >
               {showAllSensors
                 ? '▲ Show Less'
-                : `▼ Show All ${recentData.length} Readings`}
+                : `▼ Show ${recentData.length - SENSOR_PREVIEW} More Readings`}
             </button>
           )}
         </div>
@@ -284,8 +281,8 @@ const DashboardPage = () => {
         {/* ── IoT Device Status ── */}
         <div className="data-section">
           <div className="section-header">
-            <h2 className="section-title">Real-Time Device Status</h2>
-            <p className="section-subtitle">Human-readable alerts with actionable recommendations</p>
+            <h2 className="section-title">Device Health Overview</h2>
+            <p className="section-subtitle">Real-time status with actionable alerts</p>
           </div>
           <div className="iot-devices-section">
             {loading ? (
@@ -299,15 +296,35 @@ const DashboardPage = () => {
                   device_id={data.device}
                   machine_name={data.device}
                   alert_level={data.status || 'normal'}
-                  status_short={`Device is running with ${data.status} status`}
+                  status_short={
+                    data.status === 'critical'
+                      ? `⚠ High temperature detected: ${data.value}${data.unit}. Immediate attention required.`
+                      : data.status === 'warning'
+                      ? `Temperature at ${data.value}${data.unit} — approaching threshold. Monitor closely.`
+                      : `Operating normally at ${data.value}${data.unit}. All parameters within range.`
+                  }
                   temperature={data.value}
-                  vibration={Math.random() * 12}
-                  power_usage={Math.random() * 100 + 50}
-                  recommendations={[
-                    'Monitor machine in the next hour',
-                    'Check sensor calibration if readings seem unusual',
-                    'Contact maintenance if status changes',
-                  ]}
+                  vibration={parseFloat((Math.random() * 12).toFixed(2))}
+                  power_usage={parseFloat((Math.random() * 100 + 50).toFixed(1))}
+                  recommendations={
+                    data.status === 'critical'
+                      ? [
+                          'Stop machine immediately and alert maintenance team',
+                          'Check cooling system and ventilation',
+                          'Do not restart until temperature drops below 70°C',
+                        ]
+                      : data.status === 'warning'
+                      ? [
+                          'Schedule inspection within the next 2 hours',
+                          'Check cooling system for blockages',
+                          'Reduce machine load if possible',
+                        ]
+                      : [
+                          'Continue normal operation',
+                          'Next scheduled maintenance on time',
+                          'No action required at this time',
+                        ]
+                  }
                   timestamp={data.time}
                 />
               ))
@@ -315,16 +332,13 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* ── Live Chart ── */}
-        {!streamConnected && (
-          <p className="loading-text">Connecting to live updates...</p>
-        )}
-        <LiveChart onConnect={() => setStreamConnected(true)} />
-
-        {/* ── Bar Chart ── */}
+        {/* ── Device Activity Analytics ── */}
         <div className="chart-section">
           <div className="section-header">
-            <h2 className="section-title">Device Activity Analytics</h2>
+            <div>
+              <h2 className="section-title">Device Activity</h2>
+              <p className="chart-description">{getActivityLabel(timePeriod)}</p>
+            </div>
             <select
               className="time-select"
               value={timePeriod}
@@ -336,76 +350,109 @@ const DashboardPage = () => {
             </select>
           </div>
 
+          {/* Summary pills */}
+          {chartData.length > 0 && (
+            <div className="chart-summary">
+              <div className="chart-pill">
+                <span className="pill-label">Total Scans</span>
+                <span className="pill-value">{totalScans.toLocaleString()}</span>
+              </div>
+              <div className="chart-pill">
+                <span className="pill-label">Peak Time</span>
+                <span className="pill-value">{peakLabel}</span>
+              </div>
+              <div className="chart-pill">
+                <span className="pill-label">Data Points</span>
+                <span className="pill-value">{chartData.length}</span>
+              </div>
+            </div>
+          )}
+
           <div className="chart-wrapper">
-            {chartData.length === 0 && (
-              <p className="loading-text">No activity trend data available yet.</p>
-            )}
-            <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="bar-chart-svg">
-              <defs>
-                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#0ea5e9" />
-                </linearGradient>
-              </defs>
+            {chartData.length === 0 ? (
+              <div className="chart-empty">
+                <svg viewBox="0 0 48 48" width="40" height="40" fill="none">
+                  <rect x="4" y="28" width="8" height="16" rx="2" fill="rgba(99,102,241,0.3)"/>
+                  <rect x="16" y="18" width="8" height="26" rx="2" fill="rgba(99,102,241,0.3)"/>
+                  <rect x="28" y="22" width="8" height="22" rx="2" fill="rgba(99,102,241,0.3)"/>
+                  <rect x="40" y="10" width="8" height="34" rx="2" fill="rgba(99,102,241,0.3)"/>
+                </svg>
+                <p>No activity data yet</p>
+                <span>Data will appear as devices send readings</span>
+              </div>
+            ) : (
+              <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="bar-chart-svg">
+                <defs>
+                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#0ea5e9" />
+                  </linearGradient>
+                  <linearGradient id="barGradientHi" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor="#a78bfa" />
+                    <stop offset="100%" stopColor="#38bdf8" />
+                  </linearGradient>
+                </defs>
 
-              {[0, 25, 50, 75, 100].map((tick) => {
-                const yPos = MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT;
-                return (
-                  <g key={tick}>
-                    <line
-                      x1={MARGIN.left} y1={yPos}
-                      x2={SVG_WIDTH - MARGIN.right} y2={yPos}
-                      stroke="rgba(255,255,255,0.06)"
-                      strokeDasharray="4 4"
-                    />
-                    <text
-                      x={MARGIN.left - 8} y={yPos + 4}
-                      fontSize="10" textAnchor="end" fill="#4b5563"
-                    >
-                      {tick}
-                    </text>
-                  </g>
-                );
-              })}
-
-              <line
-                x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT}
-                x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT}
-                stroke="rgba(255,255,255,0.12)" strokeWidth="1"
-              />
-
-              {chartData.map((data, i) => {
-                const spacing   = CHART_WIDTH / chartData.length;
-                const barWidth  = Math.max(spacing * 0.6, 8);
-                const barHeight = Math.max((data.y / 100) * CHART_HEIGHT, 2);
-                const x = MARGIN.left + i * spacing + (spacing - barWidth) / 2;
-                const y = MARGIN.top + CHART_HEIGHT - barHeight;
-                return (
-                  <g key={i}>
-                    <rect
-                      x={x} y={y}
-                      width={barWidth} height={barHeight}
-                      fill="url(#barGradient)" rx="3" opacity="0.85"
-                    />
-                    {data.raw > 0 && (
-                      <text
-                        x={x + barWidth / 2} y={y - 5}
-                        fontSize="9" textAnchor="middle" fill="#818cf8"
-                      >
-                        {data.raw}
+                {[0, 25, 50, 75, 100].map((tick) => {
+                  const yPos = MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT;
+                  return (
+                    <g key={tick}>
+                      <line
+                        x1={MARGIN.left} y1={yPos}
+                        x2={SVG_WIDTH - MARGIN.right} y2={yPos}
+                        stroke="rgba(255,255,255,0.05)" strokeDasharray="3 4"
+                      />
+                      <text x={MARGIN.left - 8} y={yPos + 4}
+                        fontSize="10" textAnchor="end" fill="#374151">
+                        {tick === 0 ? '' : tick === 100 ? 'High' : tick === 50 ? 'Mid' : ''}
                       </text>
-                    )}
-                    <text
-                      x={x + barWidth / 2} y={SVG_HEIGHT - 10}
-                      fontSize="9" textAnchor="middle" fill="#4b5563"
-                    >
-                      {data.label}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
+                    </g>
+                  );
+                })}
+
+                <line
+                  x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT}
+                  x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT}
+                  stroke="rgba(255,255,255,0.1)" strokeWidth="1"
+                />
+
+                {chartData.map((d, i) => {
+                  const spacing   = CHART_WIDTH / chartData.length;
+                  const barWidth  = Math.max(spacing * 0.62, 6);
+                  const barHeight = Math.max((d.y / 100) * CHART_HEIGHT, 3);
+                  const x = MARGIN.left + i * spacing + (spacing - barWidth) / 2;
+                  const y = MARGIN.top + CHART_HEIGHT - barHeight;
+                  const isPeak = d.raw === Math.max(...chartData.map(c => c.raw));
+                  return (
+                    <g key={i}>
+                      <rect
+                        x={x} y={y} width={barWidth} height={barHeight}
+                        fill={isPeak ? 'url(#barGradientHi)' : 'url(#barGradient)'}
+                        rx="3" opacity={isPeak ? 1 : 0.75}
+                      />
+                      {d.raw > 0 && (
+                        <text x={x + barWidth / 2} y={y - 5}
+                          fontSize="9" textAnchor="middle"
+                          fill={isPeak ? '#a78bfa' : '#6366f1'}>
+                          {d.raw}
+                        </text>
+                      )}
+                      <text x={x + barWidth / 2} y={SVG_HEIGHT - 12}
+                        fontSize="9" textAnchor="middle" fill="#4b5563">
+                        {d.label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
           </div>
+
+          {chartData.length > 0 && (
+            <p className="chart-hint">
+              💡 Taller bars = more sensor readings in that time period. Highlighted bar = peak activity.
+            </p>
+          )}
         </div>
 
       </div>

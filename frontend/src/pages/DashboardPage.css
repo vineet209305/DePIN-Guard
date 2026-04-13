@@ -1,42 +1,73 @@
 /* ================================
-   1. CORE VARIABLES & RESET
+   DASHBOARD — FULL PROFESSIONAL CSS
 ================================ */
+
 :root {
   --primary:       #0ea5e9;
   --primary-dark:  #0284c7;
+  --primary-light: rgba(14,165,233,0.12);
   --accent:        #8b5cf6;
-  --bg-dark:       #111827;
-  --bg-card:       rgba(17, 24, 39, 0.85);
-  --bg-card-hover: rgba(31, 41, 55, 0.5);
-  --text-primary:  #ffffff;
-  --text-secondary:#9ca3af;
-  --text-muted:    #6b7280;
-  --border:        rgba(255, 255, 255, 0.1);
-  --radius-sm:     0.375rem;
-  --radius-md:     0.5rem;
-  --radius-lg:     0.75rem;
+  --accent-light:  rgba(139,92,246,0.12);
+  --bg-dark:       #0f1623;
+  --bg-card:       rgba(15, 23, 42, 0.88);
+  --bg-card-hover: rgba(30, 41, 59, 0.6);
+  --bg-input:      rgba(255,255,255,0.05);
+  --text-primary:  #f1f5f9;
+  --text-secondary:#94a3b8;
+  --text-muted:    #475569;
+  --border:        rgba(255,255,255,0.08);
+  --border-hi:     rgba(14,165,233,0.25);
+  --green:         #22c55e;
+  --yellow:        #f59e0b;
+  --red:           #ef4444;
+  --radius-sm:     6px;
+  --radius-md:     10px;
+  --radius-lg:     14px;
+  --radius-xl:     18px;
+  --shadow-sm:     0 2px 8px rgba(0,0,0,0.25);
+  --shadow-md:     0 4px 20px rgba(0,0,0,0.35);
+  --shadow-lg:     0 8px 40px rgba(0,0,0,0.45);
+  --shadow-cyan:   0 8px 24px rgba(14,165,233,0.15);
+  --font:          -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
 }
 
-* { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
 
 /* ================================
    DASHBOARD CONTAINER
 ================================ */
 .dashboard-container {
   width: 100%;
-  padding: 1.5rem;
-  padding-bottom: 1rem;
-  flex: 1;
   min-height: 100vh;
+  padding: 2rem 2rem 3rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.75rem;
   overflow-x: hidden;
-  background-color: var(--bg-dark);
+  background: var(--bg-dark);
+  font-family: var(--font);
+  color: var(--text-primary);
+  position: relative;
 }
 
+/* Subtle background grid */
+.dashboard-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(14,165,233,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14,165,233,0.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* All direct children above bg grid */
+.dashboard-container > * { position: relative; z-index: 1; }
+
 /* ================================
-   2. PAGE HEADER
+   PAGE HEADER
 ================================ */
 .page-header {
   display: flex;
@@ -44,65 +75,80 @@
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 1rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
+  font-size: 1.85rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary) 0%, #a78bfa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
   line-height: 1.2;
   margin: 0;
+  letter-spacing: -0.5px;
 }
 
 .page-subtitle {
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   color: var(--text-secondary);
-  margin-top: 0.25rem;
-  margin-bottom: 0;
+  margin: 0.3rem 0 0;
 }
 
+/* REFRESH BUTTON */
 .refresh-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%) !important;
-  color: #ffffff !important;
-  border: none !important;
+  padding: 0.65rem 1.25rem;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border: none;
   border-radius: var(--radius-md);
+  font-size: 0.875rem;
   font-weight: 600;
+  font-family: var(--font);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   white-space: nowrap;
-  box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
+  box-shadow: 0 4px 12px rgba(14,165,233,0.3);
 }
 
 .refresh-button svg {
-  width: 20px;
-  height: 20px;
-  stroke: #ffffff !important;
+  width: 16px;
+  height: 16px;
+  stroke: #fff;
   transition: transform 0.5s ease;
+  flex-shrink: 0;
 }
 
-.refresh-button:hover {
+.refresh-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(14, 165, 233, 0.4);
+  box-shadow: 0 8px 24px rgba(14,165,233,0.45);
 }
 
-.refresh-button:hover svg {
+.refresh-button:hover:not(:disabled) svg {
   transform: rotate(180deg);
 }
 
+.refresh-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.refresh-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ================================
-   3. STATS GRID
+   STATS GRID
 ================================ */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
 }
 
 .stat-card {
@@ -110,23 +156,38 @@
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.5rem;
+  padding: 1.35rem 1.5rem;
   display: flex;
-  gap: 1rem;
   align-items: center;
+  gap: 1rem;
   transition: all 0.3s ease;
   min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle top accent */
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(14,165,233,0.4), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
 .stat-card:hover {
-  border-color: var(--primary);
+  border-color: var(--border-hi);
   transform: translateY(-4px);
-  box-shadow: 0 10px 20px rgba(14,165,233,0.15);
+  box-shadow: var(--shadow-cyan);
 }
 
+.stat-card:hover::before { opacity: 1; }
+
 .stat-icon {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
@@ -134,139 +195,112 @@
   flex-shrink: 0;
 }
 
-.stat-icon svg { width: 26px; height: 26px; color: #fff; }
-.stat-content  { flex: 1; min-width: 0; }
+.stat-icon svg { width: 22px; height: 22px; }
+
+.stat-content { flex: 1; min-width: 0; }
 
 .stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 1.65rem;
+  font-weight: 800;
   color: var(--text-primary);
+  line-height: 1.1;
   white-space: nowrap;
-  line-height: 1.2;
+  letter-spacing: -0.5px;
 }
 
 .stat-label {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
-  white-space: nowrap;
   margin-top: 0.25rem;
+  font-weight: 500;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 /* ================================
-   4. SECTION WRAPPER
+   SECTION WRAPPER (data + chart)
 ================================ */
 .data-section,
 .chart-section {
   background: var(--bg-card);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   width: 100%;
   display: flex;
   flex-direction: column;
+  transition: border-color 0.25s;
 }
 
-.chart-section {
-  height: auto;
-  min-height: auto;
-  margin-bottom: 0;
+.data-section:hover,
+.chart-section:hover {
+  border-color: rgba(14,165,233,0.15);
 }
 
+/* SECTION HEADER */
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
 .section-title {
-  font-size: 1.15rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--text-primary);
   margin: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  letter-spacing: -0.1px;
 }
 
 .section-title::before {
   content: '';
   display: inline-block;
   width: 3px;
-  height: 1em;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  border-radius: 2px;
+  height: 1.1em;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .section-subtitle {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+  font-size: 0.78rem;
+  color: var(--text-muted);
   margin: 0;
-}
-
-.view-all-button {
-  background: transparent;
-  border: none;
-  color: var(--primary);
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: color 0.2s;
-}
-
-.view-all-button:hover { color: var(--primary-dark); }
-
-/* ================================
-   5. IOT DEVICES SECTION
-   ✅ FIX: overflow visible — auto scroll band
-================================ */
-.iot-devices-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  /* ✅ max-height aur overflow-y hata diya — page scroll karega, section nahi */
-  overflow: visible;
+  line-height: 1.5;
 }
 
 /* ================================
-   6. SENSOR DATA GRID
-   ✅ FIX: scroll wrapper hata diya
+   SENSOR READING CARDS
 ================================ */
-.data-grid-scroll {
-  /* ✅ scroll wrapper ab kaam nahi karega — static rahega */
-  overflow: visible;
-  padding-right: 0;
-}
-
 .data-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0.85rem;
-  /* ✅ overflow nahi — grid expand hoga */
-  overflow: visible;
+  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+  gap: 0.875rem;
 }
 
-/* ================================
-   7. SENSOR DATA CARD
-================================ */
 .data-card {
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.07);
   border-radius: var(--radius-md);
   padding: 1rem 1.1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  transition: all 0.25s ease;
+  gap: 0.5rem;
+  transition: all 0.22s ease;
   position: relative;
   overflow: hidden;
+  cursor: default;
 }
 
+/* Left accent bar */
 .data-card::before {
   content: '';
   position: absolute;
@@ -274,144 +308,284 @@
   width: 3px;
   background: linear-gradient(180deg, var(--primary), var(--accent));
   border-radius: 2px 0 0 2px;
-  opacity: 0.6;
-  transition: opacity 0.25s;
+  opacity: 0.45;
+  transition: opacity 0.22s;
 }
 
 .data-card:hover {
-  border-color: rgba(14,165,233,0.3);
-  background: rgba(14,165,233,0.05);
+  border-color: rgba(14,165,233,0.22);
+  background: rgba(14,165,233,0.04);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0,0,0,0.2);
 }
 
-.data-card:hover::before { opacity: 1; }
+.data-card:hover::before { opacity: 0.9; }
 
+/* Card header row */
 .data-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.4rem;
 }
 
 .device-name {
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   color: var(--text-secondary);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 65%;
+  max-width: 62%;
 }
 
 .status-badge {
-  font-size: 0.68rem;
-  padding: 0.18rem 0.55rem;
+  font-size: 0.6rem;
+  padding: 0.16rem 0.48rem;
   border-radius: 20px;
   text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.4px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
   flex-shrink: 0;
+  border: 1px solid transparent;
 }
 
+/* Card value */
 .data-body {
   display: flex;
   align-items: baseline;
-  gap: 0.2rem;
+  gap: 3px;
   line-height: 1;
+  margin-top: 2px;
 }
 
 .data-value {
-  font-size: 1.9rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.5px;
   line-height: 1;
 }
 
 .data-unit {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 500;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
+/* Card footer — timestamp */
 .data-footer {
-  font-size: 0.72rem;
+  font-size: 0.67rem;
   color: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 5px;
+  margin-top: 2px;
 }
 
 .data-footer::before {
   content: '';
-  display: inline-block;
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--primary);
-  opacity: 0.5;
+  opacity: 0.45;
   flex-shrink: 0;
 }
 
 /* ================================
-   8. CHART SECTION
+   SENSOR COUNT BADGE
 ================================ */
+.sensor-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.05);
+  padding: 0.22rem 0.65rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+
+/* ================================
+   SHOW MORE BUTTON
+================================ */
+.show-more-btn {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.6rem 1rem;
+  background: rgba(14,165,233,0.05);
+  border: 1px solid rgba(14,165,233,0.18);
+  border-radius: var(--radius-md);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
+}
+
+.show-more-btn:hover {
+  background: rgba(14,165,233,0.1);
+  border-color: rgba(14,165,233,0.35);
+  transform: none;
+}
+
+/* ================================
+   IOT DEVICES SECTION
+================================ */
+.iot-devices-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  overflow: visible;
+}
+
+/* ================================
+   CHART SECTION
+================================ */
+.chart-description {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0.2rem 0 0;
+  line-height: 1.5;
+}
+
+/* Summary pills */
+.chart-summary {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.1rem;
+}
+
+.chart-pill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.55rem 1rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 100px;
+  transition: border-color 0.2s;
+}
+
+.chart-pill:hover { border-color: var(--border-hi); }
+
+.pill-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.pill-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+/* Time select */
 .time-select {
-  padding: 0.45rem 0.9rem;
+  padding: 0.48rem 0.9rem;
   background: rgba(255,255,255,0.05);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 0.82rem;
   outline: none;
   cursor: pointer;
-  font-size: 0.85rem;
   transition: border-color 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
 }
 
-.time-select:hover { border-color: var(--primary); }
+.time-select:hover { border-color: var(--border-hi); }
+.time-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(14,165,233,0.1); }
 
+/* Chart wrapper */
 .chart-wrapper {
   width: 100%;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   padding: 0.5rem 0;
-  min-height: 300px;
+  min-height: 260px;
 }
 
 .bar-chart-svg {
   width: 100%;
   height: auto;
-  min-height: 260px;
+  min-height: 240px;
+  overflow: visible;
 }
 
 .bar-chart-svg text {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* Empty chart */
+.chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+  padding: 2.5rem 1rem;
+  text-align: center;
+  width: 100%;
+}
+
+.chart-empty p {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.chart-empty span {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  max-width: 260px;
+  line-height: 1.5;
+}
+
+/* Chart hint */
+.chart-hint {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  margin-top: 0.875rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--border);
+  line-height: 1.6;
+}
+
 /* ================================
-   9. MISC
+   LOADING TEXT
 ================================ */
 .loading-text {
   text-align: center;
-  padding: 2rem 1rem;
-  color: #94a3b8;
+  padding: 2.5rem 1rem;
+  color: var(--text-muted);
   font-size: 0.875rem;
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-.sensor-count {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  background: rgba(255,255,255,0.05);
-  padding: 0.25rem 0.65rem;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  font-weight: 500;
-}
-
+/* ================================
+   ANIMATIONS
+================================ */
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
@@ -422,71 +596,103 @@
   50%       { opacity: 0.4; }
 }
 
-/* ================================
-   10. SHOW MORE BUTTON
-================================ */
-.show-more-btn {
-  width: 100%;
-  margin-top: 1rem;
-  padding: 0.65rem 1rem;
-  background: rgba(14,165,233,0.06);
-  border: 1px solid rgba(14,165,233,0.2);
-  border-radius: 8px;
-  color: #0ea5e9;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  letter-spacing: 0.3px;
-}
-
-.show-more-btn:hover {
-  background: rgba(14,165,233,0.12);
-  border-color: rgba(14,165,233,0.4);
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ================================
-   11. RESPONSIVE
+   RESPONSIVE — TABLET
 ================================ */
 @media (max-width: 1024px) {
-  .dashboard-container { padding: 1rem; }
+  .dashboard-container { padding: 1.5rem 1.25rem 2rem; }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
 }
 
+/* ================================
+   RESPONSIVE — MOBILE
+================================ */
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 1rem 0.75rem;
-    gap: 1.5rem;
-    padding-bottom: 0.5rem;
+    padding: 1rem 0.875rem 2rem;
+    gap: 1.25rem;
   }
 
   .page-header {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+    align-items: stretch;
+    gap: 0.875rem;
+    padding-bottom: 1.25rem;
   }
 
-  .page-title { font-size: 1.75rem; }
+  .page-title { font-size: 1.5rem; }
 
   .refresh-button {
-    width: 100% !important;
+    width: 100%;
     justify-content: center;
-    padding: 0.75rem !important;
+    padding: 0.75rem 1rem;
   }
 
-  .stats-grid { grid-template-columns: 1fr; gap: 1rem; }
-  .data-grid  { grid-template-columns: 1fr 1fr; }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.875rem;
+  }
 
-  .chart-section { padding: 1rem; }
+  .stat-card { padding: 1rem 1.1rem; }
+  .stat-value { font-size: 1.4rem; }
+
+  .data-section,
+  .chart-section { padding: 1.1rem; border-radius: var(--radius-lg); }
+
+  .data-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
 
   .section-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
   }
 
   .time-select { width: 100%; }
+
+  .chart-summary { gap: 0.5rem; }
+  .chart-pill    { min-width: 80px; padding: 0.45rem 0.75rem; }
+  .pill-value    { font-size: 0.9rem; }
 }
 
+/* ================================
+   RESPONSIVE — SMALL MOBILE
+================================ */
 @media (max-width: 480px) {
+  .dashboard-container { padding: 0.875rem 0.75rem 1.5rem; gap: 1rem; }
+
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  .stat-card { padding: 0.875rem 1rem; gap: 0.75rem; }
+  .stat-icon { width: 38px; height: 38px; }
+  .stat-icon svg { width: 18px; height: 18px; }
+  .stat-value { font-size: 1.25rem; }
+  .stat-label { font-size: 0.72rem; }
+
   .data-grid { grid-template-columns: 1fr; }
+
+  .data-card { padding: 0.875rem 1rem; }
+  .data-value { font-size: 1.35rem; }
+
+  .chart-summary { flex-direction: row; flex-wrap: wrap; }
+  .chart-pill    { flex: 1; min-width: 70px; }
+
+  .show-more-btn { font-size: 0.78rem; padding: 0.55rem 0.875rem; }
+}
+
+/* ================================
+   RESPONSIVE — VERY SMALL
+================================ */
+@media (max-width: 360px) {
+  .stats-grid  { grid-template-columns: 1fr; }
+  .stat-value  { font-size: 1.35rem; }
 }

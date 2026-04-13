@@ -4,489 +4,433 @@ import { authFetch } from '../utils/authApi';
 import { clearAuthStorage, storeUserProfile } from '../utils/sessionAuth';
 import './SettingsPage.css';
 
-const SettingsPage = () => {
+const NAV_ITEMS = [
+  { id: 'profile',       label: 'Profile',       icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+  { id: 'security',      label: 'Security',      icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
+  { id: 'notifications', label: 'Notifications', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
+  { id: 'appearance',    label: 'Appearance',    icon: 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01' },
+  { id: 'devices',       label: 'Devices',       icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+];
+
+const Toggle = ({ checked, onChange }) => (
+  <label className="sp-toggle">
+    <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+    <span className="sp-toggle-track"><span className="sp-toggle-thumb" /></span>
+  </label>
+);
+
+const Field = ({ label, children }) => (
+  <div className="sp-field">
+    <label className="sp-field-label">{label}</label>
+    {children}
+  </div>
+);
+
+export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState('profile');
   const [settings, setSettings] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    emailNotifications: true,
-    smsNotifications: false,
-    alertNotifications: true,
-    autoRefresh: true,
-    refreshInterval: '30',
-    dataRetention: '90',
-    theme: 'dark',
-    language: 'en'
+    fullName: '', email: '', phone: '', bio: '',
+    emailNotifications: true, smsNotifications: false, alertNotifications: true,
+    weeklyDigest: true, securityAlerts: true,
+    autoRefresh: true, refreshInterval: '30', dataRetention: '90',
+    theme: 'dark', language: 'en', density: 'comfortable',
   });
+  const [original, setOriginal]     = useState(null);
+  const [isSaving, setIsSaving]     = useState(false);
+  const [toast, setToast]           = useState(null);
+  const [passwordData, setPassword] = useState({ current: '', newPass: '', confirm: '' });
+  const [pwMsg, setPwMsg]           = useState(null);
 
-  const [isSaving, setIsSaving]                 = useState(false);
-  const [saveMsg, setSaveMsg]                   = useState({ text: '', type: '' });
-  const [hasChanges, setHasChanges]             = useState(false);
-  const [originalSettings, setOriginalSettings] = useState(null);
-  const [passwordData, setPasswordData]         = useState({ current: '', newPass: '', confirm: '' });
-  const [passwordMsg, setPasswordMsg]           = useState({ text: '', type: '' });
-
-  /* ── Load profile on mount ── */
   useEffect(() => {
-    const loadProfile = async () => {
-      const userEmail = localStorage.getItem('userEmail') || '';
-      const userName  = localStorage.getItem('userName')  || '';
+    (async () => {
+      const email = localStorage.getItem('userEmail') || '';
+      const name  = localStorage.getItem('userName')  || '';
       try {
-        const response = await authFetch('/profile');
-        if (response.ok) {
-          const data    = await response.json();
-          const profile = data.profile || {};
-          const initial = {
-            ...settings,
-            fullName: profile.full_name || userName || 'User',
-            email:    profile.email     || userEmail || '',
-            phone:    profile.phone     || '',
-          };
-          setSettings(initial);
-          setOriginalSettings(initial);
-          storeUserProfile(profile);
-          return;
+        const res = await authFetch('/profile');
+        if (res.ok) {
+          const { profile = {} } = await res.json();
+          const init = { ...settings, fullName: profile.full_name || name, email: profile.email || email, phone: profile.phone || '', bio: profile.bio || '' };
+          setSettings(init); setOriginal(init);
+          storeUserProfile(profile); return;
         }
       } catch {}
-      const initial = { ...settings, fullName: userName || 'User', email: userEmail || '', phone: '' };
-      setSettings(initial);
-      setOriginalSettings(initial);
-    };
-    loadProfile();
+      const init = { ...settings, fullName: name, email };
+      setSettings(init); setOriginal(init);
+    })();
   }, []);
 
-  /* ── Apply theme ── */
   useEffect(() => {
     const root = document.documentElement;
-    if (settings.theme === 'dark') {
-      root.setAttribute('data-theme', 'dark');
-      root.style.colorScheme = 'dark';
-    } else if (settings.theme === 'light') {
-      root.setAttribute('data-theme', 'light');
-      root.style.colorScheme = 'light';
-    } else {
-      root.removeAttribute('data-theme');
-      root.style.colorScheme = 'auto';
-    }
+    root.setAttribute('data-theme', settings.theme === 'auto' ? '' : settings.theme);
+    root.style.colorScheme = settings.theme === 'auto' ? 'auto' : settings.theme;
   }, [settings.theme]);
 
-  /* ── Detect unsaved changes ── */
-  useEffect(() => {
-    if (!originalSettings) return;
-    setHasChanges(JSON.stringify(settings) !== JSON.stringify(originalSettings));
-  }, [settings, originalSettings]);
+  const hasChanges = original && JSON.stringify(settings) !== JSON.stringify(original);
 
-  /* ── Helpers ── */
-  const flashSaveMsg = (text, type, ms = 3500) => {
-    setSaveMsg({ text, type });
-    setTimeout(() => setSaveMsg({ text: '', type: '' }), ms);
+  const flash = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
   };
 
-  const handleChange = (field, value) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
-    setSaveMsg({ text: '', type: '' });
-  };
+  const set = (k, v) => setSettings(p => ({ ...p, [k]: v }));
 
-  /* ── Save ── */
   const handleSave = async () => {
     setIsSaving(true);
-    setSaveMsg({ text: '', type: '' });
     try {
-      const response = await authFetch('/profile', {
+      const res = await authFetch('/profile', {
         method: 'POST',
-        body: JSON.stringify({
-          full_name: settings.fullName,
-          email:     settings.email,
-          phone:     settings.phone,
-        }),
+        body: JSON.stringify({ full_name: settings.fullName, email: settings.email, phone: settings.phone }),
       });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Failed to save settings.');
-      }
-      const data = await response.json();
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Save failed'); }
+      const data = await res.json();
       storeUserProfile(data.profile || settings);
       localStorage.setItem('iot-settings', JSON.stringify(settings));
-      setOriginalSettings({ ...settings });
-      setHasChanges(false);
-      flashSaveMsg('Settings saved successfully!', 'success');
-    } catch (err) {
-      flashSaveMsg(err.message || 'Unable to save settings.', 'error', 5000);
-    } finally {
-      setIsSaving(false);
-    }
+      setOriginal({ ...settings });
+      flash('Changes saved successfully');
+    } catch (err) { flash(err.message, 'error'); }
+    finally { setIsSaving(false); }
   };
 
-  /* ── Password change ── */
   const handlePasswordChange = () => {
-    setPasswordMsg({ text: '', type: '' });
-    if (!passwordData.current || !passwordData.newPass || !passwordData.confirm) {
-      setPasswordMsg({ text: 'Please fill all password fields.', type: 'error' });
-      return;
-    }
-    if (passwordData.newPass.length < 8) {
-      setPasswordMsg({ text: 'New password must be at least 8 characters.', type: 'error' });
-      return;
-    }
-    if (passwordData.newPass !== passwordData.confirm) {
-      setPasswordMsg({ text: 'New passwords do not match.', type: 'error' });
-      return;
-    }
-    setPasswordMsg({
-      text: 'Password update endpoint is not yet enabled. Contact admin to rotate credentials.',
-      type: 'warning',
-    });
+    setPwMsg(null);
+    if (!passwordData.current || !passwordData.newPass || !passwordData.confirm)
+      return setPwMsg({ text: 'All fields are required.', type: 'error' });
+    if (passwordData.newPass.length < 8)
+      return setPwMsg({ text: 'Password must be at least 8 characters.', type: 'error' });
+    if (passwordData.newPass !== passwordData.confirm)
+      return setPwMsg({ text: 'Passwords do not match.', type: 'error' });
+    setPwMsg({ text: 'Password update is not yet enabled. Contact your admin.', type: 'warning' });
   };
 
-  /* ── Reset ── */
   const handleReset = () => {
-    if (!window.confirm('Reset all settings to default?')) return;
-    const userEmail = localStorage.getItem('userEmail') || '';
-    const userName  = localStorage.getItem('userName')  || '';
+    if (!window.confirm('Reset all settings to defaults?')) return;
     const def = {
-      fullName: userName, email: userEmail, phone: '',
-      emailNotifications: true, smsNotifications: false, alertNotifications: true,
-      autoRefresh: true, refreshInterval: '30', dataRetention: '90',
-      theme: 'dark', language: 'en',
+      fullName: localStorage.getItem('userName') || '', email: localStorage.getItem('userEmail') || '',
+      phone: '', bio: '', emailNotifications: true, smsNotifications: false, alertNotifications: true,
+      weeklyDigest: true, securityAlerts: true, autoRefresh: true,
+      refreshInterval: '30', dataRetention: '90', theme: 'dark', language: 'en', density: 'comfortable',
     };
-    setSettings(def);
-    setOriginalSettings(def);
-    setHasChanges(false);
+    setSettings(def); setOriginal(def);
     localStorage.setItem('iot-settings', JSON.stringify(def));
-    flashSaveMsg('Reset to defaults!', 'success');
+    flash('Settings reset to defaults');
   };
 
-  /* ── Delete account ── */
   const handleDeleteAccount = () => {
-    if (!window.confirm('This will permanently delete your account. Cannot be undone!')) return;
-    const confirmation = window.prompt('Type DELETE to confirm:');
-    if (confirmation === 'DELETE') {
-      localStorage.removeItem('token');
+    if (!window.confirm('This will permanently delete your account. This cannot be undone.')) return;
+    if (window.prompt('Type DELETE to confirm:') === 'DELETE') {
       clearAuthStorage();
       localStorage.removeItem('iot-settings');
-      alert('Account deleted. Redirecting to login...');
       window.location.href = '/login';
-    } else {
-      alert('Account deletion cancelled.');
     }
   };
 
-  /* ── Export ── */
-  const handleExportSettings = () => {
-    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), {
-      href: url,
-      download: `depin-settings-${new Date().toISOString().split('T')[0]}.json`,
-    });
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    flashSaveMsg('Settings exported!', 'success');
-  };
+  const initials = settings.fullName
+    ? settings.fullName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : 'U';
 
-  /* ── Import ── */
-  const handleImportSettings = () => {
-    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json' });
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          setSettings(JSON.parse(ev.target.result));
-          flashSaveMsg('Settings imported! Click Save to apply.', 'warning');
-        } catch {
-          alert('Invalid file format.');
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
-
-  if (!originalSettings) return null;
+  if (!original) return null;
 
   return (
     <Layout>
-      <div className="settings-container">
+      <div className="sp-root">
 
-        {/* ── Page Header ── */}
-        <div className="page-header">
-          <div className="page-header-left">
-            <h1 className="page-title">Settings</h1>
-            <p className="page-subtitle">Manage your account and preferences</p>
+        {/* ── Sidebar ── */}
+        <aside className="sp-sidebar">
+          <div className="sp-sidebar-header">
+            <div className="sp-avatar-lg">{initials}</div>
+            <div className="sp-sidebar-name">{settings.fullName || 'User'}</div>
+            <div className="sp-sidebar-email">{settings.email}</div>
           </div>
-          <div className="page-header-right">
-            {saveMsg.text && (
-              <div className={`save-message save-message--${saveMsg.type}`}>
-                {saveMsg.text}
-              </div>
-            )}
-            <button
-              className={`save-button${(!hasChanges || isSaving) ? ' save-button--disabled' : ''}`}
-              onClick={handleSave}
-              disabled={isSaving || !hasChanges}
-            >
-              {isSaving ? (
-                <>
-                  <svg className="spinner" viewBox="0 0 24 24" width="18" height="18">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" opacity="0.25" />
-                    <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" opacity="0.75" />
-                  </svg>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                  </svg>
-                  {hasChanges ? 'Save Changes' : 'No Changes'}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
 
-        {/* ── Quick Actions ── */}
-        <div className="quick-actions">
-          {[
-            { label: 'Export Settings',   fn: handleExportSettings, variant: 'sky'    },
-            { label: 'Import Settings',   fn: handleImportSettings, variant: 'purple' },
-            { label: 'Reset to Defaults', fn: handleReset,          variant: 'amber'  },
-          ].map(({ label, fn, variant }) => (
-            <button key={label} onClick={fn} className={`quick-action-btn quick-action-btn--${variant}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="settings-grid">
-
-          {/* ── Profile ── */}
-          <div className="settings-card">
-            <div className="card-header">
-              <div className="card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          <nav className="sp-nav">
+            <p className="sp-nav-label">Account</p>
+            {NAV_ITEMS.slice(0, 3).map(({ id, label, icon }) => (
+              <button key={id} className={`sp-nav-item${activeTab === id ? ' active' : ''}`} onClick={() => setActiveTab(id)}>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={icon} />
                 </svg>
-              </div>
-              <div>
-                <h2 className="card-title">Profile Information</h2>
-                <p className="card-subtitle">Update your personal details</p>
-              </div>
-            </div>
-            {[
-              { label: 'Full Name',     field: 'fullName', type: 'text',  placeholder: 'Enter your full name' },
-              { label: 'Email Address', field: 'email',    type: 'email', placeholder: 'your@email.com'       },
-              { label: 'Phone Number',  field: 'phone',    type: 'tel',   placeholder: '+91 XXXXX XXXXX'      },
-            ].map(({ label, field, type, placeholder }) => (
-              <div className="form-group" key={field}>
-                <label className="form-label">{label}</label>
-                <input
-                  type={type}
-                  value={settings[field]}
-                  onChange={(e) => handleChange(field, e.target.value)}
-                  className="form-input"
-                  placeholder={placeholder}
-                />
-              </div>
+                {label}
+              </button>
             ))}
-          </div>
-
-          {/* ── Change Password ── */}
-          <div className="settings-card">
-            <div className="card-header">
-              <div className="card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <p className="sp-nav-label">Preferences</p>
+            {NAV_ITEMS.slice(3).map(({ id, label, icon }) => (
+              <button key={id} className={`sp-nav-item${activeTab === id ? ' active' : ''}`} onClick={() => setActiveTab(id)}>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={icon} />
                 </svg>
-              </div>
-              <div>
-                <h2 className="card-title">Change Password</h2>
-                <p className="card-subtitle">Update your login password</p>
-              </div>
-            </div>
-            {[
-              { label: 'Current Password',    key: 'current', placeholder: 'Enter current password' },
-              { label: 'New Password',         key: 'newPass', placeholder: 'Min. 8 characters'      },
-              { label: 'Confirm New Password', key: 'confirm', placeholder: 'Re-enter new password'  },
-            ].map(({ label, key, placeholder }) => (
-              <div className="form-group" key={key}>
-                <label className="form-label">{label}</label>
-                <input
-                  type="password"
-                  value={passwordData[key]}
-                  onChange={(e) => setPasswordData(prev => ({ ...prev, [key]: e.target.value }))}
-                  className="form-input"
-                  placeholder={placeholder}
-                />
-              </div>
+                {label}
+              </button>
             ))}
-            {passwordMsg.text && (
-              <div className={`password-message password-message--${passwordMsg.type}`}>
-                {passwordMsg.text}
-              </div>
-            )}
-            <button className="password-update-btn" onClick={handlePasswordChange}>
-              Update Password
-            </button>
-          </div>
-
-          {/* ── Notifications ── */}
-          <div className="settings-card">
-            <div className="card-header">
-              <div className="card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="card-title">Notifications</h2>
-                <p className="card-subtitle">Manage how you receive alerts</p>
-              </div>
-            </div>
-            <div className="toggle-group">
-              {[
-                { label: 'Email Notifications', desc: 'Receive updates via email', field: 'emailNotifications' },
-                { label: 'SMS Notifications',   desc: 'Get text message alerts',   field: 'smsNotifications'   },
-                { label: 'Alert Notifications', desc: 'Critical device alerts',    field: 'alertNotifications' },
-              ].map(({ label, desc, field }) => (
-                <div className="toggle-item" key={field}>
-                  <div className="toggle-info">
-                    <span className="toggle-label">{label}</span>
-                    <span className="toggle-description">{desc}</span>
-                  </div>
-                  <label className="toggle-switch">
-                    <input
-                      type="checkbox"
-                      checked={settings[field]}
-                      onChange={(e) => handleChange(field, e.target.checked)}
-                    />
-                    <span className="toggle-slider" />
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Device Settings ── */}
-          <div className="settings-card">
-            <div className="card-header">
-              <div className="card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="card-title">Device Settings</h2>
-                <p className="card-subtitle">Configure device behavior</p>
-              </div>
-            </div>
-            <div className="toggle-group">
-              <div className="toggle-item">
-                <div className="toggle-info">
-                  <span className="toggle-label">Auto Refresh</span>
-                  <span className="toggle-description">Automatically update data</span>
-                </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={settings.autoRefresh}
-                    onChange={(e) => handleChange('autoRefresh', e.target.checked)}
-                  />
-                  <span className="toggle-slider" />
-                </label>
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">
-                Refresh Interval (seconds)
-                {!settings.autoRefresh && <span className="form-label-hint">(Disabled)</span>}
-              </label>
-              <select
-                value={settings.refreshInterval}
-                onChange={(e) => handleChange('refreshInterval', e.target.value)}
-                className="form-select"
-                disabled={!settings.autoRefresh}
-              >
-                <option value="10">10 seconds</option>
-                <option value="30">30 seconds</option>
-                <option value="60">1 minute</option>
-                <option value="300">5 minutes</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Data Retention (days)</label>
-              <select
-                value={settings.dataRetention}
-                onChange={(e) => handleChange('dataRetention', e.target.value)}
-                className="form-select"
-              >
-                <option value="30">30 days</option>
-                <option value="60">60 days</option>
-                <option value="90">90 days</option>
-                <option value="180">180 days</option>
-                <option value="365">1 year</option>
-              </select>
-            </div>
-          </div>
-
-          {/* ── Appearance ── */}
-          <div className="settings-card">
-            <div className="card-header">
-              <div className="card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="card-title">Appearance</h2>
-                <p className="card-subtitle">Customize your interface</p>
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Theme</label>
-              <select value={settings.theme} onChange={(e) => handleChange('theme', e.target.value)} className="form-select">
-                <option value="dark">🌙 Dark</option>
-                <option value="light">☀️ Light</option>
-                <option value="auto">🔄 Auto (System)</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Language</label>
-              <select value={settings.language} onChange={(e) => handleChange('language', e.target.value)} className="form-select">
-                <option value="en">🇬🇧 English</option>
-                <option value="hi">🇮🇳 हिन्दी</option>
-                <option value="es">🇪🇸 Español</option>
-                <option value="fr">🇫🇷 Français</option>
-              </select>
-            </div>
-          </div>
-
-        </div>
-
-        {/* ── Danger Zone ── */}
-        <div className="danger-zone">
-          <div className="danger-header">
-            <h2 className="danger-title">Danger Zone</h2>
-            <p className="danger-subtitle">Irreversible actions — proceed with caution</p>
-          </div>
-          <div className="danger-actions">
-            <button className="danger-button" onClick={handleDeleteAccount}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="18" height="18">
+            <p className="sp-nav-label">Danger</p>
+            <button className="sp-nav-item sp-nav-danger" onClick={handleDeleteAccount}>
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
-              Delete Account & All Data
+              Delete Account
             </button>
-          </div>
-        </div>
+          </nav>
+        </aside>
 
+        {/* ── Main ── */}
+        <main className="sp-main">
+
+          {/* Top bar */}
+          <div className="sp-topbar">
+            <div>
+              <h1 className="sp-page-title">
+                {NAV_ITEMS.find(n => n.id === activeTab)?.label ?? 'Settings'}
+              </h1>
+              <p className="sp-page-sub">Manage your account and preferences</p>
+            </div>
+            <div className="sp-topbar-actions">
+              <button className="sp-btn-ghost" onClick={handleReset}>Reset defaults</button>
+              <button
+                className={`sp-btn-primary${!hasChanges || isSaving ? ' disabled' : ''}`}
+                onClick={handleSave}
+                disabled={!hasChanges || isSaving}
+              >
+                {isSaving
+                  ? <><span className="sp-spinner" />Saving…</>
+                  : hasChanges ? 'Save changes' : 'Saved'}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Profile ── */}
+          {activeTab === 'profile' && (
+            <div className="sp-pane">
+              <div className="sp-card">
+                <div className="sp-card-head">
+                  <h2>Personal information</h2>
+                  <p>Your name and contact details</p>
+                </div>
+                <div className="sp-avatar-row">
+                  <div className="sp-avatar-xl">{initials}</div>
+                  <div>
+                    <p className="sp-avatar-name">{settings.fullName || 'User'}</p>
+                    <p className="sp-avatar-hint">PNG, JPG up to 2MB</p>
+                    <button className="sp-btn-ghost sp-btn-sm">Change photo</button>
+                  </div>
+                </div>
+                <div className="sp-fields-grid">
+                  <Field label="Full name">
+                    <input className="sp-input" value={settings.fullName} onChange={e => set('fullName', e.target.value)} placeholder="Your full name" />
+                  </Field>
+                  <Field label="Email address">
+                    <input className="sp-input" type="email" value={settings.email} onChange={e => set('email', e.target.value)} placeholder="you@example.com" />
+                  </Field>
+                  <Field label="Phone number">
+                    <input className="sp-input" type="tel" value={settings.phone} onChange={e => set('phone', e.target.value)} placeholder="+91 XXXXX XXXXX" />
+                  </Field>
+                  <Field label="Language">
+                    <select className="sp-select" value={settings.language} onChange={e => set('language', e.target.value)}>
+                      <option value="en">English</option>
+                      <option value="hi">हिन्दी</option>
+                      <option value="es">Español</option>
+                      <option value="fr">Français</option>
+                    </select>
+                  </Field>
+                  <Field label="Bio">
+                    <textarea className="sp-textarea" rows={3} value={settings.bio} onChange={e => set('bio', e.target.value)} placeholder="Short bio…" />
+                  </Field>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Security ── */}
+          {activeTab === 'security' && (
+            <div className="sp-pane">
+              <div className="sp-card">
+                <div className="sp-card-head">
+                  <h2>Change password</h2>
+                  <p>Use a strong, unique password</p>
+                </div>
+                <div className="sp-fields-grid sp-fields-single">
+                  {[
+                    { label: 'Current password',    key: 'current', placeholder: 'Enter current password' },
+                    { label: 'New password',         key: 'newPass', placeholder: 'Minimum 8 characters'   },
+                    { label: 'Confirm new password', key: 'confirm', placeholder: 'Re-enter new password'  },
+                  ].map(({ label, key, placeholder }) => (
+                    <Field key={key} label={label}>
+                      <input
+                        className="sp-input"
+                        type="password"
+                        value={passwordData[key]}
+                        onChange={e => setPassword(p => ({ ...p, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                      />
+                    </Field>
+                  ))}
+                  {pwMsg && <div className={`sp-inline-msg sp-inline-msg--${pwMsg.type}`}>{pwMsg.text}</div>}
+                  <button className="sp-btn-primary sp-btn-full" onClick={handlePasswordChange}>Update password</button>
+                </div>
+              </div>
+
+              <div className="sp-card">
+                <div className="sp-card-head">
+                  <h2>Active sessions</h2>
+                  <p>Devices currently signed in</p>
+                </div>
+                {[
+                  { device: 'Chrome on Windows', location: 'Mumbai, IN', time: 'Active now', active: true },
+                  { device: 'Safari on iPhone',  location: 'Delhi, IN',  time: '2 days ago', active: false },
+                ].map((s, i) => (
+                  <div key={i} className="sp-session-row">
+                    <span className={`sp-session-dot${s.active ? '' : ' inactive'}`} />
+                    <div className="sp-session-info">
+                      <p>{s.device}</p>
+                      <span>{s.location} · {s.time}</span>
+                    </div>
+                    {!s.active && <button className="sp-btn-ghost sp-btn-sm sp-btn-danger-ghost">Revoke</button>}
+                    {s.active && <span className="sp-badge-active">This device</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Notifications ── */}
+          {activeTab === 'notifications' && (
+            <div className="sp-pane">
+              <div className="sp-card">
+                <div className="sp-card-head">
+                  <h2>Notification preferences</h2>
+                  <p>Choose how you want to be notified</p>
+                </div>
+                {[
+                  { label: 'Email notifications', desc: 'Updates and summaries via email',   field: 'emailNotifications' },
+                  { label: 'SMS notifications',   desc: 'Text message alerts to your phone', field: 'smsNotifications'   },
+                  { label: 'Alert notifications', desc: 'Critical device and system alerts', field: 'alertNotifications' },
+                  { label: 'Weekly digest',        desc: 'Summary of activity every Monday',  field: 'weeklyDigest'       },
+                  { label: 'Security alerts',      desc: 'Login and access notifications',    field: 'securityAlerts'     },
+                ].map(({ label, desc, field }) => (
+                  <div key={field} className="sp-toggle-row">
+                    <div>
+                      <p className="sp-toggle-label">{label}</p>
+                      <p className="sp-toggle-desc">{desc}</p>
+                    </div>
+                    <Toggle checked={settings[field]} onChange={v => set(field, v)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Appearance ── */}
+          {activeTab === 'appearance' && (
+            <div className="sp-pane">
+              <div className="sp-card">
+                <div className="sp-card-head">
+                  <h2>Theme</h2>
+                  <p>Choose your preferred look</p>
+                </div>
+                <div className="sp-theme-grid">
+                  {[
+                    { value: 'dark',  label: 'Dark',   desc: 'Easy on the eyes' },
+                    { value: 'light', label: 'Light',  desc: 'Clean and bright'  },
+                    { value: 'auto',  label: 'System', desc: 'Follows your OS'   },
+                  ].map(t => (
+                    <button
+                      key={t.value}
+                      className={`sp-theme-option${settings.theme === t.value ? ' active' : ''}`}
+                      onClick={() => set('theme', t.value)}
+                    >
+                      <div className={`sp-theme-preview sp-theme-preview--${t.value}`} />
+                      <p>{t.label}</p>
+                      <span>{t.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="sp-card">
+                <div className="sp-card-head">
+                  <h2>Interface density</h2>
+                  <p>Adjust how compact the UI appears</p>
+                </div>
+                <div className="sp-fields-grid sp-fields-single">
+                  <Field label="Density">
+                    <select className="sp-select" value={settings.density} onChange={e => set('density', e.target.value)}>
+                      <option value="comfortable">Comfortable</option>
+                      <option value="compact">Compact</option>
+                      <option value="spacious">Spacious</option>
+                    </select>
+                  </Field>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Devices ── */}
+          {activeTab === 'devices' && (
+            <div className="sp-pane">
+              <div className="sp-card">
+                <div className="sp-card-head">
+                  <h2>Data refresh</h2>
+                  <p>Control how often device data updates</p>
+                </div>
+                <div className="sp-toggle-row">
+                  <div>
+                    <p className="sp-toggle-label">Auto refresh</p>
+                    <p className="sp-toggle-desc">Automatically pull latest device data</p>
+                  </div>
+                  <Toggle checked={settings.autoRefresh} onChange={v => set('autoRefresh', v)} />
+                </div>
+                <div className="sp-fields-grid sp-fields-single" style={{ marginTop: '1.25rem' }}>
+                  <Field label={`Refresh interval${!settings.autoRefresh ? ' (disabled)' : ''}`}>
+                    <select className="sp-select" value={settings.refreshInterval} onChange={e => set('refreshInterval', e.target.value)} disabled={!settings.autoRefresh}>
+                      <option value="10">10 seconds</option>
+                      <option value="30">30 seconds</option>
+                      <option value="60">1 minute</option>
+                      <option value="300">5 minutes</option>
+                    </select>
+                  </Field>
+                  <Field label="Data retention">
+                    <select className="sp-select" value={settings.dataRetention} onChange={e => set('dataRetention', e.target.value)}>
+                      <option value="30">30 days</option>
+                      <option value="60">60 days</option>
+                      <option value="90">90 days</option>
+                      <option value="180">180 days</option>
+                      <option value="365">1 year</option>
+                    </select>
+                  </Field>
+                </div>
+              </div>
+
+              <div className="sp-card">
+                <div className="sp-card-head">
+                  <h2>Data export / import</h2>
+                  <p>Backup or restore your settings</p>
+                </div>
+                <div className="sp-export-row">
+                  <button className="sp-btn-ghost" onClick={() => {
+                    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+                    const url  = URL.createObjectURL(blob);
+                    const a    = Object.assign(document.createElement('a'), { href: url, download: `settings-${new Date().toISOString().split('T')[0]}.json` });
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                    flash('Settings exported!');
+                  }}>Export settings</button>
+                  <button className="sp-btn-ghost" onClick={() => {
+                    const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json' });
+                    input.onchange = e => {
+                      const file = e.target.files[0]; if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = ev => { try { setSettings(JSON.parse(ev.target.result)); flash('Imported! Click Save to apply.', 'warning'); } catch { alert('Invalid file.'); } };
+                      reader.readAsText(file);
+                    };
+                    input.click();
+                  }}>Import settings</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </main>
       </div>
+
+      {/* Toast */}
+      {toast && <div className={`sp-toast sp-toast--${toast.type}`}>{toast.msg}</div>}
     </Layout>
   );
-};
-
-export default SettingsPage;
+}
