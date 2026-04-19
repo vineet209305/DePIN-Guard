@@ -1,9 +1,42 @@
 import { useState, useEffect, useRef } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell, ReferenceLine
+} from 'recharts';
 import LiveChart from '../components/LiveChart';
 import Layout from '../components/layout/Layout';
 import IoTAlertCard from '../components/IoTAlertCard';
 import { authenticatedFetch } from '../utils/api';
 import './DashboardPage.css';
+
+/* ── Custom Tooltip ── */
+const CustomTooltip = ({ active, payload, label, timePeriod }) => {
+  if (!active || !payload || !payload.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div style={{
+      background: '#1e293b',
+      border: '1px solid rgba(14,165,233,0.3)',
+      borderRadius: 8,
+      padding: '10px 14px',
+      fontSize: 12,
+      color: '#f1f5f9',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+    }}>
+      <p style={{ margin: '0 0 4px', color: '#94a3b8', fontWeight: 600 }}>
+        {timePeriod === '24h' ? '🕐' : '📅'} {label}
+      </p>
+      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0ea5e9' }}>
+        {d.raw} scans
+      </p>
+      {d.isPeak && (
+        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#a78bfa' }}>
+          ⚡ Peak activity
+        </p>
+      )}
+    </div>
+  );
+};
 
 const DashboardPage = () => {
   const [streamConnected, setStreamConnected] = useState(false);
@@ -95,12 +128,15 @@ const DashboardPage = () => {
           });
         }
 
-        const maxCount = Math.max(...buckets.map(b => b.count), 1);
+        const maxRaw = Math.max(...buckets.map(b => b.count), 1);
+        const avg    = buckets.reduce((s, b) => s + b.count, 0) / buckets.length;
+
         setChartData(buckets.map(b => ({
-          label: b.label,
-          y:     Math.round((b.count / maxCount) * 100),
-          raw:   b.count,
-          pct:   Math.round((b.count / maxCount) * 100),
+          label:  b.label,
+          raw:    b.count,
+          y:      Math.round((b.count / maxRaw) * 100),
+          isPeak: b.count === maxRaw && b.count > 0,
+          isHigh: b.count > avg * 1.5,
         })));
       }
     } catch {
@@ -137,6 +173,12 @@ const DashboardPage = () => {
     }
   };
 
+  const getBarColor = (entry) => {
+    if (entry.isPeak) return '#a78bfa';
+    if (entry.isHigh) return '#38bdf8';
+    return '#6366f1';
+  };
+
   const getActivityLabel = (period) => {
     if (period === '24h') return 'Sensor scans per 2-hour block';
     if (period === '7d')  return 'Total scans per day';
@@ -147,12 +189,9 @@ const DashboardPage = () => {
   const peakLabel  = chartData.length
     ? chartData.reduce((a, b) => (b.raw > a.raw ? b : a), chartData[0]).label
     : '—';
-
-  const SVG_WIDTH    = 600;
-  const SVG_HEIGHT   = 260;
-  const MARGIN       = { top: 28, right: 30, bottom: 48, left: 50 };
-  const CHART_WIDTH  = SVG_WIDTH  - MARGIN.left - MARGIN.right;
-  const CHART_HEIGHT = SVG_HEIGHT - MARGIN.top  - MARGIN.bottom;
+  const avgScans   = chartData.length
+    ? Math.round(totalScans / chartData.length)
+    : 0;
 
   const visibleSensors = showAllSensors
     ? recentData
@@ -226,7 +265,7 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* ── Live Sensor Updates (LiveChart) ── */}
+        {/* ── Live Sensor Updates ── */}
         {!streamConnected && (
           <p className="loading-text">Connecting to live updates...</p>
         )}
@@ -267,10 +306,7 @@ const DashboardPage = () => {
             )}
           </div>
           {!loading && recentData.length > SENSOR_PREVIEW && (
-            <button
-              className="show-more-btn"
-              onClick={() => setShowAllSensors(p => !p)}
-            >
+            <button className="show-more-btn" onClick={() => setShowAllSensors(p => !p)}>
               {showAllSensors
                 ? '▲ Show Less'
                 : `▼ Show ${recentData.length - SENSOR_PREVIEW} More Readings`}
@@ -278,7 +314,7 @@ const DashboardPage = () => {
           )}
         </div>
 
-        {/* ── IoT Device Status ── */}
+        {/* ── Device Health Overview ── */}
         <div className="data-section">
           <div className="section-header">
             <h2 className="section-title">Device Health Overview</h2>
@@ -308,22 +344,10 @@ const DashboardPage = () => {
                   power_usage={parseFloat((Math.random() * 100 + 50).toFixed(1))}
                   recommendations={
                     data.status === 'critical'
-                      ? [
-                          'Stop machine immediately and alert maintenance team',
-                          'Check cooling system and ventilation',
-                          'Do not restart until temperature drops below 70°C',
-                        ]
+                      ? ['Stop machine immediately and alert maintenance team','Check cooling system and ventilation','Do not restart until temperature drops below 70°C']
                       : data.status === 'warning'
-                      ? [
-                          'Schedule inspection within the next 2 hours',
-                          'Check cooling system for blockages',
-                          'Reduce machine load if possible',
-                        ]
-                      : [
-                          'Continue normal operation',
-                          'Next scheduled maintenance on time',
-                          'No action required at this time',
-                        ]
+                      ? ['Schedule inspection within the next 2 hours','Check cooling system for blockages','Reduce machine load if possible']
+                      : ['Continue normal operation','Next scheduled maintenance on time','No action required at this time']
                   }
                   timestamp={data.time}
                 />
@@ -334,6 +358,8 @@ const DashboardPage = () => {
 
         {/* ── Device Activity Analytics ── */}
         <div className="chart-section">
+
+          {/* Section header */}
           <div className="section-header">
             <div>
               <h2 className="section-title">Device Activity</h2>
@@ -362,17 +388,22 @@ const DashboardPage = () => {
                 <span className="pill-value">{peakLabel}</span>
               </div>
               <div className="chart-pill">
+                <span className="pill-label">Avg / Block</span>
+                <span className="pill-value">{avgScans}</span>
+              </div>
+              <div className="chart-pill">
                 <span className="pill-label">Data Points</span>
                 <span className="pill-value">{chartData.length}</span>
               </div>
             </div>
           )}
 
+          {/* Chart */}
           <div className="chart-wrapper">
             {chartData.length === 0 ? (
               <div className="chart-empty">
                 <svg viewBox="0 0 48 48" width="40" height="40" fill="none">
-                  <rect x="4" y="28" width="8" height="16" rx="2" fill="rgba(99,102,241,0.3)"/>
+                  <rect x="4"  y="28" width="8" height="16" rx="2" fill="rgba(99,102,241,0.3)"/>
                   <rect x="16" y="18" width="8" height="26" rx="2" fill="rgba(99,102,241,0.3)"/>
                   <rect x="28" y="22" width="8" height="22" rx="2" fill="rgba(99,102,241,0.3)"/>
                   <rect x="40" y="10" width="8" height="34" rx="2" fill="rgba(99,102,241,0.3)"/>
@@ -381,78 +412,90 @@ const DashboardPage = () => {
                 <span>Data will appear as devices send readings</span>
               </div>
             ) : (
-              <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="bar-chart-svg">
-                <defs>
-                  <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#0ea5e9" />
-                  </linearGradient>
-                  <linearGradient id="barGradientHi" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%"   stopColor="#a78bfa" />
-                    <stop offset="100%" stopColor="#38bdf8" />
-                  </linearGradient>
-                </defs>
-
-                {[0, 25, 50, 75, 100].map((tick) => {
-                  const yPos = MARGIN.top + CHART_HEIGHT - (tick / 100) * CHART_HEIGHT;
-                  return (
-                    <g key={tick}>
-                      <line
-                        x1={MARGIN.left} y1={yPos}
-                        x2={SVG_WIDTH - MARGIN.right} y2={yPos}
-                        stroke="rgba(255,255,255,0.05)" strokeDasharray="3 4"
-                      />
-                      <text x={MARGIN.left - 8} y={yPos + 4}
-                        fontSize="10" textAnchor="end" fill="#374151">
-                        {tick === 0 ? '' : tick === 100 ? 'High' : tick === 50 ? 'Mid' : ''}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                <line
-                  x1={MARGIN.left} y1={MARGIN.top + CHART_HEIGHT}
-                  x2={SVG_WIDTH - MARGIN.right} y2={MARGIN.top + CHART_HEIGHT}
-                  stroke="rgba(255,255,255,0.1)" strokeWidth="1"
-                />
-
-                {chartData.map((d, i) => {
-                  const spacing   = CHART_WIDTH / chartData.length;
-                  const barWidth  = Math.max(spacing * 0.62, 6);
-                  const barHeight = Math.max((d.y / 100) * CHART_HEIGHT, 3);
-                  const x = MARGIN.left + i * spacing + (spacing - barWidth) / 2;
-                  const y = MARGIN.top + CHART_HEIGHT - barHeight;
-                  const isPeak = d.raw === Math.max(...chartData.map(c => c.raw));
-                  return (
-                    <g key={i}>
-                      <rect
-                        x={x} y={y} width={barWidth} height={barHeight}
-                        fill={isPeak ? 'url(#barGradientHi)' : 'url(#barGradient)'}
-                        rx="3" opacity={isPeak ? 1 : 0.75}
-                      />
-                      {d.raw > 0 && (
-                        <text x={x + barWidth / 2} y={y - 5}
-                          fontSize="9" textAnchor="middle"
-                          fill={isPeak ? '#a78bfa' : '#6366f1'}>
-                          {d.raw}
-                        </text>
-                      )}
-                      <text x={x + barWidth / 2} y={SVG_HEIGHT - 12}
-                        fontSize="9" textAnchor="middle" fill="#4b5563">
-                        {d.label}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 20, right: 20, left: 0, bottom: 10 }}
+                  barCategoryGap="30%"
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 4"
+                    stroke="rgba(255,255,255,0.05)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: '#4b5563', fontSize: 11 }}
+                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                    tickLine={false}
+                    label={{
+                      value: timePeriod === '24h' ? 'Time (Hours)' : 'Time (Days)',
+                      position: 'insideBottom',
+                      offset: -4,
+                      fill: '#4b5563',
+                      fontSize: 11,
+                    }}
+                  />
+                  <YAxis
+                    tick={{ fill: '#4b5563', fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={36}
+                    label={{
+                      value: 'Scans',
+                      angle: -90,
+                      position: 'insideLeft',
+                      offset: 10,
+                      fill: '#4b5563',
+                      fontSize: 11,
+                    }}
+                  />
+                  <Tooltip
+                    content={<CustomTooltip timePeriod={timePeriod} />}
+                    cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                  />
+                  {/* Average reference line */}
+                  {avgScans > 0 && (
+                    <ReferenceLine
+                      y={avgScans}
+                      stroke="rgba(167,139,250,0.4)"
+                      strokeDasharray="4 3"
+                      label={{
+                        value: `Avg ${avgScans}`,
+                        position: 'right',
+                        fill: '#a78bfa',
+                        fontSize: 10,
+                      }}
+                    />
+                  )}
+                  <Bar dataKey="raw" radius={[4, 4, 0, 0]} maxBarSize={48}>
+                    {chartData.map((entry, i) => (
+                      <Cell key={i} fill={getBarColor(entry)} opacity={entry.raw === 0 ? 0.2 : 0.85} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             )}
           </div>
 
+          {/* Legend */}
           {chartData.length > 0 && (
-            <p className="chart-hint">
-              💡 Taller bars = more sensor readings in that time period. Highlighted bar = peak activity.
-            </p>
+            <div className="chart-legend">
+              <span className="legend-item">
+                <span className="legend-dot" style={{ background: '#6366f1' }}></span>
+                Normal
+              </span>
+              <span className="legend-item">
+                <span className="legend-dot" style={{ background: '#38bdf8' }}></span>
+                High activity
+              </span>
+              <span className="legend-item">
+                <span className="legend-dot" style={{ background: '#a78bfa' }}></span>
+                Peak
+              </span>
+            </div>
           )}
+
         </div>
 
       </div>

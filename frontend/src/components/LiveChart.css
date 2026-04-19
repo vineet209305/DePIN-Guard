@@ -110,3 +110,21 @@
 .status-cell.normal::before  { background: #4ade80; }
 .status-cell.anomaly { background: rgba(255,82,82,0.12); color: #f87171; border: 1px solid rgba(255,82,82,0.22); }
 .status-cell.anomaly::before { background: #f87171; box-shadow: 0 0 4px #f87171; }
+.live-expand-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.6rem 1rem;
+  background: rgba(14,165,233,0.05);
+  border: 1px solid rgba(14,165,233,0.18);
+  border-radius: 10px;
+  color: #0ea5e9;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.live-expand-btn:hover {
+  background: rgba(14,165,233,0.1);
+  border-color: rgba(14,165,233,0.35);
+}
