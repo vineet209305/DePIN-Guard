@@ -56,8 +56,8 @@ const DashboardPage = () => {
       if (response && response.ok) {
         const json = await response.json();
         setStats({
-          activeDevices: json.stats?.active    ?? 0,
-          totalData:     json.stats?.scans     ?? 0,
+          activeDevices: json.stats?.active_devices    ?? 0,
+          totalData:     json.stats?.total_scans     ?? 0,
           alerts:        json.stats?.anomalies ?? 0,
           uptime:        json.stats?.uptime    ?? null,
         });
