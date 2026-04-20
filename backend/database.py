@@ -7,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient as AsyncClient, AsyncIOMotorD
 import certifi
 
 # MongoDB connection
-MONGODB_URI = os.getenv("MONGODB_URI")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/depin_guard")
 mongodb_client: Optional[AsyncClient] = None
 db: Optional[AsyncDatabase] = None
 
@@ -101,7 +101,6 @@ class FraudAlertModel(BaseModel):
     alert_type: str  # "anomaly", "suspicious_pattern", "threshold_exceeded"
     severity: str  # "low", "medium", "high"
     message: str
-    confidence: Optional[float] = None
     anomaly_data: Optional[dict] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     
@@ -149,9 +148,6 @@ async def get_fraud_alerts(device_id: Optional[str] = None, limit: int = 50):
     try:
         query = {} if not device_id else {"device_id": device_id}
         alerts = await db["fraud_alerts"].find(query).sort("timestamp", -1).limit(limit).to_list(length=limit)
-        for alert in alerts:
-            if "_id" in alert:
-                alert["id"] = str(alert.pop("_id"))
         return alerts
     except Exception as e:
         print(f"Error retrieving fraud alerts: {e}")

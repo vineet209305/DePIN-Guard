@@ -891,3 +891,84 @@
   .fraud-filter-row    { flex-direction: column; }
   .fraud-filter-select { width: 100%; }
 }
+/* ── Filter Buttons ── */
+.fraud-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fraud-filter-btn {
+  padding: 0.3rem 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-transform: capitalize;
+  letter-spacing: 0.3px;
+}
+
+.fraud-filter-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.fraud-filter-btn.active {
+  background: var(--danger-glow);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ── Action Buttons ── */
+.action-btns {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.btn-resolve {
+  border-color: rgba(34,197,94,0.3) !important;
+  color: #22c55e !important;
+}
+
+.btn-resolve:hover {
+  background: rgba(34,197,94,0.1) !important;
+  border-color: #22c55e !important;
+}
+
+.btn-resolved {
+  border-color: rgba(100,116,139,0.3) !important;
+  color: var(--text-muted) !important;
+  opacity: 0.7;
+}
+
+/* ── Resolved row ── */
+.row-resolved td {
+  opacity: 0.45;
+  text-decoration: line-through;
+  text-decoration-color: rgba(255,255,255,0.15);
+}
+
+.row-resolved .action-btns button {
+  text-decoration: none;
+}
+
+/* ── Risk badges ── */
+.risk-high   { background: rgba(239,68,68,0.12);  color: #ef4444; border: 1px solid rgba(239,68,68,0.25);  }
+.risk-medium { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.25); }
+.risk-low    { background: rgba(34,197,94,0.12);  color: #22c55e; border: 1px solid rgba(34,197,94,0.25);  }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .fraud-filter-row { gap: 0.35rem; }
+  .fraud-filter-btn { font-size: 0.68rem; padding: 0.25rem 0.6rem; }
+  .action-btns      { flex-direction: column; }
+}

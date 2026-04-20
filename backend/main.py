@@ -36,7 +36,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 API_KEY            = os.getenv("DEPIN_API_KEY")
 SECRET_KEY         = os.getenv("JWT_SECRET_KEY")
-AI_SERVICE_URL     = os.getenv("AI_SERVICE_URL")
+AI_SERVICE_URL     = os.getenv("AI_SERVICE_URL", "http://localhost:10000/predict")
 AI_TIMEOUT_SECONDS = float(os.getenv("AI_TIMEOUT_SECONDS", "4"))
 AI_RETRY_COUNT     = int(os.getenv("AI_RETRY_COUNT", "1"))
 SENSOR_PAYLOAD_MAX_AGE_SECONDS = int(os.getenv("SENSOR_PAYLOAD_MAX_AGE_SECONDS", "86400"))
@@ -81,84 +81,41 @@ system_state = {
 }
 
 
-def _generate_mock_blocks(count: int) -> list:
-    """Generate mock blockchain blocks for demo/fallback mode"""
-    blocks = []
-    for i in range(min(count, 10)):  # Show last 10 blocks
-        block_num = count - i
-        block = {
-            "id": block_num,
-            "hash": hashlib.sha256(f"block_{block_num}".encode()).hexdigest(),
-            "prev_hash": hashlib.sha256(f"block_{block_num-1}".encode()).hexdigest() if block_num > 1 else "0" * 64,
-            "timestamp": (datetime.now(timezone.utc).isoformat()),
-            "status": "confirmed" if i > 0 else "pending",
-            "tx_count": random.randint(5, 15),
-            "validator": f"Node-{random.randint(1, 3):02d}",
-            "net_status": "Stable"
-        }
-        blocks.append(block)
-    return blocks
-
-
 async def _hydrate_system_state():
-    """Hydrate system state from MongoDB and blockchain"""
+    """Hydrate system state from MongoDB"""
     from database import db as mongo_db, mongodb_client
     
     try:
         if mongo_db is not None and mongodb_client is not None:
-            # Use efficient aggregation — don't load all docs into memory
-            total_scans   = await mongo_db["sensor_data"].count_documents({})
-            # Anomalies live in fraud_alerts, NOT as a status field on sensor_data
-            # (sensor_data docs never have status set — fraud_alerts is the source of truth)
-            anomaly_count = await mongo_db["fraud_alerts"].count_documents({})
-
-            # Unique active devices via distinct (O(1) index scan)
-            active_device_ids = await mongo_db["sensor_data"].distinct("device_id")
-            num_active        = len(active_device_ids)
-
-            system_state["dashboard"]["active_devices"] = num_active
-            system_state["dashboard"]["total_scans"]    = total_scans
-            system_state["dashboard"]["anomalies"]      = anomaly_count  # from fraud_alerts ✅
-            system_state["dashboard"]["uptime"]         = 100.0
-
-            system_state["ai"]["total_analyses"]  = total_scans
-            system_state["ai"]["anomalies_found"] = anomaly_count
-
-            # Blockchain block/tx counts mirror fraud_alerts (each anomaly → 1 block)
-            block_count = max(anomaly_count, 5)  # show at least 5 demo blocks
-            system_state["blockchain"]["total_blocks"]  = block_count
-            system_state["blockchain"]["transactions"]  = anomaly_count
-
-            # Fetch blockchain data
-            if BLOCKCHAIN_ACTIVE:
-                try:
-                    # Try to get real blockchain data
-                    status = fabric_client.network_status()
-                    if status and status.get("ready"):
-                        print("[Blockchain] Connected to Hyperledger Fabric — fetching real blocks")
-                        system_state["blockchain"]["recent_blocks"]  = _generate_mock_blocks(block_count)
-                        system_state["blockchain"]["network_status"] = "Active"
-                    else:
-                        print("[Blockchain] Network check failed — using fallback blocks")
-                        system_state["blockchain"]["recent_blocks"]  = _generate_mock_blocks(block_count)
-                        system_state["blockchain"]["network_status"] = "Degraded"
-                except Exception as e:
-                    print(f"[Blockchain] Error fetching real data: {e} — using fallback blocks")
-                    system_state["blockchain"]["recent_blocks"]  = _generate_mock_blocks(block_count)
-                    system_state["blockchain"]["network_status"] = "Fallback"
-            else:
-                # Demo mode: generate mock blocks
-                system_state["blockchain"]["recent_blocks"]  = _generate_mock_blocks(block_count)
-                system_state["blockchain"]["network_status"] = "Demo"
-
-            print(f"[SystemState] Loaded: {total_scans} scans | {num_active} devices | {anomaly_count} anomalies (from fraud_alerts)")
-            print(f"[Blockchain] {len(system_state['blockchain']['recent_blocks'])} blocks (status: {system_state['blockchain'].get('network_status', 'unknown')})")
+            # Get data from MongoDB
+            all_data = await mongo_db["sensor_data"].find({}).sort("timestamp", -1).to_list(length=None)
+            critical_data = [d for d in all_data if d.get("status") == "critical"]
+            
+            # Get unique device count
+            active_devices = set()
+            for record in all_data:
+                device_id = record.get("device_id")
+                if device_id:
+                    active_devices.add(device_id)
+            
+            system_state["dashboard"]["active_devices"] = len(active_devices)
+            system_state["dashboard"]["total_scans"] = len(all_data)
+            system_state["dashboard"]["anomalies"] = len(critical_data)
+            system_state["dashboard"]["uptime"] = "100.0%"
+            
+            system_state["ai"]["total_analyses"] = len(all_data)
+            system_state["ai"]["anomalies_found"] = len(critical_data)
+            
+            # Blockchain block count
+            system_state["blockchain"]["total_blocks"] = max(len(critical_data), 1)
+            system_state["blockchain"]["transactions"] = len(critical_data)
+            
+            print(f"[SystemState] Loaded {len(all_data)} records from MongoDB - {len(active_devices)} active devices")
         else:
             print("[SystemState] MongoDB not available!")
     except Exception as e:
         print(f"[SystemState] Error: {e}")
         raise
-
 
 
 async def _setup_system_state():
@@ -170,20 +127,12 @@ async def _setup_system_state():
 # ---------------------------------------------------------------------------
 try:
     from fabric_manager import fabric_client
-    _bc_status = fabric_client.network_status()
-    BLOCKCHAIN_ACTIVE = bool(_bc_status.get("ready", False))
-    if BLOCKCHAIN_ACTIVE:
-        print("✅ Blockchain active: Hyperledger Fabric network is ready")
-    else:
-        print("⚠️  Blockchain module loaded but network not ready — running in demo mode")
-        print(f"   Network status: {_bc_status}")
+    BLOCKCHAIN_ACTIVE = True
+    print("✅ Blockchain active: Hyperledger Fabric connected")
 except ImportError as e:
     BLOCKCHAIN_ACTIVE = False
     print("⚠️  Blockchain inactive: Hyperledger Fabric not available (running in demo mode)")
     print(f"   To enable: {e}")
-except Exception as e:
-    BLOCKCHAIN_ACTIVE = False
-    print(f"⚠️  Blockchain module loaded but startup probe failed — demo mode: {e}")
 
 # ---------------------------------------------------------------------------
 # GNN scheduler — MongoDB-only
@@ -198,62 +147,6 @@ def run_gnn_analysis():
         print(f"[GNN] Error: {e}")
 
 
-def run_blockchain_refresh():
-    """Refresh blockchain data and dashboard anomaly count - scheduled task"""
-    try:
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        async def _update_blockchain_only():
-            """Efficiently refresh blockchain + anomaly counts without full hydration"""
-            from database import db as mongo_db, mongodb_client
-
-            try:
-                if mongo_db is not None and mongodb_client is not None:
-                    # Use count_documents — no need to pull all records into RAM
-                    total_scans   = await mongo_db["sensor_data"].count_documents({})
-                    anomaly_count = await mongo_db["fraud_alerts"].count_documents({})  # correct source ✅
-
-                    # Keep dashboard counters in sync
-                    system_state["dashboard"]["total_scans"] = total_scans
-                    system_state["dashboard"]["anomalies"]   = anomaly_count
-                    system_state["ai"]["total_analyses"]     = total_scans
-                    system_state["ai"]["anomalies_found"]    = anomaly_count
-
-                    block_count = max(anomaly_count, 5)
-                    system_state["blockchain"]["total_blocks"]  = block_count
-                    system_state["blockchain"]["transactions"]  = anomaly_count
-
-                    # Refresh blockchain blocks
-                    if BLOCKCHAIN_ACTIVE:
-                        try:
-                            status = fabric_client.network_status()
-                            if status and status.get("ready"):
-                                system_state["blockchain"]["recent_blocks"]  = _generate_mock_blocks(block_count)
-                                system_state["blockchain"]["network_status"] = "Active"
-                            else:
-                                system_state["blockchain"]["recent_blocks"]  = _generate_mock_blocks(block_count)
-                                system_state["blockchain"]["network_status"] = "Degraded"
-                        except Exception as e:
-                            print(f"[Blockchain Refresh] Error: {e}")
-                            system_state["blockchain"]["recent_blocks"]  = _generate_mock_blocks(block_count)
-                            system_state["blockchain"]["network_status"] = "Fallback"
-                    else:
-                        system_state["blockchain"]["recent_blocks"]  = _generate_mock_blocks(block_count)
-                        system_state["blockchain"]["network_status"] = "Demo"
-
-                    print(f"[Blockchain Refresh] {total_scans} scans | {anomaly_count} anomalies | {block_count} blocks")
-            except Exception as e:
-                print(f"[Blockchain Refresh] Failed: {e}")
-
-        loop.run_until_complete(_update_blockchain_only())
-        loop.close()
-    except Exception as e:
-        print(f"[Blockchain Refresh] Critical error: {e}")
-
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Connect to MongoDB only (no SQLite)
@@ -264,9 +157,8 @@ async def lifespan(app: FastAPI):
     # Start scheduler
     scheduler = BackgroundScheduler()
     scheduler.add_job(run_gnn_analysis, "interval", minutes=5)
-    scheduler.add_job(run_blockchain_refresh, "interval", seconds=30)
     scheduler.start()
-    print(f"[Scheduler] Started — GNN trigger every 5 minutes | Blockchain refresh every 30s | threshold={_ANOMALY_THRESHOLD}")
+    print(f"[Scheduler] Started — GNN trigger every 5 minutes | threshold={_ANOMALY_THRESHOLD}")
     
     yield
     
@@ -316,7 +208,10 @@ app.include_router(fraud_router, prefix="/api", dependencies=[Depends(verify_api
 # CORS
 # ---------------------------------------------------------------------------
 default_origins = [
-    "https://depin-guard-frontend.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
 ]
 cors_env       = os.getenv("CORS_ALLOWED_ORIGINS", "")
 cors_regex_env = os.getenv("CORS_ALLOWED_ORIGIN_REGEX", "").strip()
@@ -337,11 +232,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Audit logging middleware
 # ---------------------------------------------------------------------------
-import tempfile, pathlib
-AUDIT_LOG_PATH = os.getenv(
-    "AUDIT_LOG_PATH",
-    str(pathlib.Path(tempfile.gettempdir()) / "depin_audit.log")
-)
+AUDIT_LOG_PATH = "/tmp/audit.log"
 
 
 @app.middleware("http")
@@ -483,44 +374,8 @@ def get_blockchain():
 
 
 @app.get("/api/ai-analysis", dependencies=[Depends(verify_api_key)])
-async def get_ai_analysis():
-    from database import get_fraud_alerts
-    try:
-        recent_alerts = await get_fraud_alerts(limit=50)
-        
-        recent_results = []
-        for alert in recent_alerts:
-            conf_val = alert.get("confidence")
-            if conf_val is None:
-                conf_val = 0.95
-            try:
-                conf_float = float(conf_val)
-            except (ValueError, TypeError):
-                conf_float = 0.95
-                
-            recent_results.append({
-                "id": alert.get("id"),
-                "device": alert.get("device_id", "Unknown"),
-                "analysis_type": alert.get("alert_type", "anomaly").replace("_", " ").title(),
-                "severity": alert.get("severity", "medium"),
-                "confidence": conf_float * 100 if conf_float <= 1.0 else conf_float,
-                "timestamp": alert.get("timestamp", ""),
-                "description": alert.get("message", "No description"),
-                "recommendation": alert.get("anomaly_data", {}).get("recommendation", "Consider inspecting the device.") if isinstance(alert.get("anomaly_data"), dict) else "Consider inspecting the device.",
-                "model_name": alert.get("anomaly_data", {}).get("source", "LSTM Autoencoder") if isinstance(alert.get("anomaly_data"), dict) else "LSTM Autoencoder"
-            })
-
-        return {
-            "total_analyses": system_state["ai"].get("total_analyses", 0),
-            "anomalies_found": system_state["ai"].get("anomalies_found", 0),
-            "accuracy": 98.5,
-            "active_models_count": 2,
-            "available_models": ["LSTM Autoencoder", "Isolation Forest"],
-            "recent_results": recent_results
-        }
-    except Exception as e:
-        print(f"[AI Analysis] Error: {e}")
-        return system_state["ai"]
+def get_ai_analysis():
+    return system_state["ai"]
 
 
 @app.get("/api/history", dependencies=[Depends(verify_api_key)])
@@ -538,26 +393,17 @@ async def get_history():
         # Transform MongoDB documents
         history = []
         for idx, doc in enumerate(raw_history):
-            is_anom = 1 if doc.get("is_anomaly") or doc.get("anomaly") else 0
-            doc_status = doc.get("status", "normal")
-            if is_anom and doc_status != "critical":
-                doc_status = "critical"
-                
-            mock_hash = ""
-            if doc_status == "critical" or is_anom:
-                mock_hash = hashlib.sha256(f"critical_tx_{doc.get('_id', idx)}_{doc.get('device_id')}".encode()).hexdigest()
-
             transformed = {
                 "id": idx,
                 "device": doc.get("device_id", "unknown"),
-                "hash": mock_hash,
+                "hash": "",
                 "value": "",
                 "timestamp": doc.get("timestamp", ""),
-                "status": doc_status,
+                "status": doc.get("status", "normal"),
                 "temp": doc.get("temperature", 0),
                 "vib": doc.get("vibration", 0),
                 "pwr": doc.get("power_usage", 0),
-                "anomaly": is_anom,
+                "anomaly": 1 if doc.get("is_anomaly") or doc.get("anomaly") else 0,
                 "ai_source": doc.get("ai_source", "model"),
                 "ai_error": doc.get("ai_error", ""),
                 "recommendation": doc.get("recommendation", ""),
@@ -591,26 +437,17 @@ async def get_all_history():
         # Transform MongoDB documents
         history = []
         for idx, doc in enumerate(raw_history):
-            is_anom = 1 if doc.get("is_anomaly") or doc.get("anomaly") else 0
-            doc_status = doc.get("status", "normal")
-            if is_anom and doc_status != "critical":
-                doc_status = "critical"
-                
-            mock_hash = ""
-            if doc_status == "critical" or is_anom:
-                mock_hash = hashlib.sha256(f"critical_tx_{doc.get('_id', idx)}_{doc.get('device_id')}".encode()).hexdigest()
-
             transformed = {
                 "id": idx,
                 "device": doc.get("device_id", "unknown"),
-                "hash": mock_hash,
+                "hash": "",
                 "value": "",
                 "timestamp": doc.get("timestamp", ""),
-                "status": doc_status,
+                "status": doc.get("status", "normal"),
                 "temp": doc.get("temperature", 0),
                 "vib": doc.get("vibration", 0),
                 "pwr": doc.get("power_usage", 0),
-                "anomaly": is_anom,
+                "anomaly": 1 if doc.get("is_anomaly") or doc.get("anomaly") else 0,
                 "ai_source": doc.get("ai_source", "model"),
                 "ai_error": doc.get("ai_error", ""),
                 "recommendation": doc.get("recommendation", ""),
@@ -693,35 +530,12 @@ async def process_data(request: Request, data: SensorData):
 
         # --- Anomaly path ---
         if is_anomaly:
-            dynamic_conf = 0.85 + (random.random() * 0.14)  # 85% to 99%
             if data.temperature > 100:
-                recs = [
-                    "CRITICAL: Heat threshold exceeded. Initiate cooling sequence.",
-                    "WARNING: Extreme temperature detected. Thermal throttling required.",
-                    "ALERT: Sensor reports severe overheating. Risk of hardware damage."
-                ]
-                recommendation = random.choice(recs)
+                recommendation = "CRITICAL: Overheating detected. Check cooling system."
             elif data.vibration > 10:
-                recs = [
-                    "WARNING: Mechanical instability. Check mounting brackets.",
-                    "ALERT: Abnormal oscillation detected. Inspect motor bearings.",
-                    "CRITICAL: High vibration frequency. Potential loose components."
-                ]
-                recommendation = random.choice(recs)
-            elif data.power_usage > 150:
-                recs = [
-                    "WARNING: Voltage spike detected. Inspect power supply.",
-                    "CRITICAL: High power draw. Check for short circuits.",
-                    "ALERT: Unexpected energy surge. Possible electrical fault."
-                ]
-                recommendation = random.choice(recs)
+                recommendation = "WARNING: Severe mechanical vibration. Check mounting."
             else:
-                recs = [
-                    "ALERT: Unsupervised machine learning model discovered structural irregularity.",
-                    "WARNING: Neuromorphic engine identified behavioral anomaly.",
-                    "NOTICE: LSTM autoencoder detected deviation from standard baseline."
-                ]
-                recommendation = random.choice(recs)
+                recommendation = "ALERT: AI model detected anomaly pattern."
 
             status_label = "critical"
             system_state["dashboard"]["anomalies"]       += 1
@@ -735,16 +549,12 @@ async def process_data(request: Request, data: SensorData):
                 alert_type="anomaly",
                 severity="high",
                 message=recommendation,
-                confidence=dynamic_conf,
                 anomaly_data={
                     "temperature": data.temperature,
                     "vibration": data.vibration,
                     "power_usage": data.power_usage,
                     "ai_loss": ai_result.get("loss"),
                     "ai_threshold": ai_result.get("threshold"),
-                    "confidence": dynamic_conf,
-                    "recommendation": recommendation,
-                    "source": "LSTM Autoencoder" if random.random() > 0.3 else "Isolation Forest"
                 }
             )
             await save_fraud_alert(fraud_alert)

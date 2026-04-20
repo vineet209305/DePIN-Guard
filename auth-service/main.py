@@ -18,7 +18,7 @@ SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY not set in .env file!")
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 480   # 8 hours — prevents silent logouts during demos
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_HOURS = 24
 
 # ==========================================
@@ -32,9 +32,7 @@ EMAIL_PASS = os.getenv("EMAIL_PASS")
 # ==========================================
 # 🗄️ MONGODB SETUP
 # ==========================================
-MONGODB_URI = os.getenv("MONGODB_URI")
-if not MONGODB_URI:
-    raise RuntimeError("MONGODB_URI environment variable is required!")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/depin_guard")
 mongodb_client = None
 db = None
 
@@ -178,14 +176,8 @@ app = FastAPI(title="DePIN Auth Service", version="2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://depin-guard-frontend.vercel.app",
-        "https://depin-guard-backend.onrender.com",
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

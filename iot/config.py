@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-BACKEND_URL = os.getenv("BACKEND_URL", "https://depin-guard-backend.onrender.com").rstrip("/") + "/api/process_data"
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/") + "/api/process_data"
 API_KEY     = os.getenv("DEPIN_API_KEY", "")
 
 if not API_KEY:

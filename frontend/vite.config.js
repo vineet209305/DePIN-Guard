@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
 
-  const BACKEND_URL = env.VITE_API_URL;
-  const AUTH_URL    = env.VITE_AUTH_URL;
+  const BACKEND_URL = env.VITE_API_URL  || 'http://localhost:8000';
+  const AUTH_URL    = env.VITE_AUTH_URL || 'http://localhost:8001';
   const WS_BACKEND  = BACKEND_URL.replace(/^https?/, 'ws');
 
   return {

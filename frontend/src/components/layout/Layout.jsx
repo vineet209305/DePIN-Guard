@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Footer from './Footer';
 import './Layout.css';
+import { TeamAccessControl } from '../../utils/TeamAccessControl';
 
 const savedTheme = localStorage.getItem('theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
@@ -68,14 +69,24 @@ const Layout = ({ children }) => {
     return () => document.removeEventListener('keydown', handleEsc);
   }, []);
 
+  const userName  = localStorage.getItem('userName') || localStorage.getItem('username') || localStorage.getItem('user') || 'Admin User';
+  const userEmail = localStorage.getItem('userEmail') || localStorage.getItem('email') || 'admin@iot.com';
+
+  // ✅ TEAM CHECK ADDED
+  const isTeamMember = TeamAccessControl.isTeamMember(userEmail);
+  const isAdmin = localStorage.getItem("isAdmin") === "true";
+
   const handleSearch = (e) => {
     e.preventDefault();
     const q = searchQuery.toLowerCase().trim();
     if (!q) return;
 
-    const match = SEARCH_PAGES.find(page =>
-      page.keywords.some(kw => q.includes(kw))
-    );
+    // ✅ FILTER ADDED
+    const match = SEARCH_PAGES
+      .filter(page => page.path !== '/security' || isTeamMember || isAdmin)
+      .find(page =>
+        page.keywords.some(kw => q.includes(kw))
+      );
 
     if (match) {
       navigate(match.path);
@@ -104,16 +115,16 @@ const Layout = ({ children }) => {
     }
   };
 
-  const userName  = localStorage.getItem('userName') || localStorage.getItem('username') || localStorage.getItem('user') || 'Admin User';
-  const userEmail = localStorage.getItem('userEmail') || localStorage.getItem('email') || 'admin@iot.com';
-
+  // ✅ NAV ITEMS UPDATED
   const navItems = [
     { path: '/dashboard',    icon: '📊', label: 'Dashboard'    },
     { path: '/blockchain',   icon: '🔗', label: 'Blockchain'   },
     { path: '/ai-analysis',  icon: '🤖', label: 'AI Analysis'  },
     { path: '/history',      icon: '📜', label: 'History'      },
     { path: '/fraud-alerts', icon: '🚨', label: 'Fraud Alerts' },
-    { path: '/security',     icon: '🛡️', label: 'Security'     },
+    ...(isTeamMember || isAdmin
+      ? [{ path: '/security', icon: '🛡️', label: 'Security' }]
+      : []),
     { path: '/settings',     icon: '⚙️', label: 'Settings'     },
   ];
 
@@ -135,15 +146,17 @@ const Layout = ({ children }) => {
             </form>
 
             <div className="search-quick-links">
-              {SEARCH_PAGES.map(page => (
-                <button
-                  key={page.path}
-                  className="search-quick-btn"
-                  onClick={() => { navigate(page.path); closeSearch(); }}
-                >
-                  {page.icon} {page.label}
-                </button>
-              ))}
+              {SEARCH_PAGES
+                .filter(page => page.path !== '/security' || isTeamMember || isAdmin) // ✅ FILTER
+                .map(page => (
+                  <button
+                    key={page.path}
+                    className="search-quick-btn"
+                    onClick={() => { navigate(page.path); closeSearch(); }}
+                  >
+                    {page.icon} {page.label}
+                  </button>
+                ))}
             </div>
 
             {searchResult && <p className="search-no-result">{searchResult}</p>}
@@ -173,8 +186,6 @@ const Layout = ({ children }) => {
             🔍
           </button>
 
-
-          {/* Profile */}
           <div className="dropdown-container" ref={profileRef}>
             <button className="user-button" onClick={() => setProfileOpen(!profileOpen)}>
               <div className="user-avatar-small">👤</div>
@@ -193,10 +204,8 @@ const Layout = ({ children }) => {
         </div>
       </header>
 
-      {/* Sidebar Overlay */}
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <nav className="sidebar-nav">
           {navItems.map((item) => (
@@ -226,7 +235,6 @@ const Layout = ({ children }) => {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="main-content">
         {children}
         <Footer />

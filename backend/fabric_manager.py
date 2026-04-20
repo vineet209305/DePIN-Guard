@@ -10,9 +10,9 @@ BLOCKCHAIN_DIR = os.path.join(REPO_ROOT, "blockchain")
 BIN_DIR        = os.path.join(BLOCKCHAIN_DIR, "fabric-samples", "bin")
 CONFIG_DIR     = os.path.join(BLOCKCHAIN_DIR, "fabric-samples", "config")
 
-ORDERER_ADDRESS = os.getenv("FABRIC_ORDERER_ADDRESS")
-PEER1_ADDRESS   = os.getenv("FABRIC_PEER1_ADDRESS")
-PEER2_ADDRESS   = os.getenv("FABRIC_PEER2_ADDRESS")
+ORDERER_ADDRESS = os.getenv("FABRIC_ORDERER_ADDRESS", "127.0.0.1:7050")
+PEER1_ADDRESS   = os.getenv("FABRIC_PEER1_ADDRESS",   "127.0.0.1:7051")
+PEER2_ADDRESS   = os.getenv("FABRIC_PEER2_ADDRESS",   "127.0.0.1:9051")
 
 # Certificate paths — custom network (manufacturer + maintenance orgs)
 MFR_TLS = os.path.join(
