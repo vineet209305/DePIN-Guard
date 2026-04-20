@@ -10,8 +10,9 @@ import SettingsPage from './pages/SettingsPage';
 import LandingPage from './pages/LandingPage';
 import FraudReport from './pages/FraudReport';
 import { getStoredToken, clearAuthStorage } from './utils/sessionAuth';
+import { TeamAccessControl } from './utils/TeamAccessControl'; // ✅ ADDED
 
-// ✅ Correct import (file: SecurityPage.jsx)
+// ✅ Correct import
 import SecurityPage from './pages/SecurityPage';
 
 // Log environment configuration
@@ -87,6 +88,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// 🔐 Normal Protected Route (login based)
 const ProtectedRoute = ({ children }) => {
   const token = getStoredToken();
   if (!isTokenUsable(token)) {
@@ -96,6 +98,27 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// 🔒 NEW: Security Protected Route (login + team check)
+const SecurityProtectedRoute = ({ children }) => {
+  const token = getStoredToken();
+
+  if (!isTokenUsable(token)) {
+    clearAuthStorage();
+    return <Navigate to="/login" replace />;
+  }
+
+  const userEmail = localStorage.getItem("userEmail") || "";
+  const isTeamMember = TeamAccessControl.isTeamMember(userEmail);
+  const isAdmin = localStorage.getItem("isAdmin") === "true";
+
+  if (!isTeamMember && !isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
+// Public route
 const PublicRoute = ({ children }) => {
   const token = getStoredToken();
   if (isTokenUsable(token)) {
@@ -137,8 +160,12 @@ function App() {
           <Route path="/fraud-alerts" element={
             <ProtectedRoute><FraudReport /></ProtectedRoute>
           } />
+
+          {/* 🔥 UPDATED SECURITY ROUTE */}
           <Route path="/security" element={
-            <ProtectedRoute><SecurityPage /></ProtectedRoute>
+            <SecurityProtectedRoute>
+              <SecurityPage />
+            </SecurityProtectedRoute>
           } />
 
           <Route path="*" element={<Navigate to="/" replace />} />

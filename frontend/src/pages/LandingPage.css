@@ -442,3 +442,135 @@ section { position: relative; z-index: 1; }
   .lp-stat-num { font-size: 1.3rem; }
   .lp-stat-lbl { font-size: 0.65rem; }
 }
+/* ================================
+   SCROLL FADE-IN ANIMATION
+================================ */
+.lp-fade {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.lp-fade.lp-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ================================
+   TECH STACK STRIP
+================================ */
+.lp-tech-strip {
+  width: 100%;
+  overflow: hidden;
+  padding: 1rem 0;
+  background: rgba(14,165,233,0.04);
+  border-top: 1px solid rgba(14,165,233,0.1);
+  border-bottom: 1px solid rgba(14,165,233,0.1);
+}
+
+.lp-tech-track {
+  display: flex;
+  gap: 1rem;
+  width: max-content;
+  animation: techScroll 28s linear infinite;
+}
+
+.lp-tech-strip:hover .lp-tech-track {
+  animation-play-state: paused;
+}
+
+@keyframes techScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.lp-tech-pill {
+  padding: 0.3rem 0.9rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(14,165,233,0.18);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* ================================
+   MID CTA BANNER
+================================ */
+.lp-cta-banner {
+  padding: 4rem 1.5rem;
+  background: linear-gradient(135deg, rgba(14,165,233,0.08) 0%, rgba(139,92,246,0.08) 100%);
+  border-top: 1px solid rgba(14,165,233,0.12);
+  border-bottom: 1px solid rgba(139,92,246,0.12);
+}
+
+.lp-cta-banner-inner {
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lp-cta-banner-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.3;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+.lp-cta-banner-sub {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ================================
+   FOOTER TEAM
+================================ */
+.lp-footer-team {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin: 1.25rem 0;
+}
+
+.lp-footer-member {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lp-footer-member-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.lp-footer-member-role {
+  font-size: 0.72rem;
+  color: #475569;
+}
+
+/* ================================
+   RESPONSIVE
+================================ */
+@media (max-width: 768px) {
+  .lp-cta-banner-title { font-size: 1.4rem; }
+  .lp-footer-team      { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .lp-cta-banner       { padding: 3rem 1rem; }
+  .lp-cta-banner-title { font-size: 1.25rem; }
+  .lp-footer-team      { grid-template-columns: 1fr 1fr; }
+}
