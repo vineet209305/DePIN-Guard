@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Footer from './Footer';
 import './Layout.css';
-import { TeamAccessControl } from '../utils/TeamAccessControl'; // ✅ ADDED
+import { TeamAccessControl } from '../../utils/TeamAccessControl';
 
 const savedTheme = localStorage.getItem('theme') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
