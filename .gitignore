@@ -11,6 +11,7 @@ env/
 depin_env
 DATA/
 data/
+Final_Report/
 
 # --- AI Service model artifacts (large files - do not commit) ---
 *.pth

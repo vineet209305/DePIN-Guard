@@ -648,6 +648,8 @@ async def process_data(request: Request, data: SensorData):
                     json=data.dict(),
                     timeout=AI_TIMEOUT_SECONDS,
                 )
+                if response.status_code != 200 or not response.text.strip():
+                    raise Exception(f"AI service returned status {response.status_code} (service may be waking up)")
                 ai_result = response.json()
                 if ai_result.get("is_anomaly") or ai_result.get("anomaly"):
                     is_anomaly = True
